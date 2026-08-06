@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Permite relanzar el CI a mano desde la pestaña Actions sin tener que
+  # inventar un commit vacío.
+  workflow_dispatch:
 
 jobs:
   ci:
