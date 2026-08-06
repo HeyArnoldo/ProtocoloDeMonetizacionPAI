@@ -58,10 +58,17 @@ const vectors = {
     docHash: leaves[index]!.docHash,
     leafHash: hashLeaf(leaves[index]!),
   })),
+  // Array plano de los mismos leafHash. Existe porque el jsonpath con comodín
+  // (`.leaves[*].leafHash`) no devuelve un array en Foundry: los tests de
+  // Solidity necesitan una lista real para saber cuántas hojas hay y contra
+  // qué comparar. A Rust le va a servir por lo mismo.
+  leafHashes: leaves.map(hashLeaf),
   root: tree.root,
   multiProof: {
     disclosedIndices,
     ...serializeMultiProof(tree.multiProof(disclosedIndices)),
+    /** Hash de las hojas divulgadas, en el orden que devolvió el árbol. */
+    leafHashes: tree.multiProof(disclosedIndices).leaves.map(hashLeaf),
   },
 };
 

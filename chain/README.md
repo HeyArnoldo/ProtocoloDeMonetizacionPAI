@@ -6,9 +6,32 @@ Territorio Web3. Nada de acá se importa desde `apps/`: la API habla con la cade
 
 ---
 
+## Estado
+
+```bash
+cd chain
+forge build
+forge test -vv     # 39 tests
+forge fmt          # antes de commitear: el CI corre `forge fmt --check`
+```
+
+| Pieza                                           | Estado      |
+| ----------------------------------------------- | ----------- |
+| `ReceivableLeaf.sol` + vectores dorados pasando | ✅          |
+| `AssetRegistry.sol`                             | ✅ 16 tests |
+| `CertificationAttestor.sol`                     | ✅ 16 tests |
+| `BorrowingBaseEngine` (Stylus/Rust)             | ⏳          |
+| `CollateralVault.sol`                           | ⏳          |
+| `PAICertificate.sol`                            | ⏳          |
+| Scripts de deploy a Arbitrum Sepolia            | ⏳          |
+
+Las librerías son **submódulos de git**. Al clonar: `git submodule update --init --recursive`.
+
+---
+
 ## Empezar acá
 
-Lo primero no es escribir Solidity: es **hacer pasar los vectores dorados**.
+Lo primero no fue escribir Solidity: fue **hacer pasar los vectores dorados**. Ya pasan (`test/GoldenVectors.t.sol`), así que Solidity y TypeScript hashean idéntico y eso está probado, no supuesto.
 
 `packages/merkle/fixtures/golden-vectors.json` contiene entradas fijas con su `leafHash`, el `root` del árbol y un multiproof completo. Un test de Foundry que cargue ese JSON y reproduzca los mismos bytes prueba que los dos lados hashean igual — que es el único punto donde la integración puede romperse en silencio.
 

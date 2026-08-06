@@ -224,7 +224,8 @@ STORAGE_FORCE_PATH_STYLE=true   # true para MinIO (path-style), false para S3 re
 | 4   | Expediente: `assets` + `evidence` + storage + SHA-256                  | ⏳                   |
 | 5   | `certifications` + divulgación selectiva + `/verify/:code`             | ⏳                   |
 | 6   | Especificación del `BorrowingBaseEngine` con vectores dorados propios  | ⏳                   |
-| 7   | Contratos Solidity, motor Stylus, `CollateralVault`                    | Web3                 |
+| 7a  | `AssetRegistry` + `CertificationAttestor` en Solidity, con tests       | ✅                   |
+| 7b  | Motor Stylus, `CollateralVault`, `PAICertificate`                      | ⏳                   |
 | 8   | Account Abstraction ERC-4337                                           | Si alcanza el tiempo |
 
 > El paso 3 se adelantó al expediente a propósito: con el puerto en su lugar, los módulos de dominio se escriben contra una interfaz que ya tiene tests, y el lado Web3 queda desbloqueado antes.
