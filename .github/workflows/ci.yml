@@ -24,10 +24,10 @@ jobs:
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile
 
-      # Los tipos de @app/contracts viven en su dist/: hay que compilarlo
-      # antes de lint/typecheck o la api/web no resuelven el módulo.
-      - name: Build contracts
-        run: pnpm --filter @app/contracts build
+      # Los tipos de los packages viven en su dist/: hay que compilarlos antes
+      # de lint/typecheck o la api/web no resuelven los módulos.
+      - name: Build packages
+        run: pnpm --filter "./packages/*" build
 
       - name: Lint
         run: pnpm lint
