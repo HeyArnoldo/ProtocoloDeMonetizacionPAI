@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { CURRENCY, hashDebtor, hashLeaf, toDueDate, type ReceivableLeaf } from './leaf';
+import { buildTree, deserializeMultiProof, serializeMultiProof, verifyMultiProof } from './tree';
 
 const SALT = `0x${'0f'.repeat(32)}` as const;
-import { buildTree, deserializeMultiProof, serializeMultiProof, verifyMultiProof } from './tree';
 
 function portfolio(count: number): ReceivableLeaf[] {
   return Array.from({ length: count }, (_, i) => ({
