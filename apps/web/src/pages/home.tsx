@@ -17,8 +17,8 @@ export default function HomePage() {
         <CardHeader>
           <CardTitle>Divulgación selectiva</CardTitle>
           <CardDescription>
-            Elegí qué cuotas mostrarle al prestamista y construí la prueba. Es el momento de la demo
-            donde se ve algo que no se ve en las otras 40.
+            Elige qué cuotas mostrarle al prestamista y construye la prueba. Es el momento de la
+            demo donde se ve algo que no se ve en las otras 40.
           </CardDescription>
         </CardHeader>
         <CardContent>

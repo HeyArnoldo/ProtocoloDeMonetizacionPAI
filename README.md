@@ -41,7 +41,7 @@ pnpm seed                            # admin inicial (idempotente)
 pnpm dev                             # api en :3000, web en :5173
 ```
 
-Entra en **http://localhost:5173** con el `ADMIN_EMAIL` / `ADMIN_PASSWORD` de tu `.env`, y andá a **Divulgación selectiva** en el menú.
+Abre **http://localhost:5173**, inicia sesión con el `ADMIN_EMAIL` / `ADMIN_PASSWORD` de tu `.env` y ve a **Divulgación selectiva** en el menú.
 
 Contratos (opcional, necesita [Foundry](https://getfoundry.sh)):
 
@@ -54,7 +54,7 @@ cd chain && forge test -vv
 
 ## 🔑 El `.env` completo
 
-`.env.example` en el repo **todavía no tiene las variables de cadena y storage**. Este bloque sí las tiene: copialo entero a `.env` y ajustá `JWT_SECRET` y `ADMIN_*`.
+`.env.example` en el repo **todavía no tiene las variables de cadena y storage**. Este bloque sí las tiene: cópialo entero a `.env` y ajusta `JWT_SECRET` y `ADMIN_*`.
 
 ```env
 # ── Entorno ──────────────────────────────────────────────────────────

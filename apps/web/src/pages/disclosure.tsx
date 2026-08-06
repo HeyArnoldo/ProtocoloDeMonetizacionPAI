@@ -108,7 +108,7 @@ export default function DisclosurePage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Divulgación selectiva</h1>
         <p className="text-muted-foreground max-w-3xl text-sm">
-          Elegí qué cuotas mostrarle al prestamista. La prueba demuestra que pertenecen al
+          Elige qué cuotas mostrarle al prestamista. La prueba demuestra que pertenecen al
           expediente certificado <strong>sin revelar las demás ni sus contrapartes</strong>. Sin ZK:
           solo un árbol de Merkle.
         </p>
