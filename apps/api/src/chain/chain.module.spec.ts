@@ -1,0 +1,55 @@
+import { Global, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Test } from '@nestjs/testing';
+import { ArbitrumChainAdapter } from './adapters/arbitrum.adapter';
+import { InMemoryChainAdapter } from './adapters/in-memory.adapter';
+import { ChainModule } from './chain.module';
+import { CHAIN_PORT, type ChainPort } from './chain.port';
+
+/**
+ * `ChainModule` cuenta con que `ConfigService` sea global — en la app lo es,
+ * porque `ConfigModule.forRoot({ isGlobal: true })`. El test reproduce esa
+ * condición en vez de esquivarla: si alguien quita `isGlobal`, esto se rompe
+ * acá y no en el arranque de producción.
+ */
+function fakeConfigModule(chainAdapter: string | undefined) {
+  @Global()
+  @Module({
+    providers: [{ provide: ConfigService, useValue: { get: () => chainAdapter } }],
+    exports: [ConfigService],
+  })
+  class FakeConfigModule {}
+
+  return FakeConfigModule;
+}
+
+async function resolvePort(chainAdapter: string | undefined): Promise<ChainPort> {
+  const moduleRef = await Test.createTestingModule({
+    imports: [fakeConfigModule(chainAdapter), ChainModule],
+  }).compile();
+
+  return moduleRef.get<ChainPort>(CHAIN_PORT);
+}
+
+describe('ChainModule', () => {
+  it('inyecta el adapter en memoria por defecto', async () => {
+    expect(await resolvePort('in-memory')).toBeInstanceOf(InMemoryChainAdapter);
+  });
+
+  it('inyecta el adapter de Arbitrum cuando se pide', async () => {
+    expect(await resolvePort('arbitrum')).toBeInstanceOf(ArbitrumChainAdapter);
+  });
+
+  it('cae al adapter en memoria ante un valor desconocido', async () => {
+    // Fallar hacia el fake es lo seguro: nunca hacia el adapter que manda
+    // transacciones reales por una variable de entorno mal escrita.
+    expect(await resolvePort('arbitrium')).toBeInstanceOf(InMemoryChainAdapter);
+    expect(await resolvePort(undefined)).toBeInstanceOf(InMemoryChainAdapter);
+  });
+
+  it('expone el puerto bajo el token CHAIN_PORT', async () => {
+    const port = await resolvePort('in-memory');
+    expect(typeof port.registerAsset).toBe('function');
+    expect(typeof port.computeBorrowingBase).toBe('function');
+  });
+});

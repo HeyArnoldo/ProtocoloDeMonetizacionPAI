@@ -219,11 +219,16 @@ STORAGE_FORCE_PATH_STYLE=true   # true para MinIO (path-style), false para S3 re
 | #   | Entrega                                                                | Estado               |
 | --- | ---------------------------------------------------------------------- | -------------------- |
 | 1   | Bootstrap del monorepo, docs, CI                                       | ✅                   |
-| 2   | `packages/merkle` — hoja canónica, árbol, multiproof, vectores dorados | ⏳                   |
-| 3   | Expediente: `assets` + `evidence` + storage + SHA-256                  | ⏳                   |
-| 4   | `ChainPort` + adapter en memoria + esqueleto de `chain/`               | ⏳                   |
+| 2   | `packages/merkle` — hoja canónica, árbol, multiproof, vectores dorados | ✅                   |
+| 3   | `ChainPort` + adapter en memoria + esqueleto de `chain/`               | ✅                   |
+| 4   | Expediente: `assets` + `evidence` + storage + SHA-256                  | ⏳                   |
 | 5   | `certifications` + divulgación selectiva + `/verify/:code`             | ⏳                   |
-| 6   | Contratos Solidity, motor Stylus, `CollateralVault`                    | Web3                 |
-| 7   | Account Abstraction ERC-4337                                           | Si alcanza el tiempo |
+| 6   | Especificación del `BorrowingBaseEngine` con vectores dorados propios  | ⏳                   |
+| 7   | Contratos Solidity, motor Stylus, `CollateralVault`                    | Web3                 |
+| 8   | Account Abstraction ERC-4337                                           | Si alcanza el tiempo |
+
+> El paso 3 se adelantó al expediente a propósito: con el puerto en su lugar, los módulos de dominio se escriben contra una interfaz que ya tiene tests, y el lado Web3 queda desbloqueado antes.
+
+> El paso 6 merece el mismo tratamiento que la hoja de Merkle: la fórmula del borrowing base, sus tipos de punto fijo y sus casos borde definidos en TypeScript, con vectores dorados que el motor Stylus deba reproducir. Es lo que evita que el backend y el motor discrepen justo cuando el fondo recomputa en vivo, que es el momento de la demo donde no hay margen.
 
 **Riesgo asumido:** si el equipo se traba con Rust, el `CollateralVault` arranca en Solidity y Stylus llega después. Un vault roto hunde el 25% de implementación técnica; un Stylus modesto pero funcional asegura el bounty.
