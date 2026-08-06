@@ -31,10 +31,10 @@ Cada mitad se desarrolla y se testea sola. Se encuentran en esas dos piezas.
 
 ## 2. Los dos hashes (no son intercambiables)
 
-| Uso | Algoritmo | Por qué |
-| --- | --- | --- |
-| Huella de un archivo de evidencia | **SHA-256** | Estándar fuera de la cadena. Cualquier auditor lo verifica con `sha256sum`, sin tooling cripto |
-| Hoja y nodos del árbol de Merkle | **keccak256** | Es el hash nativo del EVM. Verificar SHA-256 on-chain cuesta caro y sin ninguna ventaja |
+| Uso                               | Algoritmo     | Por qué                                                                                        |
+| --------------------------------- | ------------- | ---------------------------------------------------------------------------------------------- |
+| Huella de un archivo de evidencia | **SHA-256**   | Estándar fuera de la cadena. Cualquier auditor lo verifica con `sha256sum`, sin tooling cripto |
+| Hoja y nodos del árbol de Merkle  | **keccak256** | Es el hash nativo del EVM. Verificar SHA-256 on-chain cuesta caro y sin ninguna ventaja        |
 
 El `docHash` (SHA-256, 32 bytes) entra **como dato** dentro de la hoja que se hashea con keccak256. Los dos conviven, cada uno en su capa.
 
@@ -48,17 +48,35 @@ El `docHash` (SHA-256, 32 bytes) entra **como dato** dentro de la hoja que se ha
 
 Una hoja representa **una cuota de un contrato de suscripción**: un tercero obligado a pagar un monto en una fecha.
 
-| Campo | Tipo ABI | Definición |
-| --- | --- | --- |
-| `debtorHash` | `bytes32` | `keccak256(utf8(ruc))` del deudor. **Nunca el RUC en claro**: la hoja puede publicarse en un proof |
-| `amountMinor` | `uint256` | Monto en unidades menores. USD 8,000.00 → `800000`. Sin decimales flotantes, nunca |
-| `dueDate` | `uint64` | Segundos Unix, medianoche **UTC** del día de vencimiento |
-| `currency` | `uint16` | Código numérico ISO-4217: USD = `840`, PEN = `604` |
-| `docHash` | `bytes32` | SHA-256 del documento fuente en storage |
+| Campo         | Tipo ABI  | Definición                                                                                                |
+| ------------- | --------- | --------------------------------------------------------------------------------------------------------- |
+| `debtorHash`  | `bytes32` | `keccak256(salt ‖ utf8(ruc))` del deudor. **Nunca el RUC en claro**: la hoja puede publicarse en un proof |
+| `amountMinor` | `uint256` | Monto en unidades menores. USD 8,000.00 → `800000`. Sin decimales flotantes, nunca                        |
+| `dueDate`     | `uint64`  | Segundos Unix, medianoche **UTC** del día de vencimiento                                                  |
+| `currency`    | `uint16`  | Código numérico ISO-4217: USD = `840`, PEN = `604`                                                        |
+| `docHash`     | `bytes32` | SHA-256 del documento fuente en storage                                                                   |
 
 ```
 leaf = keccak256(keccak256(abi.encode(debtorHash, amountMinor, dueDate, currency, docHash)))
 ```
+
+### Por qué el `debtorHash` lleva salt (y no es opcional)
+
+Un RUC peruano son 11 dígitos: 10¹¹ combinaciones. Un `keccak256` sin salt sobre ese espacio se rompe por fuerza bruta en minutos con hardware común.
+
+Sin salt, cualquiera que reciba un multiproof puede enumerar RUCs, comparar hashes y **reconstruir la cartera de clientes de la empresa**. Eso destruye exactamente la promesa que sostiene el proyecto: _probar sin revelar las contrapartes_.
+
+Con un salt de 32 bytes por expediente el espacio deja de ser enumerable, y quien tenga el salt — el fondo, el certificador — igual puede recomputar y verificar. El salt se genera al crear el expediente (`randomDebtorSalt()`), vive del lado del servidor y se comparte solo con quien deba verificar.
+
+> Consecuencia para el motor Stylus: el haircut de concentración se calcula comparando `debtorHash` entre hojas. **No necesita saber quién es el deudor**, solo qué cuotas comparten deudor. La privacidad no cuesta funcionalidad.
+
+### Lo que un multiproof SÍ revela
+
+Conviene tenerlo claro antes de que lo pregunte un jurado: un multiproof **incluye hashes de hojas hermanas no divulgadas**. Así funciona un árbol de Merkle.
+
+Lo que no revela es su **contenido**: ni deudor, ni monto, ni vencimiento, ni documento. El `leafHash` es irreversible porque contiene el `docHash` (SHA-256 de un archivo real), que tiene entropía completa y no se puede adivinar.
+
+La afirmación precisa es _"no revela el contenido de las hojas ocultas"_, no _"las hojas ocultas no aparecen"_. La segunda es falsa y un jurado técnico lo va a notar.
 
 ### Por qué `uint16` para la moneda y no un string
 
@@ -146,7 +164,7 @@ Marketplace, tokens transferibles, oráculos descentralizados, fraccionamiento, 
 
 Cuestan tiempo y abren preguntas regulatorias que no se pueden responder en un pitch de 4 minutos.
 
-El `PAICertificate` es **soulbound** a propósito: representa que un activo *fue certificado*, no su propiedad. Un token transferible sería tokenizar derechos económicos, que es otra conversación y otra jurisdicción.
+El `PAICertificate` es **soulbound** a propósito: representa que un activo _fue certificado_, no su propiedad. Un token transferible sería tokenizar derechos económicos, que es otra conversación y otra jurisdicción.
 
 ---
 
@@ -198,14 +216,14 @@ STORAGE_FORCE_PATH_STYLE=true   # true para MinIO (path-style), false para S3 re
 
 ## 10. Orden de construcción
 
-| # | Entrega | Estado |
-| --- | --- | --- |
-| 1 | Bootstrap del monorepo, docs, CI | ✅ |
-| 2 | `packages/merkle` — hoja canónica, árbol, multiproof, vectores dorados | ⏳ |
-| 3 | Expediente: `assets` + `evidence` + storage + SHA-256 | ⏳ |
-| 4 | `ChainPort` + adapter en memoria + esqueleto de `chain/` | ⏳ |
-| 5 | `certifications` + divulgación selectiva + `/verify/:code` | ⏳ |
-| 6 | Contratos Solidity, motor Stylus, `CollateralVault` | Web3 |
-| 7 | Account Abstraction ERC-4337 | Si alcanza el tiempo |
+| #   | Entrega                                                                | Estado               |
+| --- | ---------------------------------------------------------------------- | -------------------- |
+| 1   | Bootstrap del monorepo, docs, CI                                       | ✅                   |
+| 2   | `packages/merkle` — hoja canónica, árbol, multiproof, vectores dorados | ⏳                   |
+| 3   | Expediente: `assets` + `evidence` + storage + SHA-256                  | ⏳                   |
+| 4   | `ChainPort` + adapter en memoria + esqueleto de `chain/`               | ⏳                   |
+| 5   | `certifications` + divulgación selectiva + `/verify/:code`             | ⏳                   |
+| 6   | Contratos Solidity, motor Stylus, `CollateralVault`                    | Web3                 |
+| 7   | Account Abstraction ERC-4337                                           | Si alcanza el tiempo |
 
 **Riesgo asumido:** si el equipo se traba con Rust, el `CollateralVault` arranca en Solidity y Stylus llega después. Un vault roto hunde el 25% de implementación técnica; un Stylus modesto pero funcional asegura el bounty.

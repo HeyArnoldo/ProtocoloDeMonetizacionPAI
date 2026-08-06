@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "description": "Vectores dorados de la hoja canónica. Los tests de Solidity y Stylus deben reproducirlos.",
+  "leafAbiTypes": ["bytes32", "uint256", "uint64", "uint16", "bytes32"],
+  "debtorSalt": "0xa5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+  "leaves": [
+    {
+      "debtorTaxId": "20512345678",
+      "debtorHash": "0xcef126717b3dd9ddd4d4d59c2ebf1944f421534b720e3347c659cb0ffcec6f35",
+      "amountMinor": "800000",
+      "dueDate": 1773532800,
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "leafHash": "0xcd30535257db6badd330c2688ba67335744d408079d092a99b9da9b19a81012b"
+    },
+    {
+      "debtorTaxId": "20512345678",
+      "debtorHash": "0xcef126717b3dd9ddd4d4d59c2ebf1944f421534b720e3347c659cb0ffcec6f35",
+      "amountMinor": "800000",
+      "dueDate": 1776211200,
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "leafHash": "0x7bd5ffa84fa32d451e384e87c2c5dc231cab6aa4461c9f5d44534af2be8c8977"
+    },
+    {
+      "debtorTaxId": "20487654321",
+      "debtorHash": "0x0ade0376fab58c5b85468e9335a29047292b7dcc174e3e24b436c9ac5debe103",
+      "amountMinor": "1250000",
+      "dueDate": 1774915200,
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "leafHash": "0x5d7590e38cf3e3e67a900942c15d42799658e23025373b6f477927a75fe585b6"
+    },
+    {
+      "debtorTaxId": "20487654321",
+      "debtorHash": "0x0ade0376fab58c5b85468e9335a29047292b7dcc174e3e24b436c9ac5debe103",
+      "amountMinor": "1250000",
+      "dueDate": 1777507200,
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000003",
+      "leafHash": "0xeeaca7ed4edc238ea44030aa6cc68bc960f8d81ba120a86c74b18df94c3537a2"
+    },
+    {
+      "debtorTaxId": "20100200300",
+      "debtorHash": "0xca3e0a810f38223afb5a20e1913a0c427eb1a3bc7726487e9942fb836bdff74f",
+      "amountMinor": "450000",
+      "dueDate": 1777593600,
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000004",
+      "leafHash": "0x2168aab530bebb102d5eba03655e2862701acaa0c3edeb949a714a1037aa3d4b"
+    },
+    {
+      "debtorTaxId": "20100200300",
+      "debtorHash": "0xca3e0a810f38223afb5a20e1913a0c427eb1a3bc7726487e9942fb836bdff74f",
+      "amountMinor": "450000",
+      "dueDate": 1780272000,
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000005",
+      "leafHash": "0x7be4376997d7da1673182b0d76c00a59adb506b9d76656c05ed4ce12a7cf34e8"
+    }
+  ],
+  "root": "0xae9f25fb27b924bb6bd76af932b3b3f1651c209da7b60cd0212b04fcfe0fda00",
+  "multiProof": {
+    "disclosedIndices": [0, 2, 4],
+    "leaves": [
+      {
+        "debtorHash": "0xca3e0a810f38223afb5a20e1913a0c427eb1a3bc7726487e9942fb836bdff74f",
+        "amountMinor": "450000",
+        "dueDate": 1777593600,
+        "currency": 840,
+        "docHash": "0x0000000000000000000000000000000000000000000000000000000000000004"
+      },
+      {
+        "debtorHash": "0x0ade0376fab58c5b85468e9335a29047292b7dcc174e3e24b436c9ac5debe103",
+        "amountMinor": "1250000",
+        "dueDate": 1774915200,
+        "currency": 840,
+        "docHash": "0x0000000000000000000000000000000000000000000000000000000000000002"
+      },
+      {
+        "debtorHash": "0xcef126717b3dd9ddd4d4d59c2ebf1944f421534b720e3347c659cb0ffcec6f35",
+        "amountMinor": "800000",
+        "dueDate": 1773532800,
+        "currency": 840,
+        "docHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ],
+    "proof": [
+      "0xeeaca7ed4edc238ea44030aa6cc68bc960f8d81ba120a86c74b18df94c3537a2",
+      "0x159b87463a857a271450e3cca5d47838224d31e1af4f7e71be37e7f8d44ebae7"
+    ],
+    "proofFlags": [true, false, false, true]
+  }
+}
