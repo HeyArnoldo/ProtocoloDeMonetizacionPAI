@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LogOut, User as UserIcon } from 'lucide-react';
 import { useLogout, useMe } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -23,8 +23,22 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <span className="font-semibold">Template FullStack</span>
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+          <div className="flex items-center gap-6">
+            <Link to="/" className="font-semibold">
+              Protocolo PAI
+            </Link>
+            <nav className="flex items-center gap-4 text-sm">
+              <NavLink
+                to="/disclosure"
+                className={({ isActive }) =>
+                  isActive ? 'font-medium' : 'text-muted-foreground hover:text-foreground'
+                }
+              >
+                Divulgación selectiva
+              </NavLink>
+            </nav>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2">
@@ -45,7 +59,7 @@ export function AppLayout() {
           </DropdownMenu>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl p-4">
+      <main className="mx-auto max-w-6xl p-4">
         <Outlet />
       </main>
     </div>
