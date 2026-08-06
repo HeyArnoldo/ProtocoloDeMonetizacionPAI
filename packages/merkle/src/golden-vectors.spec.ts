@@ -47,6 +47,26 @@ describe('vectores dorados', () => {
     expect(buildTree(leaves).root).toBe(vectors.root);
   });
 
+  it('el array plano leafHashes coincide con las hojas', () => {
+    // Existe porque el jsonpath con comodin no devuelve arrays en Foundry.
+    // Si se desincroniza, los tests de Solidity comparan contra basura.
+    expect(vectors.leafHashes).toEqual(vectors.leaves.map((row) => row.leafHash));
+  });
+
+  it('el array plano del multiproof coincide con sus hojas divulgadas', () => {
+    const disclosed = vectors.multiProof.leaves.map((leaf) =>
+      hashLeaf({
+        debtorHash: leaf.debtorHash as Hex,
+        amountMinor: BigInt(leaf.amountMinor),
+        dueDate: leaf.dueDate,
+        currency: leaf.currency as typeof CURRENCY.USD,
+        docHash: leaf.docHash as Hex,
+      }),
+    );
+
+    expect(vectors.multiProof.leafHashes).toEqual(disclosed);
+  });
+
   it('el multiproof del fixture verifica contra el root del fixture', () => {
     const proof = deserializeMultiProof({
       leaves: vectors.multiProof.leaves.map((leaf) => ({

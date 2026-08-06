@@ -43,3 +43,30 @@ jobs:
 
       - name: Tests
         run: pnpm test
+
+  # Job aparte: no comparte nada con el de Node y así los dos corren en
+  # paralelo. Si el de contratos falla, el problema está en chain/.
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      # Las librerías de Foundry (forge-std, openzeppelin-contracts) son
+      # submódulos: sin esto, `forge build` no encuentra nada.
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Formato de Solidity
+        run: forge fmt --check
+        working-directory: chain
+
+      - name: Build
+        run: forge build --sizes
+        working-directory: chain
+
+      # Los tests de vectores dorados leen packages/merkle/fixtures: prueban
+      # que Solidity y TypeScript hashean exactamente igual.
+      - name: Tests
+        run: forge test -vvv
+        working-directory: chain

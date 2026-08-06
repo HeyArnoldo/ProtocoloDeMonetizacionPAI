@@ -15,10 +15,10 @@ Decisiones de arquitectura y frontera Web2 ↔ Web3: [`docs/arquitectura.md`](do
 
 El repo está diseñado para que las dos mitades avancen **en paralelo, sin bloquearse**:
 
-| Mitad | Dónde vive | Qué contiene |
-| --- | --- | --- |
-| **Web2** | `apps/`, `packages/` | Expediente, evidencias, certificaciones, UI. Corre entero sin cadena |
-| **Web3** | `chain/`, `packages/evm` | Contratos Solidity, motor Stylus (Rust), ABIs generados |
+| Mitad    | Dónde vive               | Qué contiene                                                         |
+| -------- | ------------------------ | -------------------------------------------------------------------- |
+| **Web2** | `apps/`, `packages/`     | Expediente, evidencias, certificaciones, UI. Corre entero sin cadena |
+| **Web3** | `chain/`, `packages/evm` | Contratos Solidity, motor Stylus (Rust), ABIs generados              |
 
 La frontera entre ambas son **dos artefactos**, no un deploy:
 
@@ -34,14 +34,102 @@ La frontera entre ambas son **dos artefactos**, no un deploy:
 ```bash
 cp .env.example .env                 # ajusta JWT_SECRET y ADMIN_*
 pnpm install
-pnpm --filter @app/contracts build   # la API importa @app/contracts: sin esto fallan las migraciones
+pnpm --filter "./packages/*" build   # la API importa @app/contracts y @app/merkle
 pnpm db:up                           # postgres en docker
 pnpm migration:run
 pnpm seed                            # admin inicial (idempotente)
 pnpm dev                             # api en :3000, web en :5173
 ```
 
-Entra en **http://localhost:5173** con el `ADMIN_EMAIL` / `ADMIN_PASSWORD` de tu `.env`.
+Abre **http://localhost:5173**, inicia sesión con el `ADMIN_EMAIL` / `ADMIN_PASSWORD` de tu `.env` y ve a **Divulgación selectiva** en el menú.
+
+Contratos (opcional, necesita [Foundry](https://getfoundry.sh)):
+
+```bash
+git submodule update --init --recursive
+cd chain && forge test -vv
+```
+
+---
+
+## 🔑 El `.env` completo
+
+`.env.example` en el repo **todavía no tiene las variables de cadena y storage**. Este bloque sí las tiene: cópialo entero a `.env` y ajusta `JWT_SECRET` y `ADMIN_*`.
+
+```env
+# ── Entorno ──────────────────────────────────────────────────────────
+NODE_ENV=development
+
+# ── Base de datos (PostgreSQL) ───────────────────────────────────────
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=app
+DB_PASSWORD=app
+DB_NAME=pai_arbitrum
+
+# ── API ──────────────────────────────────────────────────────────────
+API_PORT=3000
+# Orígenes permitidos para CORS, separados por coma (nunca usar *)
+CORS_ORIGIN=http://localhost:5173
+# URL del frontend (redirects post-login de Google)
+FRONTEND_URL=http://localhost:5173
+
+# ── Auth ─────────────────────────────────────────────────────────────
+AUTH_LOCAL_ENABLED=true
+# Mínimo 16 caracteres. Genera uno: openssl rand -base64 32
+JWT_SECRET=cambiame_por_un_secreto_largo
+JWT_EXPIRES_IN=7d
+BCRYPT_ROUNDS=12
+
+# Cookie de sesión httpOnly. En producción detrás de HTTPS: COOKIE_SECURE=true
+COOKIE_SECURE=false
+# lax si front y api comparten dominio; none (+secure) si son dominios distintos
+COOKIE_SAMESITE=lax
+COOKIE_DOMAIN=
+
+# ── Google OAuth (opcional) ──────────────────────────────────────────
+# Con CLIENT_ID y CLIENT_SECRET, el login con Google se activa solo.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
+
+# ── Admin inicial (seed idempotente) ─────────────────────────────────
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=Admin1234!
+ADMIN_NAME=Admin
+
+# ── Frontend (Vite) ──────────────────────────────────────────────────
+# Vacío en dev (usa el proxy /api). En producción: https://api.tudominio.com
+VITE_API_URL=
+
+# ── Cadena (Arbitrum) ────────────────────────────────────────────────
+# in-memory → la API funciona sin cadena: dev, tests y demo Web2.
+# arbitrum  → usa los contratos desplegados. Exige RPC, direcciones y clave.
+CHAIN_ADAPTER=in-memory
+CHAIN_ID=421614
+CHAIN_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
+
+# Direcciones desplegadas — vacías hasta el primer deploy a Arbitrum Sepolia
+ASSET_REGISTRY_ADDRESS=
+CERTIFICATION_ATTESTOR_ADDRESS=
+BORROWING_BASE_ENGINE_ADDRESS=
+
+# Wallet del backend: SOLO firma atestaciones EIP-712, nunca mueve dinero
+ATTESTOR_PRIVATE_KEY=
+
+# ── Storage de evidencias (MinIO en local, S3/R2 en producción) ──────
+STORAGE_ENDPOINT=http://localhost:9000
+STORAGE_REGION=us-east-1
+STORAGE_BUCKET=pai-evidence
+STORAGE_ACCESS_KEY=minioadmin
+STORAGE_SECRET_KEY=minioadmin
+# true para MinIO (path-style), false para S3 real
+STORAGE_FORCE_PATH_STYLE=true
+```
+
+> Con `CHAIN_ADAPTER=arbitrum`, `CHAIN_RPC_URL`, `ASSET_REGISTRY_ADDRESS`, `CERTIFICATION_ATTESTOR_ADDRESS` y `ATTESTOR_PRIVATE_KEY` **dejan de ser opcionales**: la API no levanta sin ellas. Es a propósito — mejor no arrancar que fallar en la primera transacción del demo.
+>
+> Las variables de storage todavía no están validadas por Zod: entran con el módulo de evidencias.
 
 ---
 
@@ -70,16 +158,16 @@ Los ABIs salen de `chain/` hacia `packages/evm` **por build, nunca a mano**. Un 
 
 ## 🛠 Scripts (desde la raíz)
 
-| Comando | Qué hace |
-| --- | --- |
-| `pnpm dev` | API + web + contracts en watch, en paralelo |
-| `pnpm dev:api` / `pnpm dev:web` | Solo una app |
-| `pnpm build` | Build de todo (contracts → api → web, en orden) |
-| `pnpm lint` / `pnpm typecheck` / `pnpm test` | Calidad en todos los workspaces |
-| `pnpm db:up` / `pnpm db:down` | Postgres en Docker |
-| `pnpm migration:generate src/database/migrations/Nombre` | Genera migración desde los cambios en entities |
-| `pnpm migration:run` / `pnpm migration:revert` | Aplica / revierte migraciones |
-| `pnpm seed` | Admin inicial (idempotente) |
+| Comando                                                  | Qué hace                                        |
+| -------------------------------------------------------- | ----------------------------------------------- |
+| `pnpm dev`                                               | API + web + contracts en watch, en paralelo     |
+| `pnpm dev:api` / `pnpm dev:web`                          | Solo una app                                    |
+| `pnpm build`                                             | Build de todo (contracts → api → web, en orden) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test`             | Calidad en todos los workspaces                 |
+| `pnpm db:up` / `pnpm db:down`                            | Postgres en Docker                              |
+| `pnpm migration:generate src/database/migrations/Nombre` | Genera migración desde los cambios en entities  |
+| `pnpm migration:run` / `pnpm migration:revert`           | Aplica / revierte migraciones                   |
+| `pnpm seed`                                              | Admin inicial (idempotente)                     |
 
 ---
 
@@ -130,11 +218,11 @@ El JWT viaja en cookie `httpOnly` (`app_session`): el frontend nunca toca el tok
 
 Cada app se despliega como recurso independiente con su Dockerfile (**build context = raíz del repo**):
 
-| | API | Web |
-| --- | --- | --- |
-| Dockerfile | `apps/api/Dockerfile` | `apps/web/Dockerfile` |
-| Puerto | 3000 | 80 |
-| Healthcheck | `/health` | `/` |
+|             | API                   | Web                   |
+| ----------- | --------------------- | --------------------- |
+| Dockerfile  | `apps/api/Dockerfile` | `apps/web/Dockerfile` |
+| Puerto      | 3000                  | 80                    |
+| Healthcheck | `/health`             | `/`                   |
 
 `API_PORT` **no se define** en Coolify: el default es 3000 y el healthcheck del Dockerfile está fijado ahí.
 
@@ -142,10 +230,10 @@ Cada app se despliega como recurso independiente con su Dockerfile (**build cont
 
 Cookies entre dominios:
 
-| Caso | Config |
-| --- | --- |
-| `app.dominio.com` + `api.dominio.com` | `COOKIE_DOMAIN=.dominio.com` y `COOKIE_SAMESITE=lax` |
-| Dominios distintos | `COOKIE_SAMESITE=none` + `COOKIE_SECURE=true` obligatorio |
+| Caso                                  | Config                                                    |
+| ------------------------------------- | --------------------------------------------------------- |
+| `app.dominio.com` + `api.dominio.com` | `COOKIE_DOMAIN=.dominio.com` y `COOKIE_SAMESITE=lax`      |
+| Dominios distintos                    | `COOKIE_SAMESITE=none` + `COOKIE_SECURE=true` obligatorio |
 
 Probar los Dockerfiles en local antes de subir:
 

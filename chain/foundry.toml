@@ -1,0 +1,23 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+solc = "0.8.28"
+optimizer = true
+optimizer_runs = 200
+# Los vectores dorados viven fuera de chain/: los tests los cargan con
+# vm.readFile, que exige permiso explícito de lectura.
+fs_permissions = [{ access = "read", path = "../packages/merkle/fixtures" }]
+
+[fmt]
+# Mismo ancho que prettier en el resto del monorepo (.prettierrc.json).
+line_length = 100
+tab_width = 4
+bracket_spacing = false
+
+[rpc_endpoints]
+arbitrum_sepolia = "${CHAIN_RPC_URL}"
+
+[etherscan]
+arbitrum_sepolia = { key = "${ARBISCAN_API_KEY}", chain = 421614 }
