@@ -1,0 +1,9 @@
+{
+  "name": "@app/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Configuración base de TypeScript compartida por el monorepo",
+  "files": [
+    "tsconfig.base.json"
+  ]
+}

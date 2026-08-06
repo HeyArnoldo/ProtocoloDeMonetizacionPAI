@@ -1,0 +1,29 @@
+{
+  "name": "@app/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Schemas Zod y tipos compartidos entre API y web — única fuente de verdad",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@app/tsconfig": "workspace:*",
+    "tsup": "^8.5.0",
+    "typescript": "~5.9.3"
+  }
+}

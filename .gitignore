@@ -1,0 +1,21 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+*.tsbuildinfo
+
+# Entorno — NUNCA commitear secretos
+.env
+.env.local
+.env.*.local
+
+# Logs y coverage
+*.log
+coverage/
+
+# Editor / SO
+.DS_Store
+.idea/
+.vscode/

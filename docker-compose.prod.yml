@@ -1,0 +1,59 @@
+# Stack completo para VERIFICAR los Dockerfiles localmente (no es el deploy real;
+# en Coolify cada app se despliega con su propio Dockerfile).
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   → web en http://localhost:8090, api en http://localhost:3000
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
+      POSTGRES_DB: ${DB_NAME:-pai_arbitrum}
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-app} -d ${DB_NAME:-pai_arbitrum}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-app}
+      DB_PASSWORD: ${DB_PASSWORD:-app}
+      DB_NAME: ${DB_NAME:-pai_arbitrum}
+      API_PORT: 3000
+      CORS_ORIGIN: http://localhost:8090
+      FRONTEND_URL: http://localhost:8090
+      AUTH_LOCAL_ENABLED: ${AUTH_LOCAL_ENABLED:-true}
+      JWT_SECRET: ${JWT_SECRET:-cambiame_por_un_secreto_largo}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin}
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # En esta verificación local el navegador pega directo a la API expuesta.
+        VITE_API_URL: http://localhost:3000
+    ports:
+      - '8090:80'
+    depends_on:
+      - api
+
+volumes:
+  pgdata_prod:

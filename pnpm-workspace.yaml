@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+# pnpm 11 exige declarar qué dependencias pueden correr scripts de build nativos.
+# Sin esto, `pnpm install` aborta con ERR_PNPM_IGNORED_BUILDS y esbuild /
+# @tailwindcss/oxide no compilan sus bindings -> Vite no arranca.
+allowBuilds:
+  "@nestjs/core": true
+  esbuild: true
+  "@tailwindcss/oxide": true
+  unrs-resolver: true
