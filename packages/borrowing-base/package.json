@@ -1,0 +1,39 @@
+{
+  "name": "@app/borrowing-base",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Motor de borrowing base — especificación normativa que el BorrowingBaseEngine de Stylus debe reproducir",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./fixtures/golden-vectors.json": "./fixtures/golden-vectors.json"
+  },
+  "files": [
+    "dist",
+    "fixtures"
+  ],
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "vectors:generate": "tsx scripts/generate-vectors.ts"
+  },
+  "dependencies": {
+    "@app/merkle": "workspace:*"
+  },
+  "devDependencies": {
+    "@app/tsconfig": "workspace:*",
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

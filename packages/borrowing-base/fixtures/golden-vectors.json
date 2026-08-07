@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "description": "Vectores dorados del motor de borrowing base. Los tests de Stylus deben reproducir estos enteros.",
+  "note": "Los parámetros son ilustrativos y necesitan calibración de un analista de riesgo real.",
+  "debtorSalt": "0xa5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+  "params": {
+    "valuationDate": 1767225600,
+    "discountRateBps": 1800,
+    "delinquencyBps": 420,
+    "concentrationThresholdBps": 2500,
+    "concentrationPenaltyBps": 4000,
+    "serviceContinuityScore": 78,
+    "serviceContinuityWeightBps": 1000,
+    "advanceRateBps": 5280
+  },
+  "leaves": [
+    {
+      "debtorTaxId": "20512345678",
+      "debtorHash": "0xcef126717b3dd9ddd4d4d59c2ebf1944f421534b720e3347c659cb0ffcec6f35",
+      "amountMinor": "800000",
+      "dueDate": 1771113600,
+      "dueDateIso": "2026-02-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "debtorTaxId": "20512345678",
+      "debtorHash": "0xcef126717b3dd9ddd4d4d59c2ebf1944f421534b720e3347c659cb0ffcec6f35",
+      "amountMinor": "800000",
+      "dueDate": 1778803200,
+      "dueDateIso": "2026-05-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000002"
+    },
+    {
+      "debtorTaxId": "20512345678",
+      "debtorHash": "0xcef126717b3dd9ddd4d4d59c2ebf1944f421534b720e3347c659cb0ffcec6f35",
+      "amountMinor": "800000",
+      "dueDate": 1786752000,
+      "dueDateIso": "2026-08-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000003"
+    },
+    {
+      "debtorTaxId": "20512345678",
+      "debtorHash": "0xcef126717b3dd9ddd4d4d59c2ebf1944f421534b720e3347c659cb0ffcec6f35",
+      "amountMinor": "800000",
+      "dueDate": 1794700800,
+      "dueDateIso": "2026-11-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000004"
+    },
+    {
+      "debtorTaxId": "20487654321",
+      "debtorHash": "0x0ade0376fab58c5b85468e9335a29047292b7dcc174e3e24b436c9ac5debe103",
+      "amountMinor": "1250000",
+      "dueDate": 1771113600,
+      "dueDateIso": "2026-02-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000005"
+    },
+    {
+      "debtorTaxId": "20487654321",
+      "debtorHash": "0x0ade0376fab58c5b85468e9335a29047292b7dcc174e3e24b436c9ac5debe103",
+      "amountMinor": "1250000",
+      "dueDate": 1778803200,
+      "dueDateIso": "2026-05-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000006"
+    },
+    {
+      "debtorTaxId": "20487654321",
+      "debtorHash": "0x0ade0376fab58c5b85468e9335a29047292b7dcc174e3e24b436c9ac5debe103",
+      "amountMinor": "1250000",
+      "dueDate": 1786752000,
+      "dueDateIso": "2026-08-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000007"
+    },
+    {
+      "debtorTaxId": "20487654321",
+      "debtorHash": "0x0ade0376fab58c5b85468e9335a29047292b7dcc174e3e24b436c9ac5debe103",
+      "amountMinor": "1250000",
+      "dueDate": 1794700800,
+      "dueDateIso": "2026-11-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000008"
+    },
+    {
+      "debtorTaxId": "20100200300",
+      "debtorHash": "0xca3e0a810f38223afb5a20e1913a0c427eb1a3bc7726487e9942fb836bdff74f",
+      "amountMinor": "450000",
+      "dueDate": 1771113600,
+      "dueDateIso": "2026-02-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000009"
+    },
+    {
+      "debtorTaxId": "20100200300",
+      "debtorHash": "0xca3e0a810f38223afb5a20e1913a0c427eb1a3bc7726487e9942fb836bdff74f",
+      "amountMinor": "450000",
+      "dueDate": 1778803200,
+      "dueDateIso": "2026-05-15",
+      "currency": 840,
+      "docHash": "0x000000000000000000000000000000000000000000000000000000000000000a"
+    },
+    {
+      "debtorTaxId": "20100200300",
+      "debtorHash": "0xca3e0a810f38223afb5a20e1913a0c427eb1a3bc7726487e9942fb836bdff74f",
+      "amountMinor": "450000",
+      "dueDate": 1786752000,
+      "dueDateIso": "2026-08-15",
+      "currency": 840,
+      "docHash": "0x000000000000000000000000000000000000000000000000000000000000000b"
+    },
+    {
+      "debtorTaxId": "20100200300",
+      "debtorHash": "0xca3e0a810f38223afb5a20e1913a0c427eb1a3bc7726487e9942fb836bdff74f",
+      "amountMinor": "450000",
+      "dueDate": 1794700800,
+      "dueDateIso": "2026-11-15",
+      "currency": 840,
+      "docHash": "0x000000000000000000000000000000000000000000000000000000000000000c"
+    },
+    {
+      "debtorTaxId": "20655544433",
+      "debtorHash": "0x30f947cb432be92bd6a5a6560fd30704525f5be5831775fa636b57a26ef88ad2",
+      "amountMinor": "620000",
+      "dueDate": 1771113600,
+      "dueDateIso": "2026-02-15",
+      "currency": 840,
+      "docHash": "0x000000000000000000000000000000000000000000000000000000000000000d"
+    },
+    {
+      "debtorTaxId": "20655544433",
+      "debtorHash": "0x30f947cb432be92bd6a5a6560fd30704525f5be5831775fa636b57a26ef88ad2",
+      "amountMinor": "620000",
+      "dueDate": 1778803200,
+      "dueDateIso": "2026-05-15",
+      "currency": 840,
+      "docHash": "0x000000000000000000000000000000000000000000000000000000000000000e"
+    },
+    {
+      "debtorTaxId": "20655544433",
+      "debtorHash": "0x30f947cb432be92bd6a5a6560fd30704525f5be5831775fa636b57a26ef88ad2",
+      "amountMinor": "620000",
+      "dueDate": 1786752000,
+      "dueDateIso": "2026-08-15",
+      "currency": 840,
+      "docHash": "0x000000000000000000000000000000000000000000000000000000000000000f"
+    },
+    {
+      "debtorTaxId": "20655544433",
+      "debtorHash": "0x30f947cb432be92bd6a5a6560fd30704525f5be5831775fa636b57a26ef88ad2",
+      "amountMinor": "620000",
+      "dueDate": 1794700800,
+      "dueDateIso": "2026-11-15",
+      "currency": 840,
+      "docHash": "0x0000000000000000000000000000000000000000000000000000000000000010"
+    }
+  ],
+  "expected": {
+    "disclosedNominalMinor": "12480000",
+    "riskAdjustedMinor": "9883791",
+    "borrowingBaseMinor": "5218641",
+    "breakdown": [
+      {
+        "concept": "timeDiscount",
+        "amountMinor": "1112436"
+      },
+      {
+        "concept": "delinquency",
+        "amountMinor": "477438"
+      },
+      {
+        "concept": "concentration",
+        "amountMinor": "784000"
+      },
+      {
+        "concept": "serviceContinuity",
+        "amountMinor": "222335"
+      }
+    ]
+  }
+}
