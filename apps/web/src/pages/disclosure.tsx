@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { DisclosurePreviewResponse, Receivable } from '@app/contracts';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -153,10 +155,11 @@ export default function DisclosurePage() {
                   onClick={() => toggle(index)}
                 >
                   <TableCell>
-                    <input
-                      type="checkbox"
+                    {/* El checkbox nativo del navegador ignora el tema oscuro:
+                        se usa el primitivo del sistema para que tome los tokens. */}
+                    <Checkbox
                       checked={selected.has(index)}
-                      onChange={() => toggle(index)}
+                      onCheckedChange={() => toggle(index)}
                       onClick={(event) => event.stopPropagation()}
                       aria-label={`Divulgar cuota de ${item.debtorLabel} con vencimiento ${item.dueDate}`}
                     />
@@ -195,15 +198,11 @@ function ProofResult({ result }: { result: DisclosurePreviewResponse }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Prueba construida
-          <span
-            className={
-              result.verified
-                ? 'rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800'
-                : 'rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800'
-            }
-          >
+          {/* Sale de los tokens del sistema, no de la paleta cruda de Tailwind:
+              un verde/rojo claro no pertenece a Nocturne. */}
+          <Badge variant={result.verified ? 'default' : 'destructive'}>
             {result.verified ? 'verifica contra el root' : 'NO verifica'}
-          </span>
+          </Badge>
         </CardTitle>
         <CardDescription>
           Esto es lo único que sale hacia el prestamista. Las {result.hiddenCount} cuotas ocultas no
