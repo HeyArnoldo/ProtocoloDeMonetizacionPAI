@@ -8,17 +8,17 @@ ENV HUSKY=0
 
 # ── Stage 1: build ────────────────────────────────────────────────
 FROM base AS build
-# Solo manifests primero: la capa de install se cachea entre builds.
+# `packages` entero en vez de paquete por paquete: cuando la api gana una
+# dependencia `workspace:*` nueva, el Dockerfile ya no se queda atrás. Copiarlos
+# a mano fue lo que rompió el deploy al aparecer @app/merkle.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/tsconfig/package.json packages/tsconfig/
-COPY packages/contracts/package.json packages/contracts/
+COPY packages packages
 COPY apps/api/package.json apps/api/
 RUN pnpm install --frozen-lockfile --filter @app/api...
 
-COPY packages/tsconfig packages/tsconfig
-COPY packages/contracts packages/contracts
 COPY apps/api apps/api
-RUN pnpm --filter @app/contracts build && pnpm --filter @app/api build
+# El sufijo `...` compila la api y sus dependencias en orden topológico.
+RUN pnpm --filter @app/api... build
 
 # ── Stage 2: runtime ──────────────────────────────────────────────
 FROM base AS runtime
@@ -27,12 +27,15 @@ ENV NODE_ENV=production
 # Reinstala solo deps de producción preservando el layout del workspace
 # (los symlinks de pnpm son relativos: funcionan dentro de la imagen).
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/tsconfig/package.json packages/tsconfig/
-COPY packages/contracts/package.json packages/contracts/
+COPY packages packages
 COPY apps/api/package.json apps/api/
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts --filter @app/api...
 
+# Los `dist/` se copian uno por uno porque `COPY --from` no acepta comodines de
+# directorio, y traerse `packages/` entero arrastraría los node_modules de dev.
+# El job `docker` del CI es lo que impide que esta lista se quede corta.
 COPY --from=build /repo/packages/contracts/dist packages/contracts/dist
+COPY --from=build /repo/packages/merkle/dist packages/merkle/dist
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY apps/api/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
