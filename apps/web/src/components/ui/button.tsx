@@ -9,7 +9,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        // Nocturne: la acción primaria es un contorno del acento sobre fondo
+        // transparente, nunca un relleno. El hover tinta al 12% y el active al
+        // 22%, los mismos valores de `.btn-primary` en el sistema visual.
+        default:
+          "border border-primary bg-transparent text-primary hover:bg-primary/12 active:bg-primary/22",
         destructive:
           "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
         outline:
