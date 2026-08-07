@@ -19,3 +19,6 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+
+# Grafo de graphify (se regenera con `graphify update .`)
+graphify-out/

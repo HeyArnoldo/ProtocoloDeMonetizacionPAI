@@ -5,20 +5,20 @@ RUN corepack enable
 WORKDIR /repo
 ENV HUSKY=0
 
+# `packages` entero: el panel va a depender de @app/merkle y @app/borrowing-base
+# para recomputar el proof en el navegador, y la lista a mano se desactualiza.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/tsconfig/package.json packages/tsconfig/
-COPY packages/contracts/package.json packages/contracts/
+COPY packages packages
 COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile --filter @app/web...
 
-COPY packages/tsconfig packages/tsconfig
-COPY packages/contracts packages/contracts
 COPY apps/web apps/web
 
 # URL absoluta de la API: queda horneada en el bundle (build-time, no runtime).
 ARG VITE_API_URL=
 ENV VITE_API_URL=$VITE_API_URL
-RUN pnpm --filter @app/contracts build && pnpm --filter @app/web build
+# El sufijo `...` compila el front y sus dependencias en orden topológico.
+RUN pnpm --filter @app/web... build
 
 # ── Runtime: nginx sirviendo estáticos ────────────────────────────
 FROM nginx:1.27-alpine AS runtime
