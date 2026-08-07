@@ -22,3 +22,13 @@ coverage/
 
 # Grafo de graphify (se regenera con `graphify update .`)
 graphify-out/
+
+# Playwright: artefactos de ejecución (trazas, videos, reporte HTML).
+# Las capturas de `e2e/__screenshots__/` NO se ignoran a propósito: son la
+# evidencia versionada del sistema visual y lo que se revisa en el PR cuando
+# cambia un token. Se regeneran en cada corrida, así que un diff ahí significa
+# que el diseño cambió — que es justo lo que queremos ver.
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+apps/web/.playwright/
