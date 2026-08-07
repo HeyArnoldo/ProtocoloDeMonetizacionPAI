@@ -44,6 +44,47 @@ jobs:
       - name: Tests
         run: pnpm test
 
+  # Los specs de `apps/web/e2e` miden los tokens computados del sistema visual
+  # (fondo, superficie, acento, contraste del texto secundario). Sin este job
+  # una regresión de tokens solo se vería en una revisión visual a ojo.
+  # No necesita API: las rutas se interceptan con `page.route()`.
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: '0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Habilitar corepack (pnpm pineado en packageManager)
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      # Los tipos de los packages viven en su dist/: el front no resuelve
+      # `@app/contracts` sin esto.
+      - name: Build packages
+        run: pnpm --filter "./packages/*" build
+
+      - name: Instalar Chromium
+        run: pnpm --filter @app/web exec playwright install --with-deps chromium
+
+      - name: Tests e2e
+        run: pnpm --filter @app/web test:e2e
+
+      - name: Guardar el reporte cuando falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
   # El job `ci` compila sobre el checkout completo del monorepo, así que nunca
   # ejerce el subconjunto de archivos que sí ve Docker: por eso un CI verde
   # convivió con un deploy roto (`Cannot find module '@app/merkle'`). Este job
