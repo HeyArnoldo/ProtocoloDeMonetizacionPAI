@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-5320a7d4-bbc9-4798-be55-61ad4727f991/styles.css">
+<script src="_ds/nocturne-5320a7d4-bbc9-4798-be55-61ad4727f991/_ds_bundle.js"></script>
+<style>
+  body { margin: 0; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-ligatures: none; }
+  @keyframes pulseIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #3f424d; border-radius: 8px; border: 3px solid #161826; }
+</style>
+</helmet>
+
+<div style="display: flex; height: 100vh; overflow: hidden; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body);">
+
+  <aside style="width: 244px; flex: none; display: flex; flex-direction: column; gap: 18px; padding: 18px 14px; overflow-y: auto; border-right: 1px solid var(--color-neutral-800);">
+    <div style="display: flex; flex-direction: column; gap: 3px; padding: 0 6px;">
+      <div style="display: flex; align-items: baseline; gap: 7px;">
+        <span style="font-family: var(--font-heading); font-weight: 500; font-size: 19px; letter-spacing: -0.02em;">PAI</span>
+        <span class="mono" style="font-size: 10px; color: var(--color-accent);">× ARBITRUM</span>
+      </div>
+      <span style="font-size: 11px; color: var(--color-neutral-500);">Protocolo de monetización</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <h6 style="margin: 0 0 4px 6px; font-size: 10px; color: var(--color-neutral-600);">PYME · Contafácil SAC</h6>
+      <sc-for list="{{ navPyme }}" as="item" hint-placeholder-count="5">
+        <button class="mono" onClick="{{ item.go }}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 7px 9px; font-family: var(--font-body); font-size: 13px; text-align: left; cursor: pointer; border: 0; border-radius: var(--radius-md); background: {{ item.bg }}; color: {{ item.fg }};" style-hover="background: color-mix(in srgb, var(--color-text) 7%, transparent);">
+          <span>{{ item.label }}</span>
+          <span class="mono" style="font-size: 10px; color: var(--color-neutral-600);">{{ item.meta }}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <h6 style="margin: 0 0 4px 6px; font-size: 10px; color: var(--color-neutral-600);">Certificadores</h6>
+      <sc-for list="{{ navCert }}" as="item" hint-placeholder-count="1">
+        <button onClick="{{ item.go }}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 7px 9px; font-family: var(--font-body); font-size: 13px; text-align: left; cursor: pointer; border: 0; border-radius: var(--radius-md); background: {{ item.bg }}; color: {{ item.fg }};" style-hover="background: color-mix(in srgb, var(--color-text) 7%, transparent);">
+          <span>{{ item.label }}</span>
+          <span class="mono" style="font-size: 10px; color: var(--color-neutral-600);">{{ item.meta }}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <h6 style="margin: 0 0 4px 6px; font-size: 10px; color: var(--color-neutral-600);">Fondo · Andes Capital</h6>
+      <sc-for list="{{ navFondo }}" as="item" hint-placeholder-count="2">
+        <button onClick="{{ item.go }}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 7px 9px; font-family: var(--font-body); font-size: 13px; text-align: left; cursor: pointer; border: 0; border-radius: var(--radius-md); background: {{ item.bg }}; color: {{ item.fg }};" style-hover="background: color-mix(in srgb, var(--color-text) 7%, transparent);">
+          <span>{{ item.label }}</span>
+          <span class="mono" style="font-size: 10px; color: var(--color-neutral-600);">{{ item.meta }}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <h6 style="margin: 0 0 4px 6px; font-size: 10px; color: var(--color-neutral-600);">Operador · público</h6>
+      <sc-for list="{{ navOps }}" as="item" hint-placeholder-count="2">
+        <button onClick="{{ item.go }}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 7px 9px; font-family: var(--font-body); font-size: 13px; text-align: left; cursor: pointer; border: 0; border-radius: var(--radius-md); background: {{ item.bg }}; color: {{ item.fg }};" style-hover="background: color-mix(in srgb, var(--color-text) 7%, transparent);">
+          <span>{{ item.label }}</span>
+          <span class="mono" style="font-size: 10px; color: var(--color-neutral-600);">{{ item.meta }}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: var(--radius-md); background: var(--color-surface);">
+      <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-neutral-400);">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); animation: blink 2.4s infinite;"></span>
+        Arbitrum Sepolia
+      </div>
+      <div class="mono" style="font-size: 10px; color: var(--color-neutral-600);">block #{{ block }}</div>
+      <div class="mono" style="font-size: 10px; color: var(--color-neutral-600);">gas 0.01 gwei</div>
+    </div>
+  </aside>
+
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
+
+    <header style="flex: none; display: flex; align-items: center; gap: 14px; padding: 13px 26px; border-bottom: 1px solid var(--color-neutral-800);">
+      <div style="display: flex; flex-direction: column; gap: 1px; margin-right: auto; min-width: 0;">
+        <span style="font-family: var(--font-heading); font-size: 17px; letter-spacing: -0.01em;">{{ title }}</span>
+        <span style="font-size: 11.5px; color: var(--color-neutral-500);">{{ subtitle }}</span>
+      </div>
+      <span class="tag tag-outline mono" style="font-size: 10px;">{{ stateLabel }}</span>
+      <div style="display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 6px; border-radius: 999px; background: var(--color-surface);">
+        <span style="display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--color-accent-800); color: var(--color-accent-200); font-size: 10px;">RQ</span>
+        <div style="display: flex; flex-direction: column; line-height: 1.25;">
+          <span style="font-size: 11.5px;">Rosa Quispe</span>
+          <span class="mono" style="font-size: 9.5px; color: var(--color-neutral-500);">smart account · 0x7a3f…B21c</span>
+        </div>
+      </div>
+    </header>
+
+    <div style="flex: 1; overflow-y: auto; padding: 24px 26px 60px;">
+
+      <sc-if value="{{ isResumen }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 20px; max-width: 1180px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
+            <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+              <div class="card elev-sm" style="gap: 5px; padding: 14px;">
+                <span class="card-kicker">{{ k.kicker }}</span>
+                <span class="mono" style="font-size: 25px; letter-spacing: -0.02em; line-height: 1.1; white-space: nowrap;">{{ k.value }}</span>
+                <span style="font-size: 11.5px; color: var(--color-neutral-500);">{{ k.note }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h6 style="margin: 0; color: var(--color-neutral-500);">Máquina de estados on-chain</h6>
+            <div style="display: flex; align-items: stretch; gap: 6px;">
+              <sc-for list="{{ machine }}" as="s" hint-placeholder-count="6">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 11px 12px; border-radius: var(--radius-md); background: {{ s.bg }}; box-shadow: inset 0 0 0 1px {{ s.border }};">
+                  <span class="mono" style="font-size: 12px; color: {{ s.fg }};">{{ s.name }}</span>
+                  <span style="font-size: 10.5px; color: var(--color-neutral-600);">{{ s.when }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <p style="margin: 0; font-size: 12px; color: var(--color-neutral-500);">Ocho estados con transiciones aplicadas por <span class="mono">require()</span>. Nadie —tampoco el backend— puede saltarse el orden.</p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px;">
+            <div class="card elev-sm" style="gap: 12px; padding: 16px;">
+              <span class="card-kicker">Reparto de responsabilidad</span>
+              <sc-for list="{{ split }}" as="row" hint-placeholder-count="4">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 12.5px;">
+                    <span>{{ row.label }}</span>
+                    <span class="mono" style="color: var(--color-neutral-500);">{{ row.where }}</span>
+                  </div>
+                  <div style="height: 4px; border-radius: 999px; background: var(--color-neutral-800); overflow: hidden;">
+                    <div style="height: 100%; width: {{ row.pct }}; background: {{ row.color }};"></div>
+                  </div>
+                </div>
+              </sc-for>
+              <p class="card-body" style="margin-top: 2px;">La ruta crítica de confianza —valorización, custodia y dinero— vive on-chain. El backend firma atestaciones e indexa eventos; ya no escribe estados.</p>
+            </div>
+
+            <div class="card elev-sm" style="gap: 10px; padding: 16px;">
+              <span class="card-kicker">Últimos eventos indexados</span>
+              <sc-for list="{{ recentEvents }}" as="e" hint-placeholder-count="4">
+                <div style="display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--color-neutral-900);">
+                  <span class="mono" style="font-size: 11px; color: var(--color-accent-300); flex: none; width: 148px;">{{ e.name }}</span>
+                  <span style="font-size: 12px; color: var(--color-neutral-400); flex: 1;">{{ e.detail }}</span>
+                  <span class="mono" style="font-size: 10px; color: var(--color-neutral-600);">{{ e.ago }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isExpediente }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 20px; max-width: 1180px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+            <div class="card elev-sm" style="gap: 4px; padding: 14px;">
+              <span class="card-kicker">assetId</span>
+              <span class="mono" style="font-size: 13px; word-break: break-all;">0x4c1e9a77…d3f0</span>
+            </div>
+            <div class="card elev-sm" style="gap: 4px; padding: 14px;">
+              <span class="card-kicker">merkleRoot certificado</span>
+              <span class="mono" style="font-size: 13px; word-break: break-all; color: var(--color-accent-300);">{{ root }}</span>
+            </div>
+            <div class="card elev-sm" style="gap: 4px; padding: 14px;">
+              <span class="card-kicker">controller</span>
+              <span class="mono" style="font-size: 13px;">0x7a3f…B21c <span style="color: var(--color-neutral-600);">(ERC-4337)</span></span>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; align-items: start;">
+            <div class="card elev-sm" style="gap: 12px; padding: 16px;">
+              <div style="display: flex; align-items: baseline; gap: 10px;">
+                <span class="card-kicker">216 hojas · 18 contratos × 12 cuotas</span>
+                <span style="margin-left: auto; font-size: 11px; color: var(--color-neutral-500);">cada celda es un derecho de cobro</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px;">
+                <sc-for list="{{ leafCells }}" as="c" hint-placeholder-count="216">
+                  <div title="{{ c.title }}" style="aspect-ratio: 1; border-radius: 2px; background: {{ c.bg }}; box-shadow: inset 0 0 0 1px {{ c.border }};"></div>
+                </sc-for>
+              </div>
+              <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px; color: var(--color-neutral-500);">
+                <sc-for list="{{ legend }}" as="l" hint-placeholder-count="3">
+                  <span style="display: inline-flex; align-items: center; gap: 6px;">
+                    <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ l.bg }}; box-shadow: inset 0 0 0 1px {{ l.border }};"></span>
+                    {{ l.label }}
+                  </span>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="card elev-sm" style="gap: 8px; padding: 16px;">
+                <span class="card-kicker">Anatomía de la hoja</span>
+                <div class="mono" style="font-size: 11.5px; line-height: 1.9; color: var(--color-neutral-300);">
+                  <div>bytes32 <span style="color: var(--color-accent-300);">debtorHash</span></div>
+                  <div>uint256 <span style="color: var(--color-accent-300);">amountMinor</span></div>
+                  <div>uint64&nbsp; <span style="color: var(--color-accent-300);">dueDate</span></div>
+                  <div>uint16&nbsp; <span style="color: var(--color-accent-300);">currency</span></div>
+                  <div>bytes32 <span style="color: var(--color-accent-300);">docHash</span></div>
+                </div>
+                <p class="card-body">Definición normativa: Solidity y el motor Stylus decodifican exactamente esta tupla. <span class="mono">keccak256(keccak256(abi.encode(...)))</span> — doble hash contra segunda preimagen, formato <span class="mono">StandardMerkleTree</span>.</p>
+              </div>
+              <div class="card elev-sm" style="gap: 8px; padding: 16px;">
+                <span class="card-kicker">El deudor viaja con salt</span>
+                <p class="card-body" style="margin: 0;">Un RUC son 11 dígitos: un <span class="mono">keccak256</span> pelado se rompe por fuerza bruta en minutos y expone la cartera de clientes. Con salt de 32 bytes el espacio deja de ser enumerable, y quien tenga el salt igual recomputa.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isEvidencias }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 18px; max-width: 1080px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+            <div class="card elev-sm" style="gap: 3px; padding: 14px;">
+              <span class="card-kicker">Documentos en storage</span>
+              <span class="mono" style="font-size: 25px;">255</span>
+              <span style="font-size: 11.5px; color: var(--color-neutral-500);">S3 cifrado · nunca salen del servidor</span>
+            </div>
+            <div class="card elev-sm" style="gap: 3px; padding: 14px;">
+              <span class="card-kicker">Archivos on-chain</span>
+              <span class="mono" style="font-size: 25px; color: var(--color-accent);">0</span>
+              <span style="font-size: 11.5px; color: var(--color-neutral-500);">solo la huella: 1 root de 32 bytes</span>
+            </div>
+            <div class="card elev-sm" style="gap: 3px; padding: 14px;">
+              <span class="card-kicker">Costo de registro</span>
+              <span class="mono" style="font-size: 25px;">$0.03</span>
+              <span style="font-size: 11.5px; color: var(--color-neutral-500);">1 tx · gas patrocinado (paymaster)</span>
+            </div>
+          </div>
+
+          <div class="card elev-sm" style="padding: 6px 4px;">
+            <table class="table">
+              <thead>
+                <tr><th>Categoría</th><th>Docs</th><th>Rol en el expediente</th><th>SHA-256 (muestra)</th><th>Estado</th></tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ evidence }}" as="e" hint-placeholder-count="7">
+                  <tr>
+                    <td>{{ e.cat }}</td>
+                    <td class="mono">{{ e.n }}</td>
+                    <td style="color: var(--color-neutral-400); font-size: 13px;">{{ e.role }}</td>
+                    <td class="mono" style="font-size: 11.5px; color: var(--color-neutral-500);">{{ e.hash }}</td>
+                    <td><span class="tag tag-accent" style="font-size: 10px;">hasheado</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <p style="margin: 0; font-size: 12.5px; color: var(--color-neutral-500); max-width: 700px;">El código, la marca INDECOPI y las cesiones no son el activo financiable: entran como evidencia de continuidad del servicio. Si el SaaS muere, los contratos no se cobran.</p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isDivulgacion }}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: 1.45fr 1fr; gap: 18px; align-items: start; max-width: 1240px;">
+          <div class="card elev-sm" style="padding: 6px 4px 10px;">
+            <table class="table">
+              <thead>
+                <tr><th style="width: 34px;"></th><th>Deudor</th><th>Cuotas</th><th style="text-align: right;">Nominal 12m</th><th>Elegibilidad</th></tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ contracts }}" as="c" hint-placeholder-count="18">
+                  <tr onClick="{{ c.toggle }}" style="cursor: {{ c.cursor }}; opacity: {{ c.opacity }};">
+                    <td><span style="display: grid; place-items: center; width: 15px; height: 15px; border-radius: 3px; font-size: 10px; background: {{ c.boxBg }}; color: var(--color-bg); box-shadow: inset 0 0 0 1px {{ c.boxBorder }};">{{ c.check }}</span></td>
+                    <td style="font-size: 13px;">{{ c.name }}</td>
+                    <td class="mono" style="font-size: 12px; color: var(--color-neutral-500);">12</td>
+                    <td class="mono" style="text-align: right; font-size: 12.5px;">{{ c.amount }}</td>
+                    <td><span class="tag {{ c.tagClass }}" style="font-size: 10px;">{{ c.tag }}</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="card elev-sm" style="gap: 10px; padding: 16px;">
+              <span class="card-kicker">Multiproof</span>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 11px; color: var(--color-neutral-500);">Hojas divulgadas</span>
+                  <span class="mono" style="font-size: 22px;">{{ disclosedLeaves }}</span>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 11px; color: var(--color-neutral-500);">Hojas ocultas</span>
+                  <span class="mono" style="font-size: 22px; color: var(--color-neutral-500);">{{ hiddenLeaves }}</span>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 11px; color: var(--color-neutral-500);">Nominal divulgado</span>
+                  <span class="mono" style="font-size: 22px; color: var(--color-accent-300);">{{ disclosedNominal }}</span>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 11px; color: var(--color-neutral-500);">Tamaño del proof</span>
+                  <span class="mono" style="font-size: 22px;">{{ proofSize }}</span>
+                </div>
+              </div>
+              <div class="hr" style="margin: 2px 0;"></div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <span style="font-size: 11px; color: var(--color-neutral-500);">Root del expediente (no cambia)</span>
+                <span class="mono" style="font-size: 11.5px; color: var(--color-accent-300); word-break: break-all;">{{ root }}</span>
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 4px;">
+                <button class="btn btn-primary" onClick="{{ buildProof }}">{{ proofBtn }}</button>
+                <button class="btn btn-secondary" onClick="{{ resetSel }}">Limpiar</button>
+              </div>
+            </div>
+
+            <div class="card elev-sm" style="gap: 8px; padding: 16px;">
+              <span class="card-kicker">Lo único que sale hacia el fondo</span>
+              <div class="mono" style="font-size: 11px; line-height: 1.8; color: var(--color-neutral-400); background: var(--color-bg); border-radius: var(--radius-sm); padding: 10px;">
+                <div>root&nbsp;&nbsp;&nbsp;&nbsp;{{ root }}</div>
+                <div>leaves&nbsp;&nbsp;[{{ disclosedLeaves }}] · debtorHash con salt</div>
+                <div>proof&nbsp;&nbsp;&nbsp;[{{ proofSize }}]</div>
+                <div>flags&nbsp;&nbsp;&nbsp;bool[{{ disclosedLeaves }}]</div>
+              </div>
+              <p class="card-body" style="margin: 0;">Las {{ hiddenLeaves }} hojas ocultas no aparecen: ni deudor, ni monto, ni vencimiento. El fondo sí ve que dos cuotas comparten deudor —lo necesita para el haircut de concentración— pero no quién es. <strong>Privacidad comercial real, sin ZK.</strong></p>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStylus }}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: 1fr 1.25fr; gap: 18px; align-items: start; max-width: 1240px;">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="card elev-sm" style="gap: 10px; padding: 16px;">
+              <span class="card-kicker">BorrowingBaseEngine · Stylus (Rust → WASM)</span>
+              <div class="mono" style="font-size: 11.5px; line-height: 1.9; color: var(--color-neutral-400);">
+                <div>root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{ rootShort }}</div>
+                <div>leaves&nbsp;&nbsp;&nbsp;{{ disclosedLeaves }}</div>
+                <div>proof&nbsp;&nbsp;&nbsp;&nbsp;{{ proofSize }} hashes</div>
+                <div>aging&nbsp;&nbsp;&nbsp;&nbsp;{{ agingLabel }} · dur 6.5m</div>
+                <div>mora&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;420 bps (atestado)</div>
+                <div>conc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;umbral {{ concLabel }}</div>
+                <div>advance&nbsp;&nbsp;{{ advanceLabel }}</div>
+              </div>
+              <button class="btn btn-primary btn-block" onClick="{{ runStylus }}">{{ stylusBtn }}</button>
+            </div>
+            <div class="card elev-sm" style="gap: 8px; padding: 16px;">
+              <span class="card-kicker">Por qué Rust y no Solidity</span>
+              <p class="card-body" style="margin: 0;">Verificar {{ disclosedLeaves }} inclusiones en el multiproof, aplicar aging con aritmética de punto fijo y dos haircuts es un bucle que en el EVM no cabe económicamente.</p>
+              <div style="display: flex; gap: 10px; margin-top: 2px;">
+                <div style="flex: 1; padding: 9px 10px; border-radius: var(--radius-sm); background: var(--color-bg);">
+                  <div style="font-size: 10.5px; color: var(--color-neutral-600);">Solidity (est.)</div>
+                  <div class="mono" style="font-size: 16px; color: var(--color-neutral-400);">~9.4M gas</div>
+                </div>
+                <div style="flex: 1; padding: 9px 10px; border-radius: var(--radius-sm); background: var(--color-accent-900);">
+                  <div style="font-size: 10.5px; color: var(--color-accent-300);">Stylus</div>
+                  <div class="mono" style="font-size: 16px; color: var(--color-accent-200);">~0.7M gas</div>
+                </div>
+              </div>
+              <p class="card-body" style="margin: 6px 0 0; color: var(--color-neutral-500);">Es una función <span class="mono">view</span>: el fondo la llama sin gastar gas. La comparación es sobre el costo si se ejecutara en escritura.</p>
+            </div>
+          </div>
+
+          <div class="card elev-sm" style="gap: 2px; padding: 18px 20px;">
+            <span class="card-kicker">Cálculo del borrowing base</span>
+            <sc-for list="{{ stylusLines }}" as="l" hint-placeholder-count="6">
+              <div style="display: flex; align-items: baseline; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--color-neutral-900); animation: pulseIn 260ms ease both;">
+                <span style="flex: 1; font-size: 13.5px; color: {{ l.fg }};">{{ l.label }}</span>
+                <span style="font-size: 11px; color: var(--color-neutral-600);">{{ l.hint }}</span>
+                <span class="mono" style="width: 128px; text-align: right; font-size: {{ l.size }}; color: {{ l.fg }};">{{ l.value }}</span>
+              </div>
+            </sc-for>
+            <sc-if value="{{ stylusDone }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--color-accent-900); box-shadow: inset 0 0 0 1px var(--color-accent-700);">
+                <span class="tag tag-outline mono" style="font-size: 10px;">MATCH</span>
+                <span style="font-size: 12.5px; color: var(--color-accent-200);">El fondo recomputó contra el mismo root y obtuvo el mismo número. Si el servidor mintiera, el contrato lo contradiría.</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ stylusIdle }}" hint-placeholder-val="{{ true }}">
+              <p style="margin: 18px 0 0; font-size: 12.5px; color: var(--color-neutral-600);">Cambia la selección en <strong>Divulgación selectiva</strong> y vuelve: el número se recalcula sobre las hojas que decidas mostrar.</p>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCert }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 18px; max-width: 1180px;">
+          <p style="margin: 0; font-size: 13px; color: var(--color-neutral-400); max-width: 760px;">Ningún certificador ve todo el expediente. Cada firma es acotada a su ámbito, fechada y revocable — y esa separación es lo que hace creíble el resultado.</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+            <sc-for list="{{ certifiers }}" as="c" hint-placeholder-count="3">
+              <div class="card elev-sm" style="gap: 10px; padding: 16px;">
+                <div style="display: flex; align-items: baseline; gap: 8px;">
+                  <span class="card-kicker">{{ c.role }}</span>
+                  <span class="mono" style="margin-left: auto; font-size: 10px; color: var(--color-neutral-600);">{{ c.wallet }}</span>
+                </div>
+                <span class="card-title">{{ c.name }}</span>
+                <span class="mono" style="font-size: 11.5px; color: var(--color-accent-300);">{{ c.scope }}</span>
+                <p class="card-body" style="margin: 0;">{{ c.checks }}</p>
+                <div style="display: flex; align-items: baseline; gap: 8px; padding: 9px 10px; border-radius: var(--radius-sm); background: var(--color-bg);">
+                  <span style="font-size: 11px; color: var(--color-neutral-500);">{{ c.metricLabel }}</span>
+                  <span class="mono" style="margin-left: auto; font-size: 15px;">{{ c.metric }}</span>
+                </div>
+                <button class="btn {{ c.btnClass }}" onClick="{{ c.sign }}" style="margin-top: 2px;">{{ c.btn }}</button>
+              </div>
+            </sc-for>
+          </div>
+
+          <div class="card elev-sm" style="gap: 8px; padding: 16px; box-shadow: var(--shadow-sm), inset 3px 0 0 var(--color-accent);">
+            <span class="card-kicker">El hallazgo del abogado</span>
+            <p style="margin: 0; font-size: 13.5px; max-width: 860px;">2 de los 18 contratos —las dos municipalidades— tienen cláusula de no-cesión. Con un solo <span class="mono">manifestHash</span> eso sería invisible: el expediente estaría certificado o no. Con el árbol de Merkle esos dos se marcan no elegibles y los otros 16 siguen financiables.</p>
+            <p style="margin: 0; font-size: 12.5px; color: var(--color-neutral-500);">La granularidad no es un detalle técnico: es lo que evita que un expediente entero se caiga por dos documentos malos.</p>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPrestamo }}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; max-width: 1180px;">
+          <div class="card elev-sm" style="gap: 12px; padding: 18px;">
+            <span class="card-kicker">CollateralVault · USDC nativo</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px;">
+              <sc-for list="{{ loanFacts }}" as="f" hint-placeholder-count="6">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 11px; color: var(--color-neutral-500);">{{ f.label }}</span>
+                  <span class="mono" style="font-size: 17px; color: {{ f.fg }};">{{ f.value }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div class="hr" style="margin: 4px 0;"></div>
+            <div class="mono" style="font-size: 11.5px; line-height: 1.9; color: var(--color-neutral-400); background: var(--color-bg); border-radius: var(--radius-sm); padding: 11px;">
+              <div>transferFrom(andes → vault, 35_000e6)</div>
+              <div>transfer(vault → contafacil, 35_000e6)</div>
+              <div style="color: var(--color-neutral-600);">// misma tx · el dinero nunca toca el servidor</div>
+            </div>
+            <button class="btn btn-primary btn-block" onClick="{{ fundLoan }}">{{ fundBtn }}</button>
+            <sc-if value="{{ funded }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: var(--radius-md); background: var(--color-accent-900); animation: pulseIn 300ms ease both;">
+                <span class="tag tag-outline mono" style="font-size: 10px;">FUNDED</span>
+                <span class="mono" style="font-size: 11.5px; color: var(--color-accent-200);">35,000 USDC → 0x7a3f…B21c</span>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; gap: 8px;">
+              <sc-for list="{{ outcomeTabs }}" as="t" hint-placeholder-count="2">
+                <button class="btn" onClick="{{ t.go }}" style="border-color: {{ t.border }}; color: {{ t.fg }};">{{ t.label }}</button>
+              </sc-for>
+            </div>
+            <div class="card elev-sm" style="gap: 10px; padding: 18px;">
+              <span class="card-kicker">{{ outcome.kicker }}</span>
+              <span class="card-title">{{ outcome.title }}</span>
+              <p class="card-body" style="margin: 0; font-size: 13.5px;">{{ outcome.body }}</p>
+              <div class="mono" style="font-size: 11.5px; line-height: 1.9; color: var(--color-neutral-400); background: var(--color-bg); border-radius: var(--radius-sm); padding: 11px;">{{ outcome.code }}</div>
+              <p style="margin: 0; font-size: 12.5px; color: var(--color-neutral-500);">{{ outcome.note }}</p>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isHistorial }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 18px; max-width: 1080px;">
+          <div class="card elev-sm" style="padding: 6px 4px;">
+            <table class="table">
+              <thead>
+                <tr><th>Ciclo</th><th>Monto</th><th>Plazo</th><th>Tasa anual</th><th>Advance rate</th><th>Cierre</th></tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ history }}" as="h" hint-placeholder-count="2">
+                  <tr>
+                    <td style="font-size: 13px;">{{ h.cycle }}</td>
+                    <td class="mono" style="font-size: 12.5px;">{{ h.amount }}</td>
+                    <td class="mono" style="font-size: 12.5px;">{{ h.term }}</td>
+                    <td class="mono" style="font-size: 12.5px; color: {{ h.fg }};">{{ h.rate }}</td>
+                    <td class="mono" style="font-size: 12.5px; color: {{ h.fg }};">{{ h.advance }}</td>
+                    <td><span class="tag {{ h.tagClass }}" style="font-size: 10px;">{{ h.status }}</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px;">
+            <div class="card elev-sm" style="gap: 3px; padding: 16px;">
+              <span class="card-kicker">Mejora de tasa</span>
+              <span class="mono" style="font-size: 25px; color: var(--color-accent-300);">−3.5 pts</span>
+              <span style="font-size: 11.5px; color: var(--color-neutral-500);">18.0% → 14.5% tras un ciclo limpio</span>
+            </div>
+            <div class="card elev-sm" style="gap: 3px; padding: 16px;">
+              <span class="card-kicker">Más capital sobre el mismo activo</span>
+              <span class="mono" style="font-size: 25px; color: var(--color-accent-300);">+8.2 pts</span>
+              <span style="font-size: 11.5px; color: var(--color-neutral-500);">advance rate 52.8% → 61.0%</span>
+            </div>
+            <div class="card elev-sm" style="gap: 3px; padding: 16px;">
+              <span class="card-kicker">Portabilidad</span>
+              <span class="mono" style="font-size: 25px;">on-chain</span>
+              <span style="font-size: 11.5px; color: var(--color-neutral-500);">el track record no pertenece al prestamista</span>
+            </div>
+          </div>
+          <p style="margin: 0; font-size: 13px; color: var(--color-neutral-400); max-width: 780px;">La PYME no consigue capital una sola vez: construye un historial crediticio que hoy no existe en ningún lado y que puede llevarse a cualquier prestamista del protocolo.</p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isActividad }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 14px; max-width: 1240px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px;">
+            <div class="card elev-sm" style="gap: 3px; padding: 13px;">
+              <span class="card-kicker">Txs del expediente</span>
+              <span class="mono" style="font-size: 22px;">{{ txCount }}</span>
+            </div>
+            <div class="card elev-sm" style="gap: 3px; padding: 13px;">
+              <span class="card-kicker">Gas total</span>
+              <span class="mono" style="font-size: 22px;">$0.19</span>
+            </div>
+            <div class="card elev-sm" style="gap: 3px; padding: 13px;">
+              <span class="card-kicker">Wallets distintas</span>
+              <span class="mono" style="font-size: 22px;">5</span>
+            </div>
+            <div class="card elev-sm" style="gap: 3px; padding: 13px;">
+              <span class="card-kicker">Eventos indexados</span>
+              <span class="mono" style="font-size: 22px;">{{ txCount }}</span>
+            </div>
+          </div>
+          <div class="card elev-sm" style="padding: 6px 4px;">
+            <table class="table">
+              <thead>
+                <tr><th>Tx</th><th>Contrato</th><th>Método</th><th>Firmante</th><th>Gas</th><th>Bloque</th><th>Estado</th></tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ txs }}" as="t" hint-placeholder-count="8">
+                  <tr>
+                    <td class="mono" style="font-size: 11.5px; color: var(--color-accent-300);">{{ t.hash }}</td>
+                    <td class="mono" style="font-size: 11.5px;">{{ t.contract }}</td>
+                    <td class="mono" style="font-size: 11.5px; color: var(--color-neutral-400);">{{ t.method }}</td>
+                    <td style="font-size: 12.5px; color: var(--color-neutral-400);">{{ t.signer }}</td>
+                    <td class="mono" style="font-size: 11.5px; color: var(--color-neutral-500);">{{ t.gas }}</td>
+                    <td class="mono" style="font-size: 11.5px; color: var(--color-neutral-500);">{{ t.block }}</td>
+                    <td><span class="tag tag-accent" style="font-size: 10px;">success</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin: 0; font-size: 12.5px; color: var(--color-neutral-500);">El Worker se suscribe a los eventos <span class="mono">indexed</span> y actualiza Postgres. La API nunca espera confirmaciones: la cola (BullMQ + Redis) las absorbe.</p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isVerify }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width: 880px; display: flex; flex-direction: column; gap: 18px;">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-md); background: var(--color-surface);">
+            <span class="mono" style="font-size: 12px; color: var(--color-neutral-500);">pai.finance/verify/</span>
+            <span class="mono" style="font-size: 12px; color: var(--color-accent-300);">PAI-8F3C-2026</span>
+            <span class="tag tag-neutral" style="margin-left: auto; font-size: 10px;">público · sin login</span>
+          </div>
+
+          <div class="card elev-sm" style="gap: 14px; padding: 22px;">
+            <div style="display: flex; align-items: flex-start; gap: 14px;">
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <span class="card-kicker">PAICertificate · ERC-721 soulbound</span>
+                <span style="font-family: var(--font-heading); font-size: 25px; letter-spacing: -0.02em;">Contafácil SAC</span>
+                <span style="font-size: 12.5px; color: var(--color-neutral-500);">Cartera de contratos de suscripción · 18 contratos · 216 cuotas</span>
+              </div>
+              <span class="tag tag-outline mono" style="margin-left: auto; font-size: 10px;">NO TRANSFERIBLE</span>
+            </div>
+
+            <div class="hr" style="margin: 0;"></div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+              <sc-for list="{{ attestations }}" as="a" hint-placeholder-count="3">
+                <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--radius-sm); background: var(--color-bg);">
+                  <span class="mono" style="font-size: 11px; color: var(--color-accent-300);">{{ a.scope }}</span>
+                  <span style="font-size: 12px; color: var(--color-neutral-400);">{{ a.by }}</span>
+                  <span class="mono" style="font-size: 10.5px; color: var(--color-neutral-600);">{{ a.wallet }} · {{ a.date }}</span>
+                  <span class="tag {{ a.tagClass }}" style="margin-top: 4px; font-size: 10px; align-self: flex-start;">{{ a.status }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: var(--radius-md); background: var(--color-bg);">
+              <div style="display: flex; align-items: baseline; gap: 10px;">
+                <span style="font-size: 12.5px; color: var(--color-neutral-400);">Re-hashear las evidencias y comparar contra la cadena</span>
+                <button class="btn btn-primary" style="margin-left: auto;" onClick="{{ runVerify }}">{{ verifyBtn }}</button>
+              </div>
+              <sc-for list="{{ verifyLines }}" as="v" hint-placeholder-count="0">
+                <div class="mono" style="display: flex; gap: 10px; font-size: 11.5px; color: {{ v.fg }}; animation: pulseIn 220ms ease both;">
+                  <span style="color: var(--color-neutral-600);">{{ v.step }}</span>
+                  <span>{{ v.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <p style="margin: 0; font-size: 12.5px; color: var(--color-neutral-500);">El certificado representa que un activo <em>fue certificado</em>, no su propiedad ni un derecho económico: por eso es soulbound. Cualquier banco puede abrir este link y verificar sin pedirle nada a la plataforma.</p>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;advanceRatePct&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:52.8,&quot;min&quot;:35,&quot;max&quot;:75,&quot;step&quot;:0.1,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Motor de riesgo&quot;},&quot;concentrationThresholdPct&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:25,&quot;min&quot;:10,&quot;max&quot;:50,&quot;step&quot;:1,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Motor de riesgo&quot;},&quot;agingAnnualPct&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:18,&quot;min&quot;:6,&quot;max&quot;:36,&quot;step&quot;:0.5,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Motor de riesgo&quot;}}">
+const ROOT = '0x9f2a1c...7e4b';
+const ROOT_FULL = '0x9f2a1c84d5b0e37a6c19f8d2b4e70c5a3d81f9620ba4c7e35d18a0f6b2c94e7be';
+
+const CONTRACTS = [
+  { id: 1, name: 'Distribuidora Andina SAC', amount: 29760, eligible: true },
+  { id: 2, name: 'Bodegas Unidas SAC', amount: 12000, eligible: true },
+  { id: 3, name: 'Minimarket El Sol EIRL', amount: 9600, eligible: true },
+  { id: 4, name: 'Corporación Wong Retail', amount: 8400, eligible: true },
+  { id: 5, name: 'Grupo Vega Perú SAC', amount: 7200, eligible: true },
+  { id: 6, name: 'Comercial La Rambla', amount: 6600, eligible: true },
+  { id: 7, name: 'Almacenes Lima SAC', amount: 6000, eligible: true },
+  { id: 8, name: 'Provisiones del Norte', amount: 5400, eligible: true },
+  { id: 9, name: 'Market Express SAC', amount: 4800, eligible: true },
+  { id: 10, name: 'Tiendas Ríos EIRL', amount: 2880, eligible: true },
+  { id: 11, name: 'Abarrotes Chincha', amount: 1920, eligible: true },
+  { id: 12, name: 'Bodega Central Surco', amount: 1440, eligible: true },
+  { id: 13, name: 'Supermercados Pluz SA', amount: 16000, eligible: true },
+  { id: 14, name: 'Retail Costa Verde SAC', amount: 12000, eligible: true },
+  { id: 15, name: 'Comercial Trujillo', amount: 7200, eligible: true },
+  { id: 16, name: 'Minorista Sur SAC', amount: 4800, eligible: true },
+  { id: 17, name: 'Municipalidad de Miraflores', amount: 9600, eligible: false },
+  { id: 18, name: 'Municipalidad de San Isidro', amount: 8400, eligible: false }
+];
+
+const CERTIFIERS = [
+  { role: 'Contador público', name: 'Estudio Paredes & Asoc.', wallet: '0x1d4c…9Ae2', scope: 'REVENUE_VERIFIED',
+    checks: '216 facturas cruzadas contra SUNAT y abonos en 12 extractos bancarios. No ve los contratos ni el código.',
+    metricLabel: 'Mora histórica', metric: '420 bps' },
+  { role: 'Abogado', name: 'Vargas Legal SAC', wallet: '0x88b1…04Fd', scope: 'RIGHTS_ASSIGNABLE',
+    checks: 'Cesión permitida, sin prenda previa, marca INDECOPI vigente. No ve facturas ni infraestructura.',
+    metricLabel: 'Contratos cedibles', metric: '16 / 18' },
+  { role: 'Auditor técnico', name: 'Nodo Ingeniería', wallet: '0x5f70…C133', scope: 'SERVICE_CONTINUITY',
+    checks: 'El SaaS opera, sin licencias GPL contaminantes, infraestructura sostenible. No ve montos ni deudores.',
+    metricLabel: 'Score de continuidad', metric: '78 / 100' }
+];
+
+const BASE_TXS = [
+  { hash: '0x3f9a…c17d', contract: 'AssetRegistry', method: 'registerAsset', signer: 'Contafácil (4337)', gas: '0.000041 ETH', block: '92,481,033' },
+  { hash: '0x7b21…09ae', contract: 'CertificationAttestor', method: 'attest', signer: 'Contador', gas: '0.000019 ETH', block: '92,483,190' },
+  { hash: '0xa04c…5512', contract: 'CertificationAttestor', method: 'attest', signer: 'Abogado', gas: '0.000019 ETH', block: '92,483,742' },
+  { hash: '0xd18e…bb30', contract: 'CertificationAttestor', method: 'attest', signer: 'Auditor técnico', gas: '0.000019 ETH', block: '92,484,006' },
+  { hash: '0x62f7…e8c1', contract: 'PAICertificate', method: 'mint (soulbound)', signer: 'Operador PAI', gas: '0.000033 ETH', block: '92,484,220' },
+  { hash: '0x0c55…7a94', contract: 'CollateralVault', method: 'pledge', signer: 'Contafácil (4337)', gas: '0.000028 ETH', block: '92,501,877' }
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: 'resumen',
+    selected: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    stylusStep: 0,
+    signed: [0, 1, 2],
+    funded: false,
+    outcome: 'repago',
+    verifyStep: 0,
+    block: 92501903,
+    proofBuilt: true
+  };
+
+  componentDidMount() {
+    this.tick = setInterval(() => this.setState(s => ({ block: s.block + 1 })), 2400);
+  }
+  componentWillUnmount() {
+    clearInterval(this.tick);
+    clearInterval(this.stylusTimer);
+    clearInterval(this.verifyTimer);
+  }
+
+  go = (screen) => () => this.setState({ screen });
+
+  usd(n) {
+    return 'USD ' + Math.round(n).toLocaleString('en-US');
+  }
+
+  calc() {
+    const sel = this.state.selected;
+    const picked = CONTRACTS.filter(c => sel.includes(c.id) && c.eligible);
+    const nominal = picked.reduce((t, c) => t + c.amount, 0);
+    const aging = (this.props.agingAnnualPct ?? 18) / 100;
+    const durYears = 6.5 / 12;
+    const pv = nominal - nominal / (1 + aging * durYears);
+    const mora = (nominal - pv) * 0.042;
+    const threshold = (this.props.concentrationThresholdPct ?? 25) / 100;
+    const top = picked.reduce((m, c) => Math.max(m, c.amount), 0);
+    const share = nominal ? top / nominal : 0;
+    const conc = Math.max(0, share - threshold) * nominal * 0.4;
+    const cont = (100 - 78) * 0.0009 * nominal;
+    const adjusted = nominal - pv - mora - conc - cont;
+    const advance = (this.props.advanceRatePct ?? 52.8) / 100;
+    const base = Math.round((adjusted * advance) / 100) * 100;
+    return { picked, nominal, pv, mora, conc, cont, adjusted, base, share, top };
+  }
+
+  toggle = (id) => () => {
+    const c = CONTRACTS.find(x => x.id === id);
+    if (!c.eligible) return;
+    this.setState(s => ({
+      selected: s.selected.includes(id) ? s.selected.filter(x => x !== id) : [...s.selected, id],
+      stylusStep: 0
+    }));
+  };
+
+  runStylus = () => {
+    clearInterval(this.stylusTimer);
+    this.setState({ stylusStep: 1 });
+    this.stylusTimer = setInterval(() => {
+      this.setState(s => {
+        if (s.stylusStep >= 7) { clearInterval(this.stylusTimer); return null; }
+        return { stylusStep: s.stylusStep + 1 };
+      });
+    }, 380);
+  };
+
+  runVerify = () => {
+    clearInterval(this.verifyTimer);
+    this.setState({ verifyStep: 1 });
+    this.verifyTimer = setInterval(() => {
+      this.setState(s => {
+        if (s.verifyStep >= 5) { clearInterval(this.verifyTimer); return null; }
+        return { verifyStep: s.verifyStep + 1 };
+      });
+    }, 420);
+  };
+
+  navItem(id, label, meta) {
+    const active = this.state.screen === id;
+    return {
+      id, label, meta,
+      go: this.go(id),
+      bg: active ? 'var(--color-accent-900)' : 'transparent',
+      fg: active ? 'var(--color-accent-200)' : 'var(--color-neutral-400)'
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const c = this.calc();
+    const disclosedLeaves = c.picked.length * 12;
+    const hiddenLeaves = 216 - disclosedLeaves;
+    const proofSize = hiddenLeaves ? Math.ceil(hiddenLeaves / 4) + 8 : 0;
+
+    const titles = {
+      resumen: ['Resumen del expediente', 'Contafácil SAC · RUC 20603****1 · Lima, Perú'],
+      expediente: ['Expediente y árbol de Merkle', 'AssetRegistry.sol · 216 hojas bajo un root de 32 bytes'],
+      evidencias: ['Evidencias', '255 documentos cifrados en storage · cero archivos on-chain'],
+      divulgacion: ['Divulgación selectiva', 'Prueba sin revelar. Sin ZK: solo un árbol de Merkle'],
+      stylus: ['Recómputo del borrowing base', 'BorrowingBaseEngine · Stylus (Rust) · función view'],
+      cert: ['Cola de atestaciones', 'CertificationAttestor.sol · CERTIFIER_ROLE'],
+      prestamo: ['Originación y fondeo', 'CollateralVault.sol · USDC nativo de Circle'],
+      historial: ['Historial crediticio on-chain', 'Portable, verificable, propiedad de la PYME'],
+      actividad: ['Actividad on-chain', 'Eventos indexados por el Worker → Postgres'],
+      verify: ['Verificación pública', 'Página abierta: cualquiera re-hashea y compara']
+    };
+    const t = titles[s.screen] || titles.resumen;
+
+    const machineIdx = s.funded ? 3 : 2;
+    const machine = ['Registered', 'Attested', 'Pledged', 'Funded', 'Repaid', 'Defaulted'].map((name, i) => {
+      const when = ['día 1', 'días 2-7', 'día 8', 'día 9', 'mes 9', '—'][i];
+      const active = i === machineIdx;
+      const past = i < machineIdx;
+      return {
+        name, when,
+        bg: active ? 'var(--color-accent-900)' : 'var(--color-surface)',
+        border: active ? 'var(--color-accent-700)' : 'transparent',
+        fg: active ? 'var(--color-accent-200)' : (past ? 'var(--color-neutral-400)' : 'var(--color-neutral-600)')
+      };
+    });
+
+    const leafCells = [];
+    CONTRACTS.forEach(ct => {
+      const disclosed = ct.eligible && s.selected.includes(ct.id);
+      for (let i = 0; i < 12; i++) {
+        leafCells.push({
+          title: ct.name + ' · cuota ' + (i + 1),
+          bg: !ct.eligible ? 'transparent' : (disclosed ? 'var(--color-accent-500)' : 'var(--color-neutral-800)'),
+          border: !ct.eligible ? 'var(--color-neutral-700)' : (disclosed ? 'var(--color-accent-400)' : 'transparent')
+        });
+      }
+    });
+
+    const stylusRows = [
+      { label: 'Nominal divulgado', hint: c.picked.length + ' contratos × 12 cuotas', value: this.usd(c.nominal), fg: 'var(--color-text)', size: '15px' },
+      { label: 'Valor presente por plazo', hint: (this.props.agingAnnualPct ?? 18) + '% anual · dur 6.5m', value: '− ' + this.usd(c.pv), fg: 'var(--color-neutral-400)', size: '14px' },
+      { label: 'Haircut de morosidad', hint: '420 bps atestados', value: '− ' + this.usd(c.mora), fg: 'var(--color-neutral-400)', size: '14px' },
+      { label: 'Haircut de concentración', hint: 'top ' + Math.round(c.share * 100) + '% · umbral ' + (this.props.concentrationThresholdPct ?? 25) + '%', value: '− ' + this.usd(c.conc), fg: 'var(--color-neutral-400)', size: '14px' },
+      { label: 'Ajuste de continuidad', hint: 'score 78/100', value: '− ' + this.usd(c.cont), fg: 'var(--color-neutral-400)', size: '14px' },
+      { label: 'Valor ajustado por riesgo', hint: '', value: this.usd(c.adjusted), fg: 'var(--color-text)', size: '15px' },
+      { label: 'Base prestable', hint: 'advance rate ' + (this.props.advanceRatePct ?? 52.8) + '%', value: this.usd(c.base), fg: 'var(--color-accent-300)', size: '22px' }
+    ];
+
+    const verifyAll = [
+      { step: '1/5', text: 'Descargando 255 evidencias del storage cifrado…', fg: 'var(--color-neutral-400)' },
+      { step: '2/5', text: 'SHA-256 por archivo · 255 hashes recomputados', fg: 'var(--color-neutral-400)' },
+      { step: '3/5', text: 'Reconstruyendo 216 hojas con el salt del expediente', fg: 'var(--color-neutral-400)' },
+      { step: '4/5', text: 'merkleRoot local = ' + ROOT, fg: 'var(--color-neutral-400)' },
+      { step: '5/5', text: 'Coincide con AssetRegistry.assets(assetId).merkleRoot ✓', fg: 'var(--color-accent-300)' }
+    ];
+
+    const outcomes = {
+      repago: {
+        kicker: 'Desenlace A · mes 9',
+        title: 'Repago y efecto compuesto',
+        body: 'Contafácil repaga 35,000 más 4,725 de interés. El vault libera el colateral y el activo vuelve a Attested, listo para un segundo ciclo.',
+        code: 'repay(loanId, 39_725e6) → Status.Repaid',
+        note: 'Lo interesante viene después: queda un historial crediticio portable que hoy no existe en ningún lado.'
+      },
+      default: {
+        kicker: 'Desenlace B · incumplimiento',
+        title: 'El contrato produce la prueba, no ejecuta la garantía',
+        body: 'Transiciona a DEFAULTED y emite el evento con fecha exacta, monto pendiente y atestaciones vigentes. No se apodera de nada: los derechos de cobro son un contrato bajo ley peruana.',
+        code: 'emit LoanDefaulted(loanId, 35_000e6, block.timestamp)',
+        note: 'Andes Capital notifica notarialmente a los 12 clientes. La ejecución es legal y off-chain; la prueba que la sostiene es on-chain — y es lo que hoy toma meses litigar.'
+      }
+    };
+
+    const txs = BASE_TXS.concat(s.funded ? [{ hash: '0xb7e2…31f8', contract: 'CollateralVault', method: 'fundLoan', signer: 'Andes Capital', gas: '0.000044 ETH', block: '92,501,901' }] : []);
+
+    return {
+      block: s.block.toLocaleString('en-US'),
+      title: t[0],
+      subtitle: t[1],
+      stateLabel: s.funded ? 'FUNDED' : 'PLEDGED',
+      root: ROOT_FULL.slice(0, 22) + '…' + ROOT_FULL.slice(-6),
+      rootShort: ROOT,
+
+      navPyme: [
+        this.navItem('resumen', 'Resumen', ''),
+        this.navItem('expediente', 'Expediente', '216'),
+        this.navItem('evidencias', 'Evidencias', '255'),
+        this.navItem('divulgacion', 'Divulgación selectiva', c.picked.length + '/16'),
+        this.navItem('prestamo', 'Préstamo', ''),
+        this.navItem('historial', 'Historial crediticio', '')
+      ],
+      navCert: [this.navItem('cert', 'Cola de atestaciones', s.signed.length + '/3')],
+      navFondo: [this.navItem('stylus', 'Recómputo Stylus', '')],
+      navOps: [
+        this.navItem('actividad', 'Actividad on-chain', String(txs.length)),
+        this.navItem('verify', 'Página /verify/:code', '')
+      ],
+
+      isResumen: s.screen === 'resumen',
+      isExpediente: s.screen === 'expediente',
+      isEvidencias: s.screen === 'evidencias',
+      isDivulgacion: s.screen === 'divulgacion',
+      isStylus: s.screen === 'stylus',
+      isCert: s.screen === 'cert',
+      isPrestamo: s.screen === 'prestamo',
+      isHistorial: s.screen === 'historial',
+      isActividad: s.screen === 'actividad',
+      isVerify: s.screen === 'verify',
+
+      kpis: [
+        { kicker: 'Nominal certificado', value: this.usd(154000), note: '18 contratos · 12 meses remanentes' },
+        { kicker: 'Base prestable', value: this.usd(c.base), note: 'recomputable por el prestamista' },
+        { kicker: 'Solicitado', value: '35,000 USDC', note: '9 meses · 83% de la base' },
+        { kicker: 'Días hasta el desembolso', value: '9', note: 'banco tradicional: 6-10 semanas' }
+      ],
+      machine,
+      split: [
+        { label: 'Expediente, evidencias y CRUD', where: 'Web2 · NestJS', pct: '55%', color: 'var(--color-neutral-600)' },
+        { label: 'Registro y ciclo de vida del activo', where: 'Solidity', pct: '15%', color: 'var(--color-accent-600)' },
+        { label: 'Valorización', where: 'Stylus (Rust)', pct: '18%', color: 'var(--color-accent-500)' },
+        { label: 'Custodia y dinero', where: 'CollateralVault + USDC', pct: '12%', color: 'var(--color-accent-400)' }
+      ],
+      recentEvents: [
+        { name: 'AssetPledged', detail: '216 hojas comprometidas como colateral', ago: 'hace 2 min' },
+        { name: 'CertificateMinted', detail: 'PAICertificate #0042 soulbound → 0x7a3f…B21c', ago: 'hace 1 día' },
+        { name: 'AttestationCreated', detail: 'SERVICE_CONTINUITY · score 78 · 0x5f70…C133', ago: 'hace 2 días' },
+        { name: 'AssetRegistered', detail: 'merkleRoot ' + ROOT + ' · 3 centavos de gas', ago: 'hace 8 días' }
+      ],
+
+      leafCells,
+      legend: [
+        { label: 'Divulgada al fondo', bg: 'var(--color-accent-500)', border: 'var(--color-accent-400)' },
+        { label: 'En el root, oculta', bg: 'var(--color-neutral-800)', border: 'transparent' },
+        { label: 'No elegible (cláusula de no-cesión)', bg: 'transparent', border: 'var(--color-neutral-700)' }
+      ],
+
+      evidence: [
+        { cat: 'Contratos corporativos firmados', n: 18, role: 'El activo: derecho de cobro con obligado conocido', hash: 'a3f1…0b74' },
+        { cat: 'Facturas XML SUNAT', n: 216, role: 'Una hoja del árbol por cada cuota', hash: '7c02…e199' },
+        { cat: 'Extractos bancarios', n: 12, role: 'Cruce de abonos contra facturación', hash: 'd410…5a3c' },
+        { cat: 'Reporte de pasarela de pagos', n: 1, role: 'Comportamiento de cobro real', hash: '19bb…c780' },
+        { cat: 'Certificado INDECOPI', n: 1, role: 'Continuidad: marca vigente', hash: 'f5e8…2244' },
+        { cat: 'Cesiones de derechos (ex-contratistas)', n: 6, role: 'Continuidad: sin reclamos sobre el código', hash: '6d31…9fa0' },
+        { cat: 'Informe de dependencias y licencias', n: 1, role: 'Continuidad: sin GPL contaminante', hash: 'b8c4…70de' }
+      ],
+
+      contracts: CONTRACTS.map(ct => {
+        const on = ct.eligible && s.selected.includes(ct.id);
+        return {
+          name: ct.name,
+          amount: this.usd(ct.amount),
+          toggle: this.toggle(ct.id),
+          cursor: ct.eligible ? 'pointer' : 'not-allowed',
+          opacity: ct.eligible ? '1' : '0.5',
+          check: on ? '✓' : '',
+          boxBg: on ? 'var(--color-accent)' : 'transparent',
+          boxBorder: on ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+          tag: ct.eligible ? (on ? 'divulgada' : 'oculta') : 'no cedible',
+          tagClass: ct.eligible ? (on ? 'tag-accent' : 'tag-neutral') : 'tag-outline'
+        };
+      }),
+      disclosedLeaves,
+      hiddenLeaves,
+      disclosedNominal: this.usd(c.nominal),
+      proofSize,
+      proofBtn: 'Construir multiproof (' + c.picked.length + ')',
+      buildProof: this.go('stylus'),
+      resetSel: () => this.setState({ selected: [], stylusStep: 0 }),
+
+      stylusLines: stylusRows.slice(0, s.stylusStep),
+      stylusDone: s.stylusStep >= 7,
+      stylusIdle: s.stylusStep === 0,
+      stylusBtn: s.stylusStep === 0 ? 'Ejecutar recómputo' : (s.stylusStep >= 7 ? 'Volver a ejecutar' : 'Calculando…'),
+      runStylus: this.runStylus,
+      agingLabel: (this.props.agingAnnualPct ?? 18) + '% anual',
+      concLabel: (this.props.concentrationThresholdPct ?? 25) + '%',
+      advanceLabel: (this.props.advanceRatePct ?? 52.8) + '%',
+
+      certifiers: CERTIFIERS.map((cf, i) => {
+        const done = s.signed.includes(i);
+        return Object.assign({}, cf, {
+          btn: done ? 'Atestación firmada · revocar' : 'Firmar atestación (EIP-712)',
+          btnClass: done ? 'btn-secondary' : 'btn-primary',
+          sign: () => this.setState(st => ({
+            signed: st.signed.includes(i) ? st.signed.filter(x => x !== i) : [...st.signed, i]
+          }))
+        });
+      }),
+
+      loanFacts: [
+        { label: 'Principal', value: '35,000 USDC', fg: 'var(--color-text)' },
+        { label: 'Plazo', value: '9 meses', fg: 'var(--color-text)' },
+        { label: 'Tasa anual', value: '18.0%', fg: 'var(--color-text)' },
+        { label: 'Base prestable', value: this.usd(c.base), fg: 'var(--color-accent-300)' },
+        { label: 'Uso de la base', value: Math.round((35000 / c.base) * 100) + '%', fg: 'var(--color-text)' },
+        { label: 'Colateral', value: disclosedLeaves + ' hojas', fg: 'var(--color-text)' }
+      ],
+      fundBtn: s.funded ? 'Préstamo fondeado ✓' : 'fundLoan(loanId, 35_000e6)',
+      fundLoan: () => this.setState({ funded: true }),
+      funded: s.funded,
+      outcome: outcomes[s.outcome],
+      outcomeTabs: [
+        { label: 'Desenlace A · repago', go: () => this.setState({ outcome: 'repago' }),
+          border: s.outcome === 'repago' ? 'var(--color-accent)' : 'var(--color-divider)',
+          fg: s.outcome === 'repago' ? 'var(--color-accent)' : 'var(--color-neutral-400)' },
+        { label: 'Desenlace B · default', go: () => this.setState({ outcome: 'default' }),
+          border: s.outcome === 'default' ? 'var(--color-accent)' : 'var(--color-divider)',
+          fg: s.outcome === 'default' ? 'var(--color-accent)' : 'var(--color-neutral-400)' }
+      ],
+
+      history: [
+        { cycle: 'Ciclo 1 · sin historial', amount: '35,000 USDC', term: '9 meses', rate: '18.0%', advance: '52.8%', status: 'en curso', tagClass: 'tag-accent', fg: 'var(--color-text)' },
+        { cycle: 'Ciclo 2 · proyectado', amount: '48,000 USDC', term: '9 meses', rate: '14.5%', advance: '61.0%', status: 'simulado', tagClass: 'tag-outline', fg: 'var(--color-accent-300)' }
+      ],
+
+      txs,
+      txCount: txs.length,
+
+      attestations: [
+        { scope: 'REVENUE_VERIFIED', by: 'Estudio Paredes & Asoc.', wallet: '0x1d4c…9Ae2', date: '2026-07-14', status: 'vigente', tagClass: 'tag-accent' },
+        { scope: 'RIGHTS_ASSIGNABLE', by: 'Vargas Legal SAC', wallet: '0x88b1…04Fd', date: '2026-07-16', status: '16 de 18', tagClass: 'tag-accent' },
+        { scope: 'SERVICE_CONTINUITY', by: 'Nodo Ingeniería', wallet: '0x5f70…C133', date: '2026-07-17', status: 'score 78', tagClass: 'tag-accent' }
+      ],
+      verifyLines: verifyAll.slice(0, s.verifyStep),
+      verifyBtn: s.verifyStep === 0 ? 'Verificar' : (s.verifyStep >= 5 ? 'Verificar de nuevo' : 'Verificando…'),
+      runVerify: this.runVerify
+    };
+  }
+}
+
+</script>
+</body>
+</html>

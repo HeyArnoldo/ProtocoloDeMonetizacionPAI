@@ -1,82 +1,164 @@
+/* Nocturne — sistema visual del Panel PAI portado a los tokens de shadcn/ui.
+   Fuente de verdad: `docs/design/nocturne-styles.css` (tokens literales) y
+   `docs/design/README.md` (handoff de layout y uso).
+
+   Tres decisiones gobiernan este archivo:
+
+   1. Tema único oscuro. Nocturne vive en `:root`; no hay bloque `.dark` ni
+      conmutador de tema. `color-scheme: dark` alinea los controles nativos.
+   2. Valores en hexadecimal literal. Convertirlos a oklch introduciría deriva
+      respecto de un diseño ya aprobado y medido.
+   3. Espacios de nombres separados. El acento de Nocturne es el color de marca
+      y va a `--primary`; el `--accent` de shadcn es otra cosa (superficie de
+      hover) y aquí queda como un tinte sutil de la marca. Las rampas se
+      exponen como `brand-*` e `ink-*` para no pisar las paletas nativas de
+      Tailwind (`accent` y `neutral`). */
+
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@custom-variant dark (&:is(.dark *));
+/* Inter self-hosted. No se usa el `@import` de Google Fonts que trae
+   `nocturne-styles.css`: es render-blocking y depende de un tercero. */
+@import '@fontsource-variable/inter';
+
+/* El tema es oscuro y único, así que la variante `dark:` de shadcn aplica
+   siempre. Los primitivos ya traen sus ajustes de tema oscuro escritos con
+   esta variante; anularla los dejaría con los valores del tema claro. */
+@custom-variant dark (&);
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  color-scheme: dark;
+
+  /* Nocturne: radios 4 / 8 / 14px. El radio base del sistema es 8px y los
+     primitivos de shadcn usan `rounded-md`, así que `md` se ancla al radio
+     base y `sm` conserva los 4px del sistema. */
+  --radius: 8px;
+
+  /* ── Rampa neutral de Nocturne → `ink-*` ────────────────────────────────
+     Se renombra a `ink` a propósito: el espacio de nombres `neutral` pisaría
+     en silencio la paleta neutral nativa de Tailwind. */
+  --ink-100: #f3f5fe;
+  --ink-200: #e4e7f5;
+  --ink-300: #cfd3e5;
+  --ink-400: #b2b6ca;
+  --ink-500: #9397ab;
+  /* Aviso de accesibilidad: `ink-600` (#75798c) rinde 4.08:1 sobre el fondo
+     #161826 y no alcanza WCAG AA para texto. Úsalo solo en bordes, reglas y
+     decoración. Para texto secundario, incluido el de 10–11.5px de la maqueta
+     (contadores, timestamps, hints), usa `--muted-foreground` (`ink-500`,
+     6.08:1). */
+  --ink-600: #75798c;
+  --ink-700: #595d6c;
+  --ink-800: #3f424d;
+  --ink-900: #292b31;
+
+  /* ── Rampa de acento de Nocturne → `brand-*` ──────────────────────────── */
+  --brand-100: #f5f4ff;
+  --brand-200: #e7e5fe;
+  --brand-300: #d2cefd;
+  --brand-400: #b5abfc;
+  --brand-500: #968ae0;
+  --brand-600: #796cbf;
+  --brand-700: #5d5294;
+  --brand-800: #423a6a;
+  --brand-900: #2b2741;
+
+  /* ── Tokens raíz de Nocturne ──────────────────────────────────────────── */
+  --nocturne-bg: #161826;
+  --nocturne-surface: #232532;
+  --nocturne-text: #e9e9ed;
+  --nocturne-brand: #9184d9;
+  --nocturne-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
+
+  /* ── Mapeo semántico shadcn ← Nocturne ────────────────────────────────── */
+  --background: var(--nocturne-bg);
+  --foreground: var(--nocturne-text);
+
+  --card: var(--nocturne-surface);
+  --card-foreground: var(--nocturne-text);
+  --popover: var(--nocturne-surface);
+  --popover-foreground: var(--nocturne-text);
+
+  /* El acento de Nocturne es el color de marca del producto. */
+  --primary: var(--nocturne-brand);
+  --primary-foreground: var(--brand-100);
+
+  --secondary: var(--nocturne-divider);
+  --secondary-foreground: var(--nocturne-text);
+
+  --muted: var(--nocturne-surface);
+  --muted-foreground: var(--ink-500);
+
+  /* `accent` de shadcn = superficie de hover, no la marca. El 12% replica
+     exactamente el hover de `.btn-primary` en `nocturne-styles.css`. */
+  --accent: color-mix(in srgb, var(--nocturne-brand) 12%, transparent);
+  --accent-foreground: var(--brand-300);
+
+  /* Nocturne no define un rojo. Se elige uno construido sobre la misma
+     lightness y croma que el acento (oklch L 0.660 / C 0.125, hue 25) para que
+     convivan sin desentonar: mismo peso visual, distinta familia de tono. */
+  --destructive: #d4716b;
+
+  --border: var(--ink-800);
+  --input: var(--ink-800);
+  --ring: var(--nocturne-brand);
+
+  /* Series de datos derivadas de las mismas dos rampas, para que cualquier
+     gráfico quede dentro del sistema en lugar de traer su propia paleta. */
+  --chart-1: var(--nocturne-brand);
+  --chart-2: var(--brand-400);
+  --chart-3: var(--brand-600);
+  --chart-4: var(--ink-500);
+  --chart-5: var(--brand-700);
+
+  /* El shell del panel comparte el fondo con el contenido y se separa con un
+     borde `ink-800`; el ítem de navegación activo usa `brand-900` sobre
+     `brand-200`, tal como especifica el handoff. */
+  --sidebar: var(--nocturne-bg);
+  --sidebar-foreground: var(--nocturne-text);
+  --sidebar-primary: var(--nocturne-brand);
+  --sidebar-primary-foreground: var(--brand-100);
+  --sidebar-accent: var(--brand-900);
+  --sidebar-accent-foreground: var(--brand-200);
+  --sidebar-border: var(--ink-800);
+  --sidebar-ring: var(--nocturne-brand);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* Animaciones de la maqueta. Se declaran fuera de `@theme` para que se emitan
+   aunque se usen desde CSS a mano y no solo desde las utilidades. */
+@keyframes pulseIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
 }
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
+
+  --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
+  /* Todo hash, dirección, monto y cifra va en esta familia. Las ligaduras se
+     desactivan en la utilidad `mono`: en un hash hexadecimal una ligadura
+     cambia lo que el operador lee. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -108,13 +190,100 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Rampa de marca → `text-brand-300`, `bg-brand-900`, `border-brand-700`. */
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+
+  /* Rampa neutral → `text-ink-500`, `border-ink-800`. */
+  --color-ink-100: var(--ink-100);
+  --color-ink-200: var(--ink-200);
+  --color-ink-300: var(--ink-300);
+  --color-ink-400: var(--ink-400);
+  --color-ink-500: var(--ink-500);
+  --color-ink-600: var(--ink-600);
+  --color-ink-700: var(--ink-700);
+  --color-ink-800: var(--ink-800);
+  --color-ink-900: var(--ink-900);
+
+  /* Entrada única de la maqueta y el latido del indicador de bloque en vivo. */
+  --animate-pulse-in: pulseIn 260ms ease both;
+  --animate-blink: blink 2.4s infinite;
+}
+
+/* Cifras, hashes y direcciones. `tabular-nums` mantiene las columnas de montos
+   alineadas cuando el valor cambia en vivo. */
+@utility mono {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+
+  /* El foco visible es siempre el anillo del acento, nunca el azul del
+     navegador. */
+  :focus {
+    outline: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--nocturne-brand) 30%, transparent);
+  }
+
+  /* Barra de scroll del handoff: 10px, pulgar `ink-800` con radio 8px y un
+     borde de 3px del propio fondo que la adelgaza ópticamente. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--ink-800);
+    border-radius: 8px;
+    border: 3px solid var(--background);
+  }
+
+  * {
+    scrollbar-color: var(--ink-800) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* La maqueta no contempla `prefers-reduced-motion`. `pulseIn` y `blink` se
+   anulan en su estado final para que la información quede legible sin
+   movimiento; el resto de transiciones se conserva.
+
+   Va sin capa a propósito: dentro de `@layer base` perdería la cascada contra
+   las utilidades `animate-*`, que viven en la capa `utilities`. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-in,
+  .animate-blink {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 }
