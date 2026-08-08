@@ -46,7 +46,7 @@ export class UsersService {
           email: profile.email,
           name: profile.name,
           googleId: profile.googleId,
-          role: UserRole.USER,
+          role: UserRole.PYME,
         });
       }
     }

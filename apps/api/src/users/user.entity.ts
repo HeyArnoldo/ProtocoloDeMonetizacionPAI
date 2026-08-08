@@ -28,7 +28,7 @@ export class User {
   @Column({ type: 'varchar', length: 500, nullable: true })
   avatarUrl: string | null;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.PYME })
   role: UserRole;
 
   @CreateDateColumn()

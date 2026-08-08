@@ -40,6 +40,8 @@ export const envSchema = z
     ADMIN_EMAIL: z.string().optional(),
     ADMIN_PASSWORD: z.string().optional(),
     ADMIN_NAME: z.string().optional(),
+    CERTIFIER_EMAILS: z.string().optional(),
+    FUND_EMAILS: z.string().optional(),
 
     // Cadena. in-memory = la API funciona sin cadena (dev, tests, demo Web2).
     CHAIN_ADAPTER: z.enum(['in-memory', 'arbitrum']).default('in-memory'),
