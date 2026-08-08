@@ -36,7 +36,7 @@ export function CardKicker({ className, children }: { className?: string; childr
   );
 }
 
-/** Párrafo de cuerpo de tarjeta (`.card-body`): 13px, contraste rebajado. */
+/** Párrafo de cuerpo de tarjeta (`.card-body`): 13px, color secundario del sistema. */
 export function CardBody({ className, children }: { className?: string; children: ReactNode }) {
   // El `opacity: .8` de la maqueta deshacia la correccion de contraste: sobre la
   // superficie de tarjeta dejaba ink-500 en ~3.89:1, por debajo del 4.5:1 de AA.
