@@ -1,114 +1,147 @@
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { CardBody, CardKicker, PanelCard } from '@/components/panel/panel-card';
 import { StatTile } from '@/components/panel/stat-tile';
-import { CardKicker, PanelCard } from '@/components/panel/panel-card';
-import { PendingData } from '@/components/panel/pending-data';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { evidenceFileError, formatEvidenceDate, formatFileSize } from '@/domain/evidence-view';
+import { useEvidence, useUploadEvidence } from '@/hooks/use-evidence';
 
-/**
- * Evidencias.
- *
- * De las tres cifras de la maqueta solo una es afirmable hoy, y no porque se
- * haya medido: **cero archivos on-chain** es una invariante del diseño, no un
- * contador. El protocolo nunca escribe un documento en la cadena; escribe una
- * huella de 32 bytes. Las otras dos —documentos en storage y costo de
- * registro— dependen de un expediente y de una transacción que no existen.
- */
-
-/**
- * Taxonomía de evidencias del caso de referencia.
- *
- * Es el catálogo de qué se pide y para qué sirve cada cosa, no el inventario
- * de un expediente cargado: por eso no lleva conteos ni hashes de muestra.
- */
-const EVIDENCE_CATEGORIES = [
-  {
-    category: 'Contratos corporativos firmados',
-    role: 'El activo: derecho de cobro con obligado conocido',
-  },
-  { category: 'Facturas XML SUNAT', role: 'Una hoja del árbol por cada cuota' },
-  { category: 'Extractos bancarios', role: 'Cruce de abonos contra facturación' },
-  { category: 'Reporte de pasarela de pagos', role: 'Comportamiento de cobro real' },
-  { category: 'Certificado INDECOPI', role: 'Continuidad: marca vigente' },
-  {
-    category: 'Cesiones de derechos (ex-contratistas)',
-    role: 'Continuidad: sin reclamos sobre el código',
-  },
-  {
-    category: 'Informe de dependencias y licencias',
-    role: 'Continuidad: sin licencias contaminantes',
-  },
-];
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Evidence request failed.';
+}
 
 export default function EvidencePage() {
+  const inventory = useEvidence();
+  const upload = useUploadEvidence();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const chooseFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const selected = event.target.files?.[0] ?? null;
+    const error = selected ? evidenceFileError(selected) : null;
+    setValidationError(error);
+    setFile(error ? null : selected);
+    upload.reset();
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!file) return;
+    upload.mutate(file, {
+      onSuccess: () => {
+        setFile(null);
+        if (inputRef.current) inputRef.current.value = '';
+      },
+    });
+  };
+
+  const documents = inventory.data ?? [];
   return (
     <div className="flex max-w-[1080px] flex-col gap-3 sm:gap-[18px]">
       <section
-        aria-label="Huella de las evidencias"
-        className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]"
+        aria-label="Evidence footprint"
+        className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]"
       >
-        <PendingData
-          title="Documentos en storage"
-          reason="Cuántos archivos cifrados sostienen el expediente. Nunca salen del servidor."
-          unblockedBy="el módulo de evidencias y el storage cifrado conectados"
-        />
         <StatTile
-          kicker="Archivos on-chain"
-          value="0"
-          emphasis="brand"
-          note="Invariante del diseño: solo viaja la huella, 1 root de 32 bytes"
+          kicker="Documents in storage"
+          value={inventory.isPending ? '—' : documents.length}
+          note="Encrypted objects represented by persisted metadata"
           valueClassName="text-[25px]"
         />
-        <PendingData
-          title="Costo de registro"
-          reason="El gas de la única transacción que escribe el root. Con paymaster, la PYME no lo paga."
-          unblockedBy="una transacción real de registerAsset() en Arbitrum Sepolia"
+        <StatTile
+          kicker="Files on-chain"
+          value="0"
+          emphasis="brand"
+          note="Design invariant: only a 32-byte root reaches the chain"
+          valueClassName="text-[25px]"
         />
       </section>
 
-      <PanelCard className="gap-3">
-        <CardKicker>Qué entra al expediente y por qué</CardKicker>
-        {/* Tabla de prosa, no de cifras: por debajo de `lg` las celdas envuelven
-            en vez de arrastrar la tabla a un scroll horizontal. Alinear al tope
-            mantiene legible la correspondencia entre las dos columnas cuando
-            cada una ocupa un número distinto de líneas. */}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Categoría</TableHead>
-              <TableHead>Rol en el expediente</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {EVIDENCE_CATEGORIES.map((item) => (
-              <TableRow key={item.category}>
-                <TableCell className="align-top text-[13px] whitespace-normal lg:align-middle lg:whitespace-nowrap">
-                  {item.category}
-                </TableCell>
-                <TableCell className="text-ink-400 align-top text-[13px] whitespace-normal lg:align-middle lg:whitespace-nowrap">
-                  {item.role}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <PanelCard>
+        <CardKicker>Upload evidence</CardKicker>
+        <CardBody>
+          Select one file, up to 25 MiB. The API remains authoritative and computes its SHA-256
+          fingerprint before persisting metadata.
+        </CardBody>
+        <form className="mt-1 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={submit}>
+          <div className="grid gap-1.5">
+            <Label htmlFor="evidence-file">Evidence file</Label>
+            <Input
+              ref={inputRef}
+              id="evidence-file"
+              type="file"
+              onChange={chooseFile}
+              disabled={upload.isPending}
+              aria-describedby="evidence-file-hint"
+            />
+            <p id="evidence-file-hint" className="text-muted-foreground text-xs">
+              The file stays off-chain; no private download or preview is exposed here.
+            </p>
+          </div>
+          <Button type="submit" disabled={!file || upload.isPending}>
+            {upload.isPending ? 'Uploading…' : 'Upload evidence'}
+          </Button>
+        </form>
+        {validationError || upload.isError ? (
+          <p role="alert" className="text-destructive text-sm">
+            {validationError ?? errorMessage(upload.error)}
+          </p>
+        ) : upload.isSuccess ? (
+          <p role="status" className="text-brand-300 text-sm">
+            Upload completed.
+          </p>
+        ) : null}
       </PanelCard>
 
-      <PendingData
-        title="Conteo por categoría y muestras SHA-256"
-        reason="Cuántos documentos hay de cada tipo y la huella de cada uno, para que quien audite pueda recomputarla desde el archivo original."
-        unblockedBy="documentos cargados y hasheados por el módulo de evidencias"
-      />
+      <PanelCard className="gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <CardKicker>Persisted inventory</CardKicker>
+            <h2 className="text-[17px] font-medium">Evidence metadata</h2>
+          </div>
+          {inventory.isError ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void inventory.refetch()}
+            >
+              Retry
+            </Button>
+          ) : null}
+        </div>
 
-      <p className="text-muted-foreground max-w-[700px] text-[12.5px]">
-        El código, la marca INDECOPI y las cesiones no son el activo financiable: entran como
-        evidencia de continuidad del servicio. Si el SaaS muere, los contratos no se cobran.
-      </p>
+        {inventory.isPending ? (
+          <p role="status" className="text-muted-foreground text-sm">
+            Loading evidence…
+          </p>
+        ) : inventory.isError ? (
+          <p role="alert" className="text-destructive text-sm">
+            {errorMessage(inventory.error)}
+          </p>
+        ) : documents.length === 0 ? (
+          <CardBody>No evidence has been uploaded for this account.</CardBody>
+        ) : (
+          <ul className="grid gap-2 md:grid-cols-2">
+            {documents.map((item) => (
+              <li key={item.id} className="border-border min-w-0 rounded-md border p-3">
+                <p className="truncate text-sm font-medium" title={item.originalName}>
+                  {item.originalName}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {item.mimeType} · {formatFileSize(item.sizeBytes)} ·{' '}
+                  {formatEvidenceDate(item.createdAt)}
+                </p>
+                <p className="mono mt-2 break-all text-[11px]" title="SHA-256 fingerprint">
+                  {item.sha256}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PanelCard>
     </div>
   );
 }

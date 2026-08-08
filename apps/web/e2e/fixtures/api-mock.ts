@@ -10,6 +10,7 @@ import {
   type AuthUser,
   type DisclosurePreviewRequest,
   type DisclosurePreviewResponse,
+  type EvidenceResponse,
   type Receivable,
   type SamplePortfolio,
 } from '@app/contracts';
@@ -148,6 +149,8 @@ export interface ApiMockOptions {
   user?: AuthUser | null;
   /** Cartera de `GET /api/disclosure/sample`. */
   portfolio?: SamplePortfolio;
+  evidence?: EvidenceResponse[];
+  evidenceUploadError?: string;
 }
 
 function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
@@ -167,6 +170,7 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
   const authConfig: AuthConfig = options.authConfig ?? { localEnabled: true, googleEnabled: true };
   const user = options.user ?? null;
   const portfolio = options.portfolio ?? buildSamplePortfolio();
+  const evidence = [...(options.evidence ?? [])];
 
   await page.route('**/api/auth/config', (route) => fulfillJson(route, authConfig));
 
@@ -179,6 +183,23 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
   await page.route('**/api/auth/login', (route) => fulfillJson(route, user ?? buildAuthUser()));
 
   await page.route('**/api/auth/logout', (route) => fulfillJson(route, {}));
+
+  await page.route('**/api/evidence', (route) => {
+    if (route.request().method() === 'GET') return fulfillJson(route, evidence);
+    if (options.evidenceUploadError) {
+      return fulfillJson(route, { statusCode: 503, message: options.evidenceUploadError }, 503);
+    }
+    const uploaded: EvidenceResponse = {
+      id: '7fb79494-272c-4be1-8204-885c0bba3528',
+      originalName: 'factura.xml',
+      mimeType: 'application/xml',
+      sizeBytes: '18',
+      sha256: `0x${'a'.repeat(64)}`,
+      createdAt: '2026-08-08T15:00:00.000Z',
+    };
+    evidence.unshift(uploaded);
+    return fulfillJson(route, uploaded, 201);
+  });
 
   await page.route('**/api/disclosure/sample', (route) => fulfillJson(route, portfolio));
 
