@@ -11,7 +11,7 @@ import type { User } from '../users/user.entity';
 
 @Controller('assets')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles(UserRole.PYME, UserRole.ADMIN)
 export class AssetsController {
   constructor(private readonly assets: AssetsService) {}
 

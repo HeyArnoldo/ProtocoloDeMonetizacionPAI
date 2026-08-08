@@ -20,6 +20,14 @@ export class EvidenceService {
     @Inject(EVIDENCE_STORAGE) private readonly storage: EvidenceStorage,
   ) {}
 
+  async list(createdById: string): Promise<EvidenceResponse[]> {
+    const evidence = await this.evidence.find({
+      where: { createdById },
+      order: { createdAt: 'DESC' },
+    });
+    return evidence.map((item) => this.toResponse(item));
+  }
+
   async upload(createdById: string, file: UploadedEvidenceFile): Promise<EvidenceResponse> {
     const sha256 = `0x${createHash('sha256').update(file.buffer).digest('hex')}`;
     const objectKey = `evidence/${sha256.slice(2, 4)}/${randomUUID()}`;

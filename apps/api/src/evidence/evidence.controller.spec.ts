@@ -4,7 +4,18 @@ import { EvidenceController } from './evidence.controller';
 import type { User } from '../users/user.entity';
 
 describe('EvidenceController', () => {
-  const service = { upload: jest.fn() } as unknown as jest.Mocked<EvidenceService>;
+  const service = { list: jest.fn(), upload: jest.fn() } as unknown as jest.Mocked<EvidenceService>;
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('lists only for the current owner identity', async () => {
+    service.list.mockResolvedValue([]);
+    const controller = new EvidenceController(service);
+
+    await controller.list({ id: 'user-1' } as User);
+
+    expect(service.list).toHaveBeenCalledWith('user-1');
+  });
 
   it('requires a multipart file', () => {
     const controller = new EvidenceController(service);

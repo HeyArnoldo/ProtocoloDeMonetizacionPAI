@@ -6,6 +6,7 @@ import type { EvidenceStorage, PutEvidenceObject } from './evidence-storage.port
 describe('EvidenceService', () => {
   const repository = {
     create: jest.fn((value) => value),
+    find: jest.fn(),
     save: jest.fn(async (value) => ({ id: '7fb79494-272c-4be1-8204-885c0bba3528', ...value })),
   } as unknown as jest.Mocked<Repository<Evidence>>;
   const storage: jest.Mocked<EvidenceStorage> = {
@@ -13,6 +14,38 @@ describe('EvidenceService', () => {
   };
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('lists owner evidence newest-first without persistence-only fields', async () => {
+    repository.find.mockResolvedValue([
+      {
+        id: 'evidence-1',
+        createdById: 'user-1',
+        objectKey: 'private/key',
+        originalName: 'invoice.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: '7',
+        sha256: `0x${'11'.repeat(32)}`,
+        createdAt: new Date('2026-08-08T00:00:00.000Z'),
+      } as Evidence,
+    ]);
+
+    const result = await new EvidenceService(repository, storage).list('user-1');
+
+    expect(repository.find).toHaveBeenCalledWith({
+      where: { createdById: 'user-1' },
+      order: { createdAt: 'DESC' },
+    });
+    expect(result).toEqual([
+      {
+        id: 'evidence-1',
+        originalName: 'invoice.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: '7',
+        sha256: `0x${'11'.repeat(32)}`,
+        createdAt: '2026-08-08T00:00:00.000Z',
+      },
+    ]);
+  });
 
   it('stores the file under its SHA-256 fingerprint and persists metadata', async () => {
     const service = new EvidenceService(repository, storage);

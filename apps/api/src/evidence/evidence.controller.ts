@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Get,
   Post,
   UploadedFile,
   UseGuards,
@@ -17,9 +18,14 @@ import type { User } from '../users/user.entity';
 
 @Controller('evidence')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles(UserRole.PYME, UserRole.ADMIN)
 export class EvidenceController {
   constructor(private readonly evidence: EvidenceService) {}
+
+  @Get()
+  list(@CurrentUser() user: User): Promise<EvidenceResponse[]> {
+    return this.evidence.list(user.id);
+  }
 
   @Post()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024, files: 1 } }))

@@ -11,7 +11,7 @@ import type { User } from '../users/user.entity';
 
 @Controller('disclosure')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles(UserRole.PYME, UserRole.ADMIN)
 export class DisclosureController {
   constructor(private readonly disclosure: DisclosureService) {}
 
