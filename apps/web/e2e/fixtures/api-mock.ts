@@ -6,6 +6,7 @@ import {
   disclosurePreviewRequestSchema,
   disclosurePreviewResponseSchema,
   samplePortfolioSchema,
+  type AssetResponse,
   type AuthConfig,
   type AuthUser,
   type DisclosurePreviewRequest,
@@ -88,6 +89,25 @@ export function buildAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
   });
 }
 
+export function buildAssetResponse(portfolio = buildSamplePortfolio()): AssetResponse {
+  return {
+    id: `0x${'1'.repeat(64)}`,
+    ownerIdHash: `0x${'2'.repeat(64)}`,
+    controller: `0x${'3'.repeat(40)}`,
+    merkleRoot: `0x${'4'.repeat(64)}`,
+    registrationTxHash: `0x${'5'.repeat(64)}`,
+    registrationConfirmed: true,
+    registrationBlockNumber: 12_345,
+    createdAt: '2026-08-08T15:00:00.000Z',
+    receivables: portfolio.receivables.slice(0, 2).map((item, index) => ({
+      ...item,
+      id: `8fb79494-272c-4be1-8204-885c0bba352${index}`,
+      evidenceId: `7fb79494-272c-4be1-8204-885c0bba352${index}`,
+      position: 1 - index,
+    })),
+  };
+}
+
 /**
  * Misma conversión que `DisclosureService.toLeaves()`.
  *
@@ -151,6 +171,8 @@ export interface ApiMockOptions {
   portfolio?: SamplePortfolio;
   evidence?: EvidenceResponse[];
   evidenceUploadError?: string;
+  asset?: AssetResponse;
+  assetErrorStatus?: 403 | 404;
 }
 
 function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
@@ -171,6 +193,7 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
   const user = options.user ?? null;
   const portfolio = options.portfolio ?? buildSamplePortfolio();
   const evidence = [...(options.evidence ?? [])];
+  const asset = options.asset ?? buildAssetResponse(portfolio);
 
   await page.route('**/api/auth/config', (route) => fulfillJson(route, authConfig));
 
@@ -200,6 +223,12 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
     evidence.unshift(uploaded);
     return fulfillJson(route, uploaded, 201);
   });
+
+  await page.route('**/api/assets/*', (route) =>
+    options.assetErrorStatus
+      ? fulfillJson(route, { statusCode: options.assetErrorStatus }, options.assetErrorStatus)
+      : fulfillJson(route, asset),
+  );
 
   await page.route('**/api/disclosure/sample', (route) => fulfillJson(route, portfolio));
 
