@@ -87,8 +87,14 @@ export function buildAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
   });
 }
 
-/** Misma conversión que `DisclosureService.toLeaves()`. */
-function toLeaves(receivables: Receivable[], salt: Hex): ReceivableLeaf[] {
+/**
+ * Misma conversión que `DisclosureService.toLeaves()`.
+ *
+ * Se exporta para que un spec pueda alimentar `computeBorrowingBase` con las
+ * mismas hojas que el panel deriva de la cartera, y comparar los importes del
+ * desglose con los del motor en vez de con números escritos a mano.
+ */
+export function toLeaves(receivables: Receivable[], salt: Hex): ReceivableLeaf[] {
   return receivables.map((item) => ({
     debtorHash: hashDebtor(item.debtorTaxId, salt),
     amountMinor: BigInt(item.amountMinor),

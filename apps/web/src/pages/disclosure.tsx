@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { DisclosurePreviewResponse, Receivable } from '@app/contracts';
+import { Link } from 'react-router-dom';
+import type { DisclosurePreviewResponse } from '@app/contracts';
 import { CodeBlock } from '@/components/panel/code-block';
 import { HashValue } from '@/components/panel/hash-value';
 import { CardBody, CardKicker, PanelCard } from '@/components/panel/panel-card';
@@ -18,99 +19,67 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useDisclosurePreview, useSamplePortfolio } from '@/hooks/use-disclosure';
+import { formatDueDate, formatMinorUnits } from '@/domain/money';
+import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
 
 /**
  * Divulgación selectiva: la única pantalla del panel con datos reales de punta
  * a punta. La cartera viene de `GET /api/disclosure/sample` y el multiproof lo
  * construye `POST /api/disclosure/preview` con `@app/merkle` — el mismo
  * paquete que verifica los vectores dorados.
+ *
+ * La selección no es estado local: vive en `DisclosureSelectionProvider` y la
+ * comparte con `/borrowing-base`. Ese es el guion de la demo — marcar cuotas
+ * aquí y ver el número moverse allá.
  */
 
-const CURRENCY_LABEL: Record<number, string> = { 840: 'USD', 604: 'PEN' };
+/**
+ * Cuántas selecciones distintas se han probado desde que se abrió la pantalla.
+ *
+ * Es el argumento de la pantalla convertido en evidencia: el root que se
+ * muestra al lado no se ha movido en ninguna de ellas. Se deriva durante el
+ * render con el patrón de «ajustar estado al cambiar una prop», que es
+ * idempotente si React vuelve a renderizar en modo estricto.
+ */
+function useSelectionChangeCount(selectionKey: string): number {
+  const [seen, setSeen] = useState({ key: selectionKey, count: 0 });
 
-/** Las unidades menores son enteros: formatear con float perdería precisión. */
-function formatAmount(amountMinor: string | bigint, currency: number): string {
-  const minor = BigInt(amountMinor);
-  const units = minor / 100n;
-  const cents = minor % 100n;
-  const grouped = units.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${CURRENCY_LABEL[currency] ?? currency} ${grouped}.${cents.toString().padStart(2, '0')}`;
-}
+  if (seen.key !== selectionKey) {
+    setSeen({ key: selectionKey, count: seen.count + 1 });
+  }
 
-function formatDueDate(unixSeconds: number): string {
-  return new Date(unixSeconds * 1000).toISOString().slice(0, 10);
+  return seen.count;
 }
 
 export default function DisclosurePage() {
-  const { data: portfolio, isPending, isError, error } = useSamplePortfolio();
-  const preview = useDisclosurePreview();
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-
-  // Memoizado porque el `?? []` crearia un array nuevo en cada render y
-  // recalcularia los useMemo de abajo sin que nada haya cambiado.
-  const receivables: Receivable[] = useMemo(() => portfolio?.receivables ?? [], [portfolio]);
-
-  const totalNominal = useMemo(
-    () => receivables.reduce((total, item) => total + BigInt(item.amountMinor), 0n),
-    [receivables],
-  );
-
-  const selectedNominal = useMemo(
-    () =>
-      receivables.reduce(
-        (total, item, index) => (selected.has(index) ? total + BigInt(item.amountMinor) : total),
-        0n,
-      ),
-    [receivables, selected],
-  );
-
-  /**
-   * Una prueba construida deja de valer en cuanto cambia la selección: el root
-   * seguiría siendo el mismo, pero las hojas y el proof ya no corresponderían a
-   * lo que muestra la tabla. Se descarta en vez de dejarla envejecer en
-   * pantalla.
-   */
-  function updateSelection(next: Set<number>) {
-    preview.reset();
-    setSelected(next);
-  }
-
-  function toggle(index: number) {
-    const next = new Set(selected);
-    if (next.has(index)) next.delete(index);
-    else next.add(index);
-    updateSelection(next);
-  }
-
-  function toggleDebtor(label: string) {
-    const indices = receivables
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item.debtorLabel === label)
-      .map(({ index }) => index);
-
-    const allSelected = indices.every((index) => selected.has(index));
-    const next = new Set(selected);
-    for (const index of indices) {
-      if (allSelected) next.delete(index);
-      else next.add(index);
-    }
-    updateSelection(next);
-  }
-
-  function buildProof() {
-    if (!portfolio || selected.size === 0) return;
-    preview.mutate({
-      salt: portfolio.salt,
-      receivables: portfolio.receivables,
-      disclosedIndices: [...selected].sort((a, b) => a - b),
-    });
-  }
+  const {
+    isPending,
+    isError,
+    error,
+    receivables,
+    treeRoot,
+    selectedIndices,
+    isSelected,
+    toggle,
+    toggleDebtor,
+    clear,
+    disclosedCount,
+    hiddenCount,
+    totalNominalMinor,
+    selectedNominalMinor,
+    currency,
+    proof,
+    isBuildingProof,
+    proofError,
+    buildProof,
+  } = useDisclosureSelection();
 
   const debtors = useMemo(
     () => [...new Set(receivables.map((item) => item.debtorLabel))],
     [receivables],
   );
+
+  const selectionChanges = useSelectionChangeCount(selectedIndices.join(','));
 
   if (isPending) {
     return (
@@ -129,11 +98,6 @@ export default function DisclosurePage() {
     );
   }
 
-  const result = preview.data;
-  const disclosedCount = result?.disclosedCount ?? selected.size;
-  const hiddenCount = result?.hiddenCount ?? receivables.length - selected.size;
-  const disclosedNominal = result?.disclosedNominalMinor ?? selectedNominal;
-
   return (
     <div className="flex max-w-[1240px] flex-col gap-[18px]">
       <div className="grid items-start gap-[18px] xl:grid-cols-[1.45fr_1fr]">
@@ -141,8 +105,8 @@ export default function DisclosurePage() {
           <div className="flex flex-col gap-0.5">
             <CardKicker>Cartera del expediente</CardKicker>
             <p className="text-muted-foreground text-[11.5px]">
-              {receivables.length} cuotas · nominal total {formatAmount(totalNominal, 840)} ·{' '}
-              {selected.size} seleccionadas
+              {receivables.length} cuotas · nominal total{' '}
+              {formatMinorUnits(totalNominalMinor, currency)} · {disclosedCount} seleccionadas
             </p>
           </div>
 
@@ -169,7 +133,7 @@ export default function DisclosurePage() {
               {receivables.map((item, index) => (
                 <TableRow
                   key={item.docHash}
-                  data-state={selected.has(index) ? 'selected' : undefined}
+                  data-state={isSelected(index) ? 'selected' : undefined}
                   className="cursor-pointer"
                   onClick={() => toggle(index)}
                 >
@@ -177,7 +141,7 @@ export default function DisclosurePage() {
                     {/* El checkbox nativo del navegador ignora el tema oscuro:
                         se usa el primitivo del sistema para que tome los tokens. */}
                     <Checkbox
-                      checked={selected.has(index)}
+                      checked={isSelected(index)}
                       onCheckedChange={() => toggle(index)}
                       onClick={(event) => event.stopPropagation()}
                       aria-label={`Divulgar cuota de ${item.debtorLabel} con vencimiento ${item.dueDate}`}
@@ -186,14 +150,14 @@ export default function DisclosurePage() {
                   <TableCell className="text-[13px]">{item.debtorLabel}</TableCell>
                   <TableCell className="text-muted-foreground">{item.dueDate}</TableCell>
                   <TableCell className="mono text-right text-[12.5px]">
-                    {formatAmount(item.amountMinor, item.currency)}
+                    {formatMinorUnits(item.amountMinor, item.currency)}
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant={selected.has(index) ? 'default' : 'secondary'}
+                      variant={isSelected(index) ? 'default' : 'secondary'}
                       className="text-[10px] font-normal"
                     >
-                      {selected.has(index) ? 'divulgada' : 'oculta'}
+                      {isSelected(index) ? 'divulgada' : 'oculta'}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -212,65 +176,59 @@ export default function DisclosurePage() {
                 bare
                 kicker="Nominal divulgado"
                 emphasis="brand"
-                value={formatAmount(disclosedNominal, 840)}
+                value={formatMinorUnits(selectedNominalMinor, currency)}
                 valueClassName="text-[17px]"
               />
               <StatTile
                 bare
                 kicker="Tamaño del proof"
-                value={result ? String(result.proof.length) : '—'}
-                note={result ? 'hashes' : 'al construir la prueba'}
+                // El tamaño real lo devuelve el servidor en `proof.length`. La
+                // maqueta lo estima con `ceil(ocultas / 4) + 8`, una fórmula
+                // que no describe ningún multiproof: aquí no se inventa.
+                value={proof ? String(proof.proof.length) : '—'}
+                note={proof ? 'hashes' : 'al construir la prueba'}
               />
             </div>
 
             <SectionDivider className="my-0.5" />
 
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-[11px]">
-                Root del expediente (no cambia)
-              </span>
-              {result ? (
-                <HashValue
-                  value={result.root}
-                  leading={22}
-                  trailing={6}
-                  className="text-brand-300"
-                />
-              ) : (
-                <span className="text-muted-foreground text-[11.5px]">
-                  Lo devuelve el servidor junto con la prueba.
-                </span>
-              )}
-            </div>
+            <RootPanel root={treeRoot} proof={proof} selectionChanges={selectionChanges} />
 
             <div className="mt-1 flex gap-2">
-              <Button onClick={buildProof} disabled={selected.size === 0 || preview.isPending}>
-                {preview.isPending ? 'Construyendo prueba…' : `Construir prueba (${selected.size})`}
+              <Button onClick={buildProof} disabled={disclosedCount === 0 || isBuildingProof}>
+                {isBuildingProof ? 'Construyendo prueba…' : `Construir prueba (${disclosedCount})`}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => updateSelection(new Set())}
-                disabled={selected.size === 0}
-              >
+              <Button variant="secondary" onClick={clear} disabled={disclosedCount === 0}>
                 Limpiar
               </Button>
             </div>
 
-            {preview.isError && (
+            {proofError != null && (
               <p className="text-destructive text-[12px]">
-                {String(preview.error?.message ?? preview.error)}
+                {String((proofError as Error)?.message ?? proofError)}
               </p>
             )}
+
+            <CardBody className="text-muted-foreground">
+              Con esta selección, el{' '}
+              <Link
+                to="/borrowing-base"
+                className="text-brand-300 underline-offset-4 hover:underline"
+              >
+                recómputo del borrowing base
+              </Link>{' '}
+              usa exactamente estas {disclosedCount} cuotas.
+            </CardBody>
           </PanelCard>
 
           <PanelCard>
             <CardKicker>Lo único que sale hacia el fondo</CardKicker>
             <CodeBlock
               lines={[
-                { label: 'root', value: result ? result.root : '—' },
+                { label: 'root', value: treeRoot ?? '—' },
                 { label: 'leaves', value: `[${disclosedCount}] · debtorHash con salt` },
-                { label: 'proof', value: `[${result ? result.proof.length : '—'}]` },
-                { label: 'flags', value: `bool[${result ? result.proofFlags.length : '—'}]` },
+                { label: 'proof', value: `[${proof ? proof.proof.length : '—'}]` },
+                { label: 'flags', value: `bool[${proof ? proof.proofFlags.length : '—'}]` },
               ]}
             />
             <CardBody>
@@ -288,7 +246,69 @@ export default function DisclosurePage() {
         </div>
       </div>
 
-      {result && <ProofResult result={result} />}
+      {proof && <ProofResult result={proof} />}
+    </div>
+  );
+}
+
+/**
+ * El root del expediente y la razón por la que la pantalla existe.
+ *
+ * El root se recomputa en el navegador sobre la cartera **completa**, así que
+ * no depende de la selección. Eso es lo que hace que el fondo pueda confiar en
+ * él: la PYME elige qué enseña, pero no puede cambiar el compromiso contra el
+ * que se verifica. La maqueta rotula «(no cambia)» y ahí lo deja; aquí se
+ * cuenta cuántas selecciones se han probado sin que el valor se mueva.
+ */
+function RootPanel({
+  root,
+  proof,
+  selectionChanges,
+}: {
+  root: string | null;
+  proof: DisclosurePreviewResponse | null;
+  selectionChanges: number;
+}) {
+  // Si el servidor devolviera otro root, la prueba no diría nada sobre el
+  // expediente que muestra la tabla. Es la comprobación que el fondo hace y no
+  // cuesta nada hacerla aquí.
+  const serverAgrees = proof ? proof.root === root : null;
+
+  return (
+    <div className="bg-brand-900/40 flex flex-col gap-1.5 rounded-sm p-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-muted-foreground text-[11px]">Root del expediente</span>
+        <Badge variant="outline" className="mono text-[9.5px] font-normal">
+          {selectionChanges === 0 ? 'no cambia' : `el mismo tras ${selectionChanges} selecciones`}
+        </Badge>
+      </div>
+
+      {root ? (
+        <HashValue value={root} leading={22} trailing={6} className="text-brand-300" />
+      ) : (
+        <span className="text-muted-foreground text-[11.5px]">
+          Sin cartera cargada no hay árbol que construir.
+        </span>
+      )}
+
+      <p className="text-muted-foreground text-[11.5px] leading-relaxed">
+        El root es el mismo con cualquier selección: por eso el prestamista puede confiar en él. La
+        empresa decide qué cuotas enseña, no contra qué se verifican.
+      </p>
+
+      {serverAgrees !== null && (
+        <p className="text-[11.5px]">
+          {serverAgrees ? (
+            <span className="text-brand-300">
+              El servidor devolvió este mismo root al construir la prueba.
+            </span>
+          ) : (
+            <span className="text-destructive">
+              El servidor devolvió un root distinto: la prueba no corresponde a esta cartera.
+            </span>
+          )}
+        </p>
+      )}
     </div>
   );
 }
@@ -330,7 +350,7 @@ function ProofResult({ result }: { result: DisclosurePreviewResponse }) {
                   {formatDueDate(leaf.dueDate)}
                 </TableCell>
                 <TableCell className="mono text-right text-[12.5px]">
-                  {formatAmount(leaf.amountMinor, leaf.currency)}
+                  {formatMinorUnits(leaf.amountMinor, leaf.currency)}
                 </TableCell>
                 <TableCell>
                   <HashValue value={leaf.leafHash} />
