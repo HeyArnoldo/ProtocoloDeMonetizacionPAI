@@ -1,116 +1,100 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import type {
-  DisclosurePreviewRequest,
-  DisclosurePreviewResponse,
-  Receivable,
-  SamplePortfolio,
-} from '@app/contracts';
-import { CURRENCY_CODES } from '@app/contracts';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { DisclosurePreviewResponse, PersistedDisclosurePreviewRequest } from '@app/contracts';
 import {
   buildTree,
   hashDebtor,
   hashLeaf,
-  randomDebtorSalt,
   toDueDate,
   verifyMultiProof,
   type Hex,
   type ReceivableLeaf,
 } from '@app/merkle';
+import type { Repository } from 'typeorm';
+import { Asset } from '../assets/asset.entity';
+import { CHAIN_PORT, type ChainPort } from '../chain/chain.port';
 
-/**
- * Divulgación selectiva.
- *
- * La empresa elige qué cuotas mostrarle al prestamista y prueba que
- * pertenecen al expediente certificado **sin revelar las demás ni sus
- * contrapartes**. Es privacidad comercial real, sin ZK: solo Merkle.
- *
- * Sin estado a propósito: la cartera viaja en la request. El expediente
- * persistido llega con el módulo de `assets`; esto ya deja el cálculo — que es
- * la parte con reglas — cerrado y testeado.
- */
 @Injectable()
 export class DisclosureService {
-  /** Cartera del caso Contafácil SAC, para tener algo cargable de una vez. */
-  samplePortfolio(): SamplePortfolio {
-    const contracts = [
-      { taxId: '20512345678', label: 'Supermercados Andinos SAC', monthly: 800_000 },
-      { taxId: '20487654321', label: 'Farmacias del Norte SAC', monthly: 1_250_000 },
-      { taxId: '20100200300', label: 'Distribuidora Lima Sur EIRL', monthly: 450_000 },
-      { taxId: '20655544433', label: 'Municipalidad de Ate', monthly: 620_000 },
-    ];
+  constructor(
+    @InjectRepository(Asset) private readonly assets: Repository<Asset>,
+    @Inject(CHAIN_PORT) private readonly chain: ChainPort,
+  ) {}
 
-    const receivables: Receivable[] = [];
-    for (const [contractIndex, contract] of contracts.entries()) {
-      // 4 cuotas por contrato: suficiente para que el selector tenga sentido
-      // y el arbol tenga profundidad real.
-      for (let installment = 0; installment < 4; installment++) {
-        const month = String(installment * 3 + 1).padStart(2, '0');
-        receivables.push({
-          debtorTaxId: contract.taxId,
-          debtorLabel: contract.label,
-          amountMinor: String(contract.monthly),
-          dueDate: `2026-${month}-15`,
-          currency: CURRENCY_CODES.USD,
-          docHash: `0x${(contractIndex * 4 + installment + 1).toString(16).padStart(64, '0')}`,
-        });
-      }
+  async preview(
+    createdById: string,
+    assetId: string,
+    request: PersistedDisclosurePreviewRequest,
+  ): Promise<DisclosurePreviewResponse> {
+    const asset = await this.assets.findOne({
+      where: { id: assetId, createdById },
+      relations: { receivables: true },
+      order: { receivables: { position: 'ASC' } },
+    });
+    if (!asset) throw new NotFoundException(`Asset ${assetId} was not found.`);
+
+    const chainAsset = await this.chain.getAsset(assetId as Hex);
+    if (
+      !chainAsset &&
+      ((process.env.CHAIN_ADAPTER ?? 'in-memory') !== 'in-memory' || !asset.registrationConfirmed)
+    ) {
+      throw new NotFoundException(`Asset ${assetId} is not registered on-chain.`);
     }
+    const authoritativeRoot = chainAsset?.merkleRoot ?? (asset.merkleRoot as Hex);
 
-    return { salt: randomDebtorSalt(), receivables };
-  }
-
-  preview(request: DisclosurePreviewRequest): DisclosurePreviewResponse {
-    const leaves = this.toLeaves(request.receivables, request.salt as Hex);
-
-    // Los errores de @app/merkle son de dominio (fecha imposible, cuota
-    // duplicada, indice fuera de rango): todos son culpa del input, asi que
-    // salen como 400 con el mensaje original en vez de un 500 opaco.
     try {
-      const tree = buildTree(leaves);
-      const multiProof = tree.multiProof(request.disclosedIndices);
-      const disclosedCount = multiProof.leaves.length;
-
-      const disclosedNominalMinor = multiProof.leaves.reduce(
-        (total, leaf) => total + leaf.amountMinor,
-        0n,
-      );
-
-      return {
-        root: tree.root,
-        totalLeaves: leaves.length,
-        disclosedCount,
-        hiddenCount: leaves.length - disclosedCount,
-        disclosedNominalMinor: disclosedNominalMinor.toString(),
-        disclosedLeaves: multiProof.leaves.map((leaf) => ({
-          debtorHash: leaf.debtorHash,
-          amountMinor: leaf.amountMinor.toString(),
-          dueDate: leaf.dueDate,
-          currency: leaf.currency,
-          docHash: leaf.docHash,
-          leafHash: hashLeaf(leaf),
-        })),
-        proof: multiProof.proof,
-        proofFlags: multiProof.proofFlags,
-        // El servidor verifica su propio proof antes de entregarlo. Si alguna
-        // vez diera false, el bug esta aca y no en el prestamista.
-        verified: verifyMultiProof(tree.root, multiProof),
-      };
-    } catch (error) {
-      throw new BadRequestException((error as Error).message);
-    }
-  }
-
-  private toLeaves(receivables: Receivable[], salt: Hex): ReceivableLeaf[] {
-    try {
-      return receivables.map((item) => ({
-        debtorHash: hashDebtor(item.debtorTaxId, salt),
+      const leaves: ReceivableLeaf[] = asset.receivables.map((item) => ({
+        debtorHash: hashDebtor(item.debtorTaxId, asset.debtorSalt as Hex),
         amountMinor: BigInt(item.amountMinor),
         dueDate: toDueDate(item.dueDate),
-        currency: item.currency,
+        currency: item.currency as ReceivableLeaf['currency'],
         docHash: item.docHash as Hex,
       }));
+      const tree = buildTree(leaves);
+      // Postgres conserva el expediente completo, pero la raíz registrada en
+      // cadena es la autoridad cuando ambas fuentes discrepan.
+      if (tree.root !== authoritativeRoot) {
+        throw new Error('Persisted receivables no longer match the registered Merkle root.');
+      }
+      return this.buildPreview(tree, request.disclosedIndices, leaves.length);
     } catch (error) {
       throw new BadRequestException((error as Error).message);
     }
+  }
+
+  private buildPreview(
+    tree: ReturnType<typeof buildTree>,
+    disclosedIndices: number[],
+    totalLeaves: number,
+  ): DisclosurePreviewResponse {
+    const multiProof = tree.multiProof(disclosedIndices);
+    const nominalByCurrency = new Map<ReceivableLeaf['currency'], bigint>();
+    for (const leaf of multiProof.leaves) {
+      nominalByCurrency.set(
+        leaf.currency,
+        (nominalByCurrency.get(leaf.currency) ?? 0n) + leaf.amountMinor,
+      );
+    }
+    return {
+      root: tree.root,
+      totalLeaves,
+      disclosedCount: multiProof.leaves.length,
+      hiddenCount: totalLeaves - multiProof.leaves.length,
+      disclosedNominalByCurrency: [...nominalByCurrency].map(([currency, amount]) => ({
+        currency,
+        amountMinor: amount.toString(),
+      })),
+      disclosedLeaves: multiProof.leaves.map((leaf) => ({
+        debtorHash: leaf.debtorHash,
+        amountMinor: leaf.amountMinor.toString(),
+        dueDate: leaf.dueDate,
+        currency: leaf.currency,
+        docHash: leaf.docHash,
+        leafHash: hashLeaf(leaf),
+      })),
+      proof: multiProof.proof,
+      proofFlags: multiProof.proofFlags,
+      verified: verifyMultiProof(tree.root, multiProof),
+    };
   }
 }

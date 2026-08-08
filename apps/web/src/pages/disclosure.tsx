@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useDisclosurePreview, useSamplePortfolio } from '@/hooks/use-disclosure';
+import { useDisclosurePreview, useAssetPortfolio } from '@/hooks/use-disclosure';
 
 const CURRENCY_LABEL: Record<number, string> = { 840: 'USD', 604: 'PEN' };
 
@@ -26,6 +26,14 @@ function formatAmount(amountMinor: string, currency: number): string {
   return `${CURRENCY_LABEL[currency] ?? currency} ${grouped}.${cents.toString().padStart(2, '0')}`;
 }
 
+function sumByCurrency(items: Array<{ amountMinor: string; currency: number }>) {
+  const totals = new Map<number, bigint>();
+  for (const item of items) {
+    totals.set(item.currency, (totals.get(item.currency) ?? 0n) + BigInt(item.amountMinor));
+  }
+  return [...totals].map(([currency, amount]) => formatAmount(amount.toString(), currency));
+}
+
 function truncateHex(value: string): string {
   return `${value.slice(0, 10)}…${value.slice(-8)}`;
 }
@@ -35,7 +43,8 @@ function formatDueDate(unixSeconds: number): string {
 }
 
 export default function DisclosurePage() {
-  const { data: portfolio, isPending, isError, error } = useSamplePortfolio();
+  const assetId = new URLSearchParams(window.location.search).get('assetId');
+  const { data: portfolio, isPending, isError, error } = useAssetPortfolio(assetId);
   const preview = useDisclosurePreview();
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
@@ -43,10 +52,7 @@ export default function DisclosurePage() {
   // recalcularia los useMemo de abajo sin que nada haya cambiado.
   const receivables: Receivable[] = useMemo(() => portfolio?.receivables ?? [], [portfolio]);
 
-  const totalNominal = useMemo(
-    () => receivables.reduce((total, item) => total + BigInt(item.amountMinor), 0n),
-    [receivables],
-  );
+  const totalNominal = useMemo(() => sumByCurrency(receivables), [receivables]);
 
   function toggle(index: number) {
     setSelected((current) => {
@@ -75,11 +81,10 @@ export default function DisclosurePage() {
   }
 
   function buildProof() {
-    if (!portfolio || selected.size === 0) return;
+    if (!portfolio || !assetId || selected.size === 0) return;
     preview.mutate({
-      salt: portfolio.salt,
-      receivables: portfolio.receivables,
-      disclosedIndices: [...selected].sort((a, b) => a - b),
+      assetId,
+      request: { disclosedIndices: [...selected].sort((a, b) => a - b) },
     });
   }
 
@@ -87,6 +92,16 @@ export default function DisclosurePage() {
     () => [...new Set(receivables.map((item) => item.debtorLabel))],
     [receivables],
   );
+
+  if (!assetId) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-muted-foreground">
+          Abre esta página con el identificador del expediente: <code>?assetId=0x…</code>
+        </p>
+      </div>
+    );
+  }
 
   if (isPending) {
     return (
@@ -132,8 +147,8 @@ export default function DisclosurePage() {
         <CardHeader>
           <CardTitle>Cartera del expediente</CardTitle>
           <CardDescription>
-            {receivables.length} cuotas · nominal total {formatAmount(totalNominal.toString(), 840)}{' '}
-            · {selected.size} seleccionadas
+            {receivables.length} cuotas · nominal total {totalNominal.join(' · ')} · {selected.size}{' '}
+            seleccionadas
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -220,7 +235,9 @@ function ProofResult({ result }: { result: DisclosurePreviewResponse }) {
           <div>
             <dt className="text-muted-foreground text-xs">Nominal divulgado</dt>
             <dd className="text-sm tabular-nums">
-              {formatAmount(result.disclosedNominalMinor, 840)}
+              {result.disclosedNominalByCurrency
+                .map(({ amountMinor, currency }) => formatAmount(amountMinor, currency))
+                .join(' · ')}
             </dd>
           </div>
           <div>

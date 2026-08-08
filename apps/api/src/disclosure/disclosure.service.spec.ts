@@ -1,168 +1,125 @@
-import { BadRequestException } from '@nestjs/common';
-import type { Receivable } from '@app/contracts';
+import { NotFoundException } from '@nestjs/common';
+import type { Repository } from 'typeorm';
 import { CURRENCY_CODES } from '@app/contracts';
+import { buildTree, hashDebtor, toDueDate, type Hex } from '@app/merkle';
+import { Asset } from '../assets/asset.entity';
+import { AssetStatus, type ChainPort, type OnChainAsset } from '../chain/chain.port';
 import { DisclosureService } from './disclosure.service';
 
-const SALT = `0x${'0f'.repeat(32)}`;
-
-function receivable(index: number, overrides: Partial<Receivable> = {}): Receivable {
-  return {
-    debtorTaxId: `205123456${String(index % 3).padStart(2, '0')}`,
-    debtorLabel: `Cliente ${index % 3}`,
-    amountMinor: String(500_000 + index * 1_000),
-    dueDate: `2026-${String((index % 12) + 1).padStart(2, '0')}-15`,
-    currency: CURRENCY_CODES.USD,
-    docHash: `0x${index.toString(16).padStart(64, '0')}`,
-    ...overrides,
-  };
-}
-
-const portfolio = (count: number): Receivable[] =>
-  Array.from({ length: count }, (_, i) => receivable(i));
+const ASSET_ID = `0x${'01'.repeat(32)}`;
+const SALT = `0x${'0f'.repeat(32)}` as const;
 
 describe('DisclosureService', () => {
-  let service: DisclosureService;
+  const repository = { findOne: jest.fn() } as unknown as jest.Mocked<Repository<Asset>>;
+  const chain = {
+    getAsset: jest.fn(),
+  } as unknown as jest.Mocked<ChainPort>;
 
   beforeEach(() => {
-    service = new DisclosureService();
+    jest.clearAllMocks();
+    const receivables = Array.from({ length: 4 }, (_, index) => ({
+      position: index,
+      debtorTaxId: `2051234560${index}`,
+      debtorLabel: `Customer ${index}`,
+      amountMinor: String(500_000 + index),
+      dueDate: '2026-10-15',
+      currency: index % 2 === 0 ? CURRENCY_CODES.USD : CURRENCY_CODES.PEN,
+      docHash: `0x${(index + 1).toString(16).padStart(64, '0')}`,
+    }));
+    const merkleRoot = buildTree(
+      receivables.map((item) => ({
+        debtorHash: hashDebtor(item.debtorTaxId, SALT),
+        amountMinor: BigInt(item.amountMinor),
+        dueDate: toDueDate(item.dueDate),
+        currency: item.currency,
+        docHash: item.docHash as Hex,
+      })),
+    ).root;
+    const asset = {
+      id: ASSET_ID,
+      debtorSalt: SALT,
+      merkleRoot,
+      receivables,
+    } as Asset;
+    repository.findOne.mockResolvedValue(asset);
+    chain.getAsset.mockResolvedValue({
+      assetId: ASSET_ID,
+      merkleRoot,
+      ownerIdHash: `0x${'02'.repeat(32)}`,
+      controller: `0x${'03'.repeat(20)}`,
+      registeredAt: new Date(0),
+      status: AssetStatus.Registered,
+      attestations: [],
+    } as OnChainAsset);
   });
 
-  describe('samplePortfolio', () => {
-    it('devuelve una cartera cargable de una sola vez', () => {
-      const sample = service.samplePortfolio();
+  it('builds a verified disclosure from the persisted asset, not request-supplied leaves', async () => {
+    const service = new DisclosureService(repository, chain);
 
-      expect(sample.receivables.length).toBeGreaterThan(0);
-      expect(sample.salt).toMatch(/^0x[0-9a-f]{64}$/);
-    });
+    const result = await service.preview('user-1', ASSET_ID, { disclosedIndices: [0, 1] });
 
-    it('devuelve un salt distinto en cada expediente', () => {
-      // El salt es por expediente: reutilizarlo permitiria correlacionar
-      // deudores entre carteras de empresas distintas.
-      expect(service.samplePortfolio().salt).not.toBe(service.samplePortfolio().salt);
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { id: ASSET_ID, createdById: 'user-1' },
+      relations: { receivables: true },
+      order: { receivables: { position: 'ASC' } },
     });
+    expect(result.verified).toBe(true);
+    expect(result.disclosedCount).toBe(2);
+    expect(result.disclosedNominalByCurrency).toEqual([
+      { currency: CURRENCY_CODES.USD, amountMinor: '500000' },
+      { currency: CURRENCY_CODES.PEN, amountMinor: '500001' },
+    ]);
+    expect(JSON.stringify(result)).not.toContain('20512345600');
   });
 
-  describe('preview', () => {
-    it('el root es estable para la misma cartera y el mismo salt', () => {
-      const receivables = portfolio(6);
-      const first = service.preview({ salt: SALT, receivables, disclosedIndices: [0] });
-      const second = service.preview({ salt: SALT, receivables, disclosedIndices: [3] });
+  it('uses the on-chain Merkle root when Postgres disagrees', async () => {
+    const persisted = await repository.findOne({ where: { id: ASSET_ID } });
+    repository.findOne.mockResolvedValue({
+      ...persisted,
+      merkleRoot: `0x${'ff'.repeat(32)}`,
+    } as Asset);
+    const service = new DisclosureService(repository, chain);
 
-      expect(first.root).toBe(second.root);
+    const result = await service.preview('user-1', ASSET_ID, { disclosedIndices: [1] });
+
+    expect(chain.getAsset).toHaveBeenCalledWith(ASSET_ID);
+    expect(result.root).toBe((await chain.getAsset.mock.results[0]!.value).merkleRoot);
+    expect(result.verified).toBe(true);
+  });
+
+  it('fails explicitly when the persisted asset does not exist', async () => {
+    repository.findOne.mockResolvedValue(null);
+    const service = new DisclosureService(repository, chain);
+
+    await expect(
+      service.preview('other-user', ASSET_ID, { disclosedIndices: [0] }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('fails explicitly when the chain has no registered asset', async () => {
+    process.env.CHAIN_ADAPTER = 'arbitrum';
+    chain.getAsset.mockResolvedValue(null);
+    const service = new DisclosureService(repository, chain);
+
+    await expect(
+      service.preview('user-1', ASSET_ID, { disclosedIndices: [0] }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    process.env.CHAIN_ADAPTER = 'in-memory';
+  });
+
+  it('uses the persisted root after an in-memory adapter restart', async () => {
+    process.env.CHAIN_ADAPTER = 'in-memory';
+    chain.getAsset.mockResolvedValue(null);
+    const persisted = await repository.findOne({ where: { id: ASSET_ID } });
+    repository.findOne.mockResolvedValue({
+      ...persisted,
+      registrationConfirmed: true,
+    } as Asset);
+
+    const result = await new DisclosureService(repository, chain).preview('user-1', ASSET_ID, {
+      disclosedIndices: [0],
     });
 
-    it('el root cambia con otro salt', () => {
-      const receivables = portfolio(6);
-      const other = `0x${'f0'.repeat(32)}`;
-
-      expect(service.preview({ salt: SALT, receivables, disclosedIndices: [0] }).root).not.toBe(
-        service.preview({ salt: other, receivables, disclosedIndices: [0] }).root,
-      );
-    });
-
-    it('el proof que devuelve verifica contra su propio root', () => {
-      const result = service.preview({
-        salt: SALT,
-        receivables: portfolio(16),
-        disclosedIndices: [0, 4, 9],
-      });
-
-      expect(result.verified).toBe(true);
-    });
-
-    it('cuenta lo divulgado y lo oculto', () => {
-      const result = service.preview({
-        salt: SALT,
-        receivables: portfolio(16),
-        disclosedIndices: [0, 4, 9],
-      });
-
-      expect(result.totalLeaves).toBe(16);
-      expect(result.disclosedCount).toBe(3);
-      expect(result.hiddenCount).toBe(13);
-    });
-
-    it('suma el nominal divulgado, no el total de la cartera', () => {
-      const receivables = portfolio(4);
-      const result = service.preview({ salt: SALT, receivables, disclosedIndices: [0, 1] });
-
-      const expected = BigInt(receivables[0]!.amountMinor) + BigInt(receivables[1]!.amountMinor);
-      expect(result.disclosedNominalMinor).toBe(expected.toString());
-    });
-
-    it('nunca devuelve el identificador del deudor en claro', () => {
-      // Es la promesa central del proyecto: probar sin revelar contrapartes.
-      const receivables = portfolio(8);
-      const result = service.preview({ salt: SALT, receivables, disclosedIndices: [0, 1] });
-
-      const serialized = JSON.stringify(result);
-      for (const item of receivables) {
-        expect(serialized).not.toContain(item.debtorTaxId);
-        expect(serialized).not.toContain(item.debtorLabel);
-      }
-    });
-
-    it('no devuelve el contenido de las cuotas ocultas', () => {
-      const receivables = portfolio(8);
-      const result = service.preview({ salt: SALT, receivables, disclosedIndices: [0, 1] });
-
-      const serialized = JSON.stringify(result);
-      for (const hidden of receivables.slice(2)) {
-        expect(serialized).not.toContain(hidden.docHash.slice(2));
-      }
-    });
-
-    it('permite divulgar la cartera completa', () => {
-      const result = service.preview({
-        salt: SALT,
-        receivables: portfolio(4),
-        disclosedIndices: [0, 1, 2, 3],
-      });
-
-      expect(result.hiddenCount).toBe(0);
-      expect(result.verified).toBe(true);
-    });
-
-    it('ignora indices repetidos en vez de duplicar la hoja', () => {
-      const result = service.preview({
-        salt: SALT,
-        receivables: portfolio(4),
-        disclosedIndices: [1, 1, 1],
-      });
-
-      expect(result.disclosedCount).toBe(1);
-    });
-
-    // ─── Errores de dominio traducidos a 400 ────────────────────────────
-
-    it('rechaza un indice fuera de rango', () => {
-      expect(() =>
-        service.preview({ salt: SALT, receivables: portfolio(4), disclosedIndices: [9] }),
-      ).toThrow(BadRequestException);
-    });
-
-    it('rechaza una cartera con cuotas duplicadas', () => {
-      // La misma cuota dos veces inflaria la base prestable sin que ningun
-      // proof lo delate: las dos hojas son validas.
-      const duplicated = [receivable(0), receivable(0)];
-
-      expect(() =>
-        service.preview({ salt: SALT, receivables: duplicated, disclosedIndices: [0] }),
-      ).toThrow(BadRequestException);
-    });
-
-    it('rechaza una fecha que no existe', () => {
-      const broken = [receivable(0, { dueDate: '2026-02-30' })];
-
-      expect(() =>
-        service.preview({ salt: SALT, receivables: broken, disclosedIndices: [0] }),
-      ).toThrow(BadRequestException);
-    });
-
-    it('el mensaje de error explica el problema', () => {
-      expect(() =>
-        service.preview({ salt: SALT, receivables: portfolio(2), disclosedIndices: [7] }),
-      ).toThrow(/fuera de rango/i);
-    });
+    expect(result.root).toBe(persisted!.merkleRoot);
   });
 });
