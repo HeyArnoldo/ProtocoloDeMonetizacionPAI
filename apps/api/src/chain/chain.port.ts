@@ -121,6 +121,8 @@ export interface OnChainAsset {
 }
 
 export interface ChainAssetSnapshot {
+  network: 'arbitrum' | 'in-memory';
+  chainId: number | null;
   blockNumber: bigint | null;
   asset: OnChainAsset;
   certificate:

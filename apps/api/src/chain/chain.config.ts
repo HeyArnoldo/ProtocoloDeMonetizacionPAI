@@ -6,6 +6,7 @@ export interface ChainRuntimeConfig {
   readonly rpcUrl?: string;
   readonly deployment?: Deployment;
   readonly deploymentBlock?: bigint;
+  readonly explorerUrl?: string;
 }
 
 export function chainRuntimeConfig(config: ConfigService<Env, true>): ChainRuntimeConfig {
@@ -24,6 +25,7 @@ export function chainRuntimeConfig(config: ConfigService<Env, true>): ChainRunti
   const configured = Object.values(addresses).some(Boolean);
   return {
     rpcUrl: config.get('CHAIN_RPC_URL', { infer: true }),
+    explorerUrl: config.get('CHAIN_EXPLORER_URL', { infer: true }),
     deploymentBlock: deploymentBlock === undefined ? undefined : BigInt(deploymentBlock),
     deployment: configured
       ? parseDeployment({ chainId: config.get('CHAIN_ID', { infer: true }), addresses })

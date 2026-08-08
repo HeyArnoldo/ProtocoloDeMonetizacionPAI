@@ -250,4 +250,22 @@ describe('chain runtime boundary', () => {
     expect(readContract.mock.calls.every(([call]) => call.blockNumber === 999n)).toBe(true);
     expect(rpc.getContractEvents.mock.calls.every(([call]) => call.toBlock === 999n)).toBe(true);
   });
+
+  it('fails closed when certificate validity and ownership disagree', async () => {
+    const readContract = jest.fn(({ functionName }: { functionName: string }) => {
+      const values: Record<string, unknown> = {
+        exists: true,
+        getAsset: chainAsset,
+        isValid: true,
+        certificateOwner: address('0'),
+        issuanceCount: 1n,
+        getLoan: { state: 0 },
+      };
+      return Promise.resolve(values[functionName]);
+    });
+
+    await expect(adapter(reader({ readContract })).getAssetSnapshot(bytes32('a'))).rejects.toThrow(
+      /inconsistent certificate state/,
+    );
+  });
 });

@@ -10,6 +10,7 @@ import { ChainModule } from './chain/chain.module';
 import { DisclosureModule } from './disclosure/disclosure.module';
 import { EvidenceModule } from './evidence/evidence.module';
 import { AssetsModule } from './assets/assets.module';
+import { VerificationModule } from './verification/verification.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AssetsModule } from './assets/assets.module';
     UsersModule,
     AuthModule,
     HealthModule,
+    VerificationModule,
   ],
 })
 export class AppModule {}

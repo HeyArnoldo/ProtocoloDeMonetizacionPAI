@@ -318,6 +318,8 @@ describe('AssetsService', () => {
   it('serializes a complete snapshot without persisted private fields', async () => {
     assetRepository.findOne.mockResolvedValue(draft());
     chain.getAssetSnapshot.mockResolvedValue({
+      network: 'arbitrum',
+      chainId: 421614,
       blockNumber: 999n,
       asset: {
         assetId: ASSET_ID,

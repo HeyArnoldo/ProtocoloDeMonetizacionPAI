@@ -108,6 +108,8 @@ export class InMemoryChainAdapter implements ChainPort {
     const asset = await this.getAsset(assetId);
     return asset
       ? {
+          network: 'in-memory',
+          chainId: null,
           blockNumber: null,
           asset,
           certificate: { supported: false },

@@ -54,6 +54,10 @@ export const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.coerce.number().int().nonnegative().safe().optional(),
     ),
+    CHAIN_EXPLORER_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().url().optional(),
+    ),
     ASSET_REGISTRY_ADDRESS: z.string().optional(),
     CERTIFICATION_ATTESTOR_ADDRESS: z.string().optional(),
     PAI_CERTIFICATE_ADDRESS: z.string().optional(),

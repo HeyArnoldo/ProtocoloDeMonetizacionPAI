@@ -187,6 +187,8 @@ export class ArbitrumChainAdapter implements ChainPort {
     if (Number(loan.state) !== 0 && !loanState)
       throw new Error(`Unknown loan state: ${loan.state}`);
     return {
+      network: 'arbitrum',
+      chainId: this.deployment.chainId,
       blockNumber: safeBlock,
       asset,
       certificate: { supported: true, valid, owner: certificateOwner, issuanceCount },
