@@ -25,19 +25,27 @@ export default defineConfig({
   // Ningún `.only` debe llegar a CI.
   forbidOnly: !!process.env.CI,
   /**
-   * Un reintento también en local, no solo en CI.
+   * Sin reintentos en local: un fallo tiene que doler donde se escribe el
+   * código. El reintento local existía para tapar la página en blanco
+   * intermitente del dev server, que ya no se sirve (ver `webServer`).
    *
-   * Con dos proyectos la suite hace más del doble de cargas de página, y en
-   * cada una el navegador pide ~50 módulos sueltos al dev server: `page.route()`
-   * desactiva la caché HTTP, así que ninguna se reutiliza entre tests. Bajo esa
-   * presión, muy de vez en cuando una de esas peticiones se queda sin respuesta.
-   * La traza de un fallo lo enseña sin ambigüedad —`GET /src/services/
-   * disclosure.api.ts` con estado `-1` mientras las otras 46 responden 200—: el
-   * grafo de módulos no termina de cargar, React no monta y la página se queda
-   * en blanco. Es infraestructura del servidor de desarrollo, no la aplicación,
-   * y por eso se reintenta en vez de relajar ninguna aserción.
+   * En CI se conservan dos, pero como red contra la infraestructura del
+   * runner, no contra la aplicación. Si un test empieza a recuperarse en el
+   * reintento, eso es una señal que hay que investigar, no aceptar.
    */
-  retries: process.env.CI ? 2 : 1,
+  retries: process.env.CI ? 2 : 0,
+  /**
+   * 10s en vez de los 5s por defecto.
+   *
+   * Toda ruta del panel resuelve primero `GET /api/auth/me` en `ProtectedRoute`
+   * y luego el chunk perezoso de la página. Con la suite en paralelo sobre una
+   * máquina cargada, ese encadenado rozaba los 5s y el redirect de `/disclosure`
+   * caía por tiempo, no por estar roto: aislado pasa 8 de 8.
+   *
+   * Esperar más no debilita ninguna aserción — sigue comprobando exactamente lo
+   * mismo. Lo que deja de hacer es asumir una máquina descargada.
+   */
+  expect: { timeout: 10_000 },
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [['html'], ['github']] : 'list',
   use: {
@@ -68,9 +76,15 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // Dev server y no `build && preview`: el objetivo es verificar los tokens
-    // tal como los emite Tailwind en desarrollo, que es donde se editan.
-    command: 'pnpm run dev --port 5173 --strictPort',
+    // Bundle de producción, no dev server. El dev server sirve ~50 módulos
+    // sueltos por carga y `page.route()` desactiva la caché HTTP, así que cada
+    // navegación los vuelve a pedir todos; de vez en cuando uno respondía con
+    // estado -1, el grafo de módulos no terminaba y React no montaba. El
+    // resultado era una página en blanco intermitente, ~1 de cada 5 corridas.
+    //
+    // Con `preview` son ~5 peticiones. Y se verifica el CSS que realmente se
+    // despliega, no el que emite Vite en desarrollo, que es el que importa.
+    command: 'pnpm run build && pnpm run preview --port 5173 --strictPort',
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
