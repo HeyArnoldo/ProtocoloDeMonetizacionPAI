@@ -127,6 +127,7 @@ contract BorrowingBaseEngine {
     }
 
     function _validateParams(Params calldata params) private pure {
+        _validateBps("discountRateBps", params.discountRateBps);
         _validateBps("delinquencyBps", params.delinquencyBps);
         _validateBps("concentrationThresholdBps", params.concentrationThresholdBps);
         _validateBps("concentrationPenaltyBps", params.concentrationPenaltyBps);

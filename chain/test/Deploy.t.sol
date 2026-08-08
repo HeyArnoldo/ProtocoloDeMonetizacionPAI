@@ -92,6 +92,35 @@ contract DeployTest is Test {
         script.deploy(_config(_participants()));
     }
 
+    function test_WritesConsumerCompatibleDeploymentMetadata() public {
+        Deploy.Config memory config = Deploy.Config({
+            admin: admin, borrower: borrower, lender: lender, certifiers: certifiers
+        });
+        string memory path = string.concat(vm.projectRoot(), "/deployments/31337.json");
+
+        script.writeMetadata(address(this), config, deployment);
+        string memory json = vm.readFile(path);
+
+        assertEq(vm.parseJsonUint(json, ".chainId"), block.chainid);
+        assertEq(vm.parseJsonUint(json, ".deploymentBlock"), block.number);
+        assertEq(
+            vm.parseJsonAddress(json, ".addresses.assetRegistry"), address(deployment.registry)
+        );
+        assertEq(
+            vm.parseJsonAddress(json, ".addresses.certificationAttestor"),
+            address(deployment.attestor)
+        );
+        assertEq(
+            vm.parseJsonAddress(json, ".addresses.paiCertificate"), address(deployment.certificate)
+        );
+        assertEq(
+            vm.parseJsonAddress(json, ".addresses.borrowingBaseEngine"), address(deployment.engine)
+        );
+        assertEq(vm.parseJsonAddress(json, ".addresses.collateralVault"), address(deployment.vault));
+        assertEq(vm.parseJsonAddress(json, ".addresses.mockUsdc"), address(deployment.usdc));
+        vm.removeFile(path);
+    }
+
     function test_LocalSmokeRegisterCertifyOriginateFundAndRepay() public {
         ReceivableLeaf.Data[] memory receivables = _receivables();
         vm.prank(borrower);

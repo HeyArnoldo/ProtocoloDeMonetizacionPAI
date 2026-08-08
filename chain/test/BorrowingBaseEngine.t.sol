@@ -58,19 +58,22 @@ contract BorrowingBaseEngineTest is Test {
 
     function test_RevertWhen_AnyPercentageExceedsOneHundredPercent() public {
         BorrowingBaseEngine.Receivable[] memory leaves = _twoLeaves();
-        for (uint256 field; field < 5; ++field) {
+        for (uint256 field; field < 6; ++field) {
             BorrowingBaseEngine.Params memory params = _goldenParams();
             bytes32 fieldName;
             if (field == 0) {
+                params.discountRateBps = 10_001;
+                fieldName = "discountRateBps";
+            } else if (field == 1) {
                 params.delinquencyBps = 10_001;
                 fieldName = "delinquencyBps";
-            } else if (field == 1) {
+            } else if (field == 2) {
                 params.concentrationThresholdBps = 10_001;
                 fieldName = "concentrationThresholdBps";
-            } else if (field == 2) {
+            } else if (field == 3) {
                 params.concentrationPenaltyBps = 10_001;
                 fieldName = "concentrationPenaltyBps";
-            } else if (field == 3) {
+            } else if (field == 4) {
                 params.serviceContinuityWeightBps = 10_001;
                 fieldName = "serviceContinuityWeightBps";
             } else {
