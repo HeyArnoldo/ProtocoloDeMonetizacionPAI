@@ -35,7 +35,7 @@ const REFERENCE_CYCLES = [
 
 export default function CreditHistoryPage() {
   return (
-    <div className="flex max-w-[1080px] flex-col gap-[18px]">
+    <div className="flex max-w-[1080px] flex-col gap-3 sm:gap-[18px]">
       <PendingData
         title="Ciclos de préstamo de esta PYME"
         reason="Monto, plazo, tasa, advance rate y cierre de cada ciclo, reconstruidos desde los eventos del vault. Hoy no hay ningún ciclo: no hay préstamos originados."
@@ -60,7 +60,11 @@ export default function CreditHistoryPage() {
           <TableBody>
             {REFERENCE_CYCLES.map((row) => (
               <TableRow key={row.cycle}>
-                <TableCell className="text-[13px]">{row.cycle}</TableCell>
+                {/* La descripción del ciclo es la única celda larga: envuelve en
+                    móvil para que las dos cifras quepan sin gesto lateral. */}
+                <TableCell className="align-top text-[13px] whitespace-normal lg:align-middle lg:whitespace-nowrap">
+                  {row.cycle}
+                </TableCell>
                 <TableCell className="mono text-[12.5px]">{row.rate}</TableCell>
                 <TableCell className="mono text-[12.5px]">{row.advance}</TableCell>
               </TableRow>

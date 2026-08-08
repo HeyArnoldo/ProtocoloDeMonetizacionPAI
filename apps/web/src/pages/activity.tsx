@@ -64,7 +64,7 @@ const INDEXED_EVENTS = [
 
 export default function ActivityPage() {
   return (
-    <div className="flex max-w-[1240px] flex-col gap-3.5">
+    <div className="flex max-w-[1240px] flex-col gap-3 sm:gap-3.5">
       <PendingData
         title="Transacciones del expediente"
         reason="Hash enlazable al explorador, contrato, método, firmante, gas y bloque de cada transacción, más los contadores de gas total y wallets distintas."
@@ -82,11 +82,21 @@ export default function ActivityPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {/* La tercera columna es una frase entera: sin envolver, la tabla
+                mide el triple que la pantalla y obliga a un gesto lateral por
+                cada fila. Envuelve hasta `lg` y recupera la línea única en
+                escritorio, donde sí hay ancho. */}
             {INDEXED_EVENTS.map((row) => (
               <TableRow key={row.event}>
-                <TableCell className="mono text-brand-300 text-[11.5px]">{row.event}</TableCell>
-                <TableCell className="mono text-[11.5px]">{row.contract}</TableCell>
-                <TableCell className="text-ink-400 text-[12.5px]">{row.meaning}</TableCell>
+                <TableCell className="mono text-brand-300 align-top text-[11.5px] whitespace-normal lg:align-middle lg:whitespace-nowrap">
+                  {row.event}
+                </TableCell>
+                <TableCell className="mono align-top text-[11.5px] whitespace-normal lg:align-middle lg:whitespace-nowrap">
+                  {row.contract}
+                </TableCell>
+                <TableCell className="text-ink-400 align-top text-[12.5px] whitespace-normal lg:align-middle lg:whitespace-nowrap">
+                  {row.meaning}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

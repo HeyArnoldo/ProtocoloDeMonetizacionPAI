@@ -124,8 +124,8 @@ export default function BorrowingBasePage() {
       : 'Ejecutar recómputo';
 
   return (
-    <div className="grid max-w-[1240px] items-start gap-[18px] xl:grid-cols-[1fr_1.25fr]">
-      <div className="flex flex-col gap-3">
+    <div className="grid max-w-[1240px] items-start gap-3 sm:gap-[18px] xl:grid-cols-[1fr_1.25fr]">
+      <div className="flex min-w-0 flex-col gap-3">
         <PanelCard>
           <CardKicker>Entradas del cálculo</CardKicker>
           <CodeBlock
@@ -178,7 +178,7 @@ export default function BorrowingBasePage() {
         </PanelCard>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
         <PanelCard className="gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <CardKicker className="mr-auto">Cálculo del borrowing base</CardKicker>
@@ -272,6 +272,17 @@ function EmptyState() {
  * La columna de la derecha queda reservada al valor que devolverá el contrato.
  * Se pinta vacía en vez de omitirse: enseña exactamente qué falta y deja la
  * comparación armada.
+ *
+ * **En móvil la línea se apila.** Concepto, nota y cifra no caben en una fila
+ * de 361px, así que cada `<li>` pasa a ser un bloque: el concepto arriba, la
+ * nota debajo en 11px, y la cifra alineada a la derecha en su propia línea. La
+ * jerarquía se conserva porque la lleva el tamaño, no la posición: la base
+ * prestable sigue siendo la única cifra de 22px en color de marca.
+ *
+ * La columna on-chain sí desaparece por debajo de `sm`. No contiene ningún
+ * dato —el motor no está desplegado— y repetir un guion por cada línea gastaría
+ * la mitad del ancho útil en un marcador de posición; lo que falta ya lo
+ * explica el bloque de dato pendiente que va justo debajo de la tarjeta.
  */
 function BreakdownTable({
   rows,
@@ -284,7 +295,7 @@ function BreakdownTable({
 }) {
   return (
     <div className="flex flex-col">
-      <div className="text-muted-foreground border-ink-900 flex items-baseline gap-3.5 border-b pb-1.5 text-[10px] uppercase tracking-[0.1em]">
+      <div className="text-muted-foreground border-ink-900 hidden items-baseline gap-3.5 border-b pb-1.5 text-[10px] uppercase tracking-[0.1em] sm:flex">
         <span className="flex-1">Concepto</span>
         <span className="w-[164px] text-right">Cálculo local</span>
         <span className="w-[84px] text-right">On-chain</span>
@@ -296,21 +307,21 @@ function BreakdownTable({
         {rows.slice(0, revealed).map((row) => (
           <li
             key={row.key}
-            className="border-ink-900 animate-pulse-in flex items-baseline gap-3.5 border-b py-2.5 last:border-b-0"
+            className="border-ink-900 animate-pulse-in flex flex-col gap-0.5 border-b py-2.5 last:border-b-0 sm:flex-row sm:items-baseline sm:gap-3.5"
           >
             <span
               className={cn(
-                'flex-1 text-[13.5px]',
+                'text-[13.5px] sm:flex-1',
                 row.kind === 'discount' && 'text-ink-400',
                 row.kind === 'total' && 'text-brand-300',
               )}
             >
               {row.label}
             </span>
-            <span className="text-muted-foreground hidden text-[11px] sm:inline">{row.hint}</span>
+            <span className="text-muted-foreground text-[11px]">{row.hint}</span>
             <span
               className={cn(
-                'mono w-[164px] text-right text-[14px] whitespace-nowrap',
+                'mono text-right text-[14px] whitespace-nowrap sm:w-[164px]',
                 row.kind === 'discount' && 'text-ink-400',
                 row.kind === 'nominal' && 'text-[15px]',
                 row.kind === 'subtotal' && 'text-[15px]',
@@ -321,7 +332,7 @@ function BreakdownTable({
               {formatMinorUnits(row.amountMinor, currency)}
             </span>
             <span
-              className="mono text-muted-foreground w-[84px] text-right text-[12px]"
+              className="mono text-muted-foreground hidden w-[84px] text-right text-[12px] sm:inline"
               title="Pendiente: BorrowingBaseEngine no está desplegado"
             >
               —

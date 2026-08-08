@@ -23,8 +23,11 @@ const LEAF_FIELDS = [
 
 export default function DossierPage() {
   return (
-    <div className="flex max-w-[1180px] flex-col gap-5">
-      <section aria-label="Identidad del activo" className="grid gap-3 lg:grid-cols-3">
+    <div className="flex max-w-[1180px] flex-col gap-4 sm:gap-5">
+      <section
+        aria-label="Identidad del activo"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      >
         <PendingData
           title="assetId"
           reason="Identificador del activo en el registro: la clave del mapping assets(bytes32)."
@@ -49,7 +52,7 @@ export default function DossierPage() {
           unblockedBy="un expediente registrado; la selección ya funciona sobre la cartera de muestra en Divulgación selectiva"
         />
 
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           <PanelCard>
             <CardKicker>Anatomía de la hoja</CardKicker>
             <CodeBlock

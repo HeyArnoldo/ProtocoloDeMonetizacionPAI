@@ -99,8 +99,8 @@ export default function DisclosurePage() {
   }
 
   return (
-    <div className="flex max-w-[1240px] flex-col gap-[18px]">
-      <div className="grid items-start gap-[18px] xl:grid-cols-[1.45fr_1fr]">
+    <div className="flex max-w-[1240px] flex-col gap-3 sm:gap-[18px]">
+      <div className="grid items-start gap-3 sm:gap-[18px] xl:grid-cols-[1.45fr_1fr]">
         <PanelCard className="gap-3">
           <div className="flex flex-col gap-0.5">
             <CardKicker>Cartera del expediente</CardKicker>
@@ -111,7 +111,11 @@ export default function DisclosurePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-[11.5px]">Seleccionar por deudor:</span>
+            {/* El rótulo ocupa su propia línea en móvil: compartirla con el
+                primer atajo dejaba a los otros tres un renglón cada uno. */}
+            <span className="text-muted-foreground w-full text-[11.5px] sm:w-auto">
+              Seleccionar por deudor:
+            </span>
             {debtors.map((label) => (
               <Button key={label} variant="outline" size="xs" onClick={() => toggleDebtor(label)}>
                 {label}
@@ -119,54 +123,76 @@ export default function DisclosurePage() {
             ))}
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[34px]" />
-                <TableHead>Deudor</TableHead>
-                <TableHead>Vencimiento</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {receivables.map((item, index) => (
-                <TableRow
-                  key={item.docHash}
-                  data-state={isSelected(index) ? 'selected' : undefined}
-                  className="cursor-pointer"
-                  onClick={() => toggle(index)}
-                >
-                  <TableCell>
-                    {/* El checkbox nativo del navegador ignora el tema oscuro:
-                        se usa el primitivo del sistema para que tome los tokens. */}
-                    <Checkbox
-                      checked={isSelected(index)}
-                      onCheckedChange={() => toggle(index)}
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`Divulgar cuota de ${item.debtorLabel} con vencimiento ${item.dueDate}`}
-                    />
-                  </TableCell>
-                  <TableCell className="text-[13px]">{item.debtorLabel}</TableCell>
-                  <TableCell className="text-muted-foreground">{item.dueDate}</TableCell>
-                  <TableCell className="mono text-right text-[12.5px]">
-                    {formatMinorUnits(item.amountMinor, item.currency)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={isSelected(index) ? 'default' : 'secondary'}
-                      className="text-[10px] font-normal"
-                    >
-                      {isSelected(index) ? 'divulgada' : 'oculta'}
-                    </Badge>
-                  </TableCell>
+          {/* La tabla se acota en alto en pantalla de teléfono. Sus 16 filas a
+              44px de alto miden más de 700px: sin el tope, el panel de
+              multiproof —que es donde se ve el resultado de seleccionar—
+              quedaría a dos pantallas completas de scroll. Con el tope, está
+              justo debajo. En escritorio no hay tope: la tabla se lee entera. */}
+          <div className="max-h-[24rem] overflow-y-auto xl:max-h-none xl:overflow-visible">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[52px] sm:w-[34px]" />
+                  <TableHead>Deudor</TableHead>
+                  <TableHead className="hidden sm:table-cell">Vencimiento</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead className="hidden sm:table-cell">Estado</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {receivables.map((item, index) => (
+                  <TableRow
+                    key={item.docHash}
+                    data-state={isSelected(index) ? 'selected' : undefined}
+                    className="cursor-pointer"
+                    onClick={() => toggle(index)}
+                  >
+                    <TableCell className="p-1 sm:p-2">
+                      {/* El checkbox nativo del navegador ignora el tema oscuro:
+                        se usa el primitivo del sistema para que tome los tokens.
+                        En móvil mide 44px —el mínimo táctil— y recupera los 16px
+                        del handoff a partir de `sm`, donde se apunta con ratón. */}
+                      <Checkbox
+                        checked={isSelected(index)}
+                        onCheckedChange={() => toggle(index)}
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={`Divulgar cuota de ${item.debtorLabel} con vencimiento ${item.dueDate}`}
+                        className="size-11 rounded-md [&_svg]:size-6 sm:size-4 sm:rounded-[4px] sm:[&_svg]:size-3.5"
+                      />
+                    </TableCell>
+                    <TableCell className="text-[13px] whitespace-normal sm:whitespace-nowrap">
+                      {item.debtorLabel}
+                      {/* En móvil no hay sitio para una columna de vencimiento:
+                          la fecha baja a una segunda línea bajo el deudor, que
+                          es su contexto natural. */}
+                      <span className="text-muted-foreground block text-[11.5px] sm:hidden">
+                        {item.dueDate}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground hidden sm:table-cell">
+                      {item.dueDate}
+                    </TableCell>
+                    <TableCell className="mono text-right text-[12.5px]">
+                      {formatMinorUnits(item.amountMinor, item.currency)}
+                    </TableCell>
+                    {/* El estado lo dice el propio checkbox: la insignia es
+                        redundancia útil en escritorio y ruido en 393px. */}
+                    <TableCell className="hidden sm:table-cell">
+                      <Badge
+                        variant={isSelected(index) ? 'default' : 'secondary'}
+                        className="text-[10px] font-normal"
+                      >
+                        {isSelected(index) ? 'divulgada' : 'oculta'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </PanelCard>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           <PanelCard className="gap-2.5">
             <CardKicker>Multiproof</CardKicker>
             <div className="grid grid-cols-2 gap-3">
@@ -194,7 +220,7 @@ export default function DisclosurePage() {
 
             <RootPanel root={treeRoot} proof={proof} selectionChanges={selectionChanges} />
 
-            <div className="mt-1 flex gap-2">
+            <div className="mt-1 flex flex-wrap gap-2">
               <Button onClick={buildProof} disabled={disclosedCount === 0 || isBuildingProof}>
                 {isBuildingProof ? 'Construyendo prueba…' : `Construir prueba (${disclosedCount})`}
               </Button>

@@ -47,7 +47,7 @@ const EVIDENCE_CATEGORIES = [
 
 export default function EvidencePage() {
   return (
-    <div className="flex max-w-[1080px] flex-col gap-[18px]">
+    <div className="flex max-w-[1080px] flex-col gap-3 sm:gap-[18px]">
       <section
         aria-label="Huella de las evidencias"
         className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]"
@@ -73,6 +73,10 @@ export default function EvidencePage() {
 
       <PanelCard className="gap-3">
         <CardKicker>Qué entra al expediente y por qué</CardKicker>
+        {/* Tabla de prosa, no de cifras: por debajo de `lg` las celdas envuelven
+            en vez de arrastrar la tabla a un scroll horizontal. Alinear al tope
+            mantiene legible la correspondencia entre las dos columnas cuando
+            cada una ocupa un número distinto de líneas. */}
         <Table>
           <TableHeader>
             <TableRow>
@@ -83,8 +87,12 @@ export default function EvidencePage() {
           <TableBody>
             {EVIDENCE_CATEGORIES.map((item) => (
               <TableRow key={item.category}>
-                <TableCell className="text-[13px]">{item.category}</TableCell>
-                <TableCell className="text-ink-400 text-[13px]">{item.role}</TableCell>
+                <TableCell className="align-top text-[13px] whitespace-normal lg:align-middle lg:whitespace-nowrap">
+                  {item.category}
+                </TableCell>
+                <TableCell className="text-ink-400 align-top text-[13px] whitespace-normal lg:align-middle lg:whitespace-nowrap">
+                  {item.role}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
