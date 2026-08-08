@@ -117,10 +117,12 @@ test.describe('sistema visual Nocturne', () => {
 
   test('la divulgación selectiva mantiene el sistema sobre tablas y tarjetas', async ({ page }) => {
     await mockApi(page, { user: buildAuthUser() });
-    await page.goto('/disclosure');
+    await page.goto('/divulgacion');
 
     await expect(page.getByRole('heading', { name: 'Divulgación selectiva' })).toBeVisible();
-    await expect(page.locator('[data-slot="card-title"]')).toHaveText('Cartera del expediente');
+    // El layout del handoff pone varias tarjetas en la pantalla, así que ya no
+    // hay un único `card-title` que localizar: se busca el rótulo por texto.
+    await expect(page.getByText('Cartera del expediente')).toBeVisible();
 
     // La tabla es la superficie más densa del panel: si el mapeo se rompe, se
     // rompe aquí primero.
