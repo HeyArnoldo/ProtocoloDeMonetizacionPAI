@@ -36,7 +36,7 @@ export const NAV_GROUPS: NavGroup[] = [
     heading: 'PYME · Contafácil SAC',
     items: [
       {
-        path: '/',
+        path: '/panel',
         label: 'Resumen',
         title: 'Resumen del expediente',
         subtitle: 'Estado del expediente y de la máquina de estados on-chain',

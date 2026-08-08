@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { ChevronDown, LogOut } from 'lucide-react';
 import { useLogout, useMe } from '@/hooks/use-auth';
 import { NAV_GROUPS, findPanelRoute, type NavGroup } from '@/config/navigation';
 import { NetworkStatus } from '@/components/panel/network-status';
@@ -44,6 +44,9 @@ export function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="border-ink-800 flex w-[244px] flex-none flex-col gap-[18px] overflow-y-auto border-r px-3.5 py-[18px]">
+        {/* La marca manda a la landing pública, no de vuelta al panel: es el
+            "volver al inicio del sitio" de siempre, no un atajo al Resumen
+            (que ya tiene su propio ítem en la nav de abajo). */}
         <Link to="/" className="flex flex-col gap-[3px] px-1.5">
           <span className="flex items-baseline gap-[7px]">
             <span className="text-[19px] font-medium tracking-[-0.02em]">PAI</span>
@@ -77,7 +80,14 @@ export function AppLayout() {
             </Badge>
 
             <DropdownMenu>
-              <DropdownMenuTrigger className="bg-card flex items-center gap-2 rounded-full py-[5px] pr-2.5 pl-1.5 text-left">
+              {/* Antes no había ninguna señal de que esto abriera algo —
+                  parecía una etiqueta, no un botón. La flecha y el borde que
+                  aparece al pasar el mouse son las dos pistas mínimas de
+                  "esto es un menú, tocalo para salir". */}
+              <DropdownMenuTrigger
+                aria-label="Cuenta y sesión"
+                className="bg-card hover:border-brand-600/50 flex items-center gap-2 rounded-full border border-transparent py-[5px] pr-2 pl-1.5 text-left transition-colors"
+              >
                 <span className="bg-brand-800 text-brand-200 grid size-[22px] place-items-center rounded-full text-[10px]">
                   {initials || '··'}
                 </span>
@@ -87,6 +97,7 @@ export function AppLayout() {
                       No hay ERC-4337 todavía; se dice, no se simula. */}
                   <span className="mono text-muted-foreground text-[9.5px]">sin smart account</span>
                 </span>
+                <ChevronDown className="text-muted-foreground size-3.5" aria-hidden="true" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel className="text-muted-foreground font-normal">
@@ -134,7 +145,6 @@ function NavGroupList({ group }: { group: NavGroup }) {
           <li key={item.path}>
             <NavLink
               to={item.path}
-              end={item.path === '/'}
               className={({ isActive }) =>
                 cn(
                   'block rounded-md px-[9px] py-[7px] text-[13px] transition-colors',

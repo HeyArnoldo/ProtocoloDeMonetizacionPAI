@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { loginSchema, type LoginInput } from '@app/contracts';
 import { useAuthConfig, useLogin, useMe } from '@/hooks/use-auth';
 import { googleAuthUrl } from '@/services/auth.api';
+import { AuthShell } from '@/components/auth-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -28,17 +29,17 @@ export default function LoginPage() {
     defaultValues: { email: '', password: '' },
   });
 
-  if (me) return <Navigate to="/" replace />;
+  if (me) return <Navigate to="/panel" replace />;
 
   const onSubmit = (input: LoginInput) => {
     login.mutate(input, {
-      onSuccess: () => navigate('/'),
+      onSuccess: () => navigate('/panel'),
       onError: () => toast.error('Credenciales inválidas'),
     });
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <AuthShell>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Iniciar sesión</CardTitle>
@@ -97,6 +98,6 @@ export default function LoginPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }

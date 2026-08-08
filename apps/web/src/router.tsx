@@ -5,6 +5,7 @@ import { AppLayout } from '@/layouts/app-layout';
 import { PublicLayout } from '@/layouts/public-layout';
 
 // Páginas lazy-loaded: cada una es un chunk separado.
+const LandingPage = lazy(() => import('@/pages/landing'));
 const LoginPage = lazy(() => import('@/pages/login'));
 const RegisterPage = lazy(() => import('@/pages/register'));
 const OverviewPage = lazy(() => import('@/pages/overview'));
@@ -19,6 +20,11 @@ const ActivityPage = lazy(() => import('@/pages/activity'));
 const VerifyPage = lazy(() => import('@/pages/verify'));
 
 export const router = createBrowserRouter([
+  // Landing pública: sin `ProtectedRoute` ni `AppLayout` ni `PublicLayout` —
+  // no hereda la barra de marca de `PublicLayout` porque el Hero ya trae la
+  // suya, a pantalla completa. Es lo primero que ve un visitante sin cuenta.
+  { path: '/', element: <LandingPage /> },
+
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
 
@@ -36,7 +42,7 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { path: '/', element: <OverviewPage /> },
+          { path: '/panel', element: <OverviewPage /> },
           { path: '/expediente', element: <DossierPage /> },
           { path: '/evidencias', element: <EvidencePage /> },
           { path: '/divulgacion', element: <DisclosurePage /> },
