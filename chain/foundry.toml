@@ -11,6 +11,7 @@ optimizer_runs = 200
 fs_permissions = [
   { access = "read", path = "../packages/merkle/fixtures" },
   { access = "read", path = "../packages/borrowing-base/fixtures" },
+  { access = "write", path = "./deployments" },
 ]
 
 [fmt]
