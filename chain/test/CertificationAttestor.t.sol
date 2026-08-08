@@ -6,10 +6,12 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 
 import {AssetRegistry} from "../src/AssetRegistry.sol";
 import {CertificationAttestor} from "../src/CertificationAttestor.sol";
+import {PAICertificate} from "../src/PAICertificate.sol";
 
 contract CertificationAttestorTest is Test {
     AssetRegistry internal registry;
     CertificationAttestor internal attestor;
+    PAICertificate internal certificate;
 
     address internal admin = makeAddr("admin");
     address internal company = makeAddr("company");
@@ -28,7 +30,8 @@ contract CertificationAttestorTest is Test {
 
     function setUp() public {
         registry = new AssetRegistry(admin);
-        attestor = new CertificationAttestor(registry, admin);
+        certificate = new PAICertificate(registry, admin);
+        attestor = new CertificationAttestor(registry, certificate, admin);
 
         // Los roles se leen antes de cualquier prank: son llamadas y lo consumen.
         certifierRole = attestor.CERTIFIER_ROLE();
@@ -38,6 +41,7 @@ contract CertificationAttestorTest is Test {
         // El rol lo tiene el CONTRATO, no una persona: es el unico camino por
         // el que el estado del expediente puede cambiar por certificacion.
         registry.grantRole(attestorRole, address(attestor));
+        certificate.grantRole(certificate.ISSUER_ROLE(), address(attestor));
         attestor.grantRole(certifierRole, accountant);
         attestor.grantRole(certifierRole, lawyer);
         attestor.grantRole(certifierRole, auditor);
@@ -51,6 +55,20 @@ contract CertificationAttestorTest is Test {
     function _attest(address certifier, CertificationAttestor.Kind kind) internal {
         vm.prank(certifier);
         attestor.attest(ASSET_ID, kind, CERTIFICATE_HASH);
+    }
+
+    function test_RevertWhen_CertificateUsesDifferentRegistry() public {
+        AssetRegistry otherRegistry = new AssetRegistry(admin);
+        PAICertificate mismatchedCertificate = new PAICertificate(otherRegistry, admin);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CertificationAttestor.CertificateRegistryMismatch.selector,
+                address(registry),
+                address(otherRegistry)
+            )
+        );
+        new CertificationAttestor(registry, mismatchedCertificate, admin);
     }
 
     // ─── Ordinales ────────────────────────────────────────────────────────

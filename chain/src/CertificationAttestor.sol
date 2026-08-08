@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 import {AssetRegistry} from "./AssetRegistry.sol";
+import {PAICertificate} from "./PAICertificate.sol";
 
 /// @title Atestaciones de certificacion
 /// @notice Cada certificador firma desde su propia wallet y **ninguno ve todo**.
@@ -32,6 +33,7 @@ contract CertificationAttestor is AccessControl {
     }
 
     AssetRegistry public immutable registry;
+    PAICertificate public immutable certificate;
 
     /// @dev Una atestacion por (expediente, tipo, certificador). Dos
     ///      certificadores pueden atestar el mismo tipo — es deseable, son
@@ -66,10 +68,19 @@ contract CertificationAttestor is AccessControl {
     error NoActiveAttestation(bytes32 assetId, Kind kind, address certifier);
     error EmptyCertificateHash();
     error InvalidRegistry();
+    error CertificateRegistryMismatch(address expected, address actual);
 
-    constructor(AssetRegistry registry_, address admin) {
-        if (address(registry_) == address(0) || admin == address(0)) revert InvalidRegistry();
+    constructor(AssetRegistry registry_, PAICertificate certificate_, address admin) {
+        if (
+            address(registry_) == address(0) || address(certificate_) == address(0)
+                || admin == address(0)
+        ) revert InvalidRegistry();
+        address certificateRegistry = address(certificate_.registry());
+        if (certificateRegistry != address(registry_)) {
+            revert CertificateRegistryMismatch(address(registry_), certificateRegistry);
+        }
         registry = registry_;
+        certificate = certificate_;
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
@@ -103,6 +114,7 @@ contract CertificationAttestor is AccessControl {
 
         if (!wasComplete && isComplete(assetId)) {
             registry.markAttested(assetId);
+            certificate.issue(assetId);
         }
 
         emit Attested(assetId, kind, msg.sender, certificateHash, uint64(block.timestamp));
@@ -127,6 +139,7 @@ contract CertificationAttestor is AccessControl {
 
         if (wasComplete && !isComplete(assetId)) {
             registry.markUnattested(assetId);
+            certificate.invalidate(assetId);
         }
 
         emit AttestationRevoked(assetId, kind, msg.sender, uint64(block.timestamp));
