@@ -45,6 +45,62 @@ export interface AssetResponse {
   createdAt: string;
 }
 
+const chainAddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
+const chainIntegerSchema = z.string().regex(/^\d+$/);
+export const chainAssetSnapshotSchema = z.object({
+  blockNumber: chainIntegerSchema.nullable(),
+  registry: z.object({
+    assetId: bytes32Schema,
+    merkleRoot: bytes32Schema,
+    ownerIdHash: bytes32Schema,
+    controller: chainAddressSchema,
+    registeredAt: z.iso.datetime(),
+    status: z.enum([
+      'Registered',
+      'Attested',
+      'Pledged',
+      'Funded',
+      'Repaid',
+      'Revoked',
+      'Defaulted',
+      'Executed',
+    ]),
+  }),
+  attestations: z.array(
+    z.object({
+      kind: z.enum(['REVENUE_VERIFIED', 'RIGHTS_ASSIGNABLE', 'SERVICE_CONTINUITY']),
+      certifier: chainAddressSchema,
+      certificateHash: bytes32Schema,
+      attestedAt: z.iso.datetime(),
+    }),
+  ),
+  certificate: z.discriminatedUnion('supported', [
+    z.object({ supported: z.literal(false) }),
+    z.object({
+      supported: z.literal(true),
+      valid: z.boolean(),
+      owner: chainAddressSchema.nullable(),
+      issuanceCount: chainIntegerSchema,
+    }),
+  ]),
+  loan: z.discriminatedUnion('supported', [
+    z.object({ supported: z.literal(false) }),
+    z.object({
+      supported: z.literal(true),
+      value: z
+        .object({
+          borrower: chainAddressSchema,
+          lender: chainAddressSchema,
+          principal: chainIntegerSchema,
+          dueAt: z.iso.datetime(),
+          state: z.enum(['Pledged', 'Funded', 'Repaid', 'Defaulted']),
+        })
+        .nullable(),
+    }),
+  ]),
+});
+export type ChainAssetSnapshotResponse = z.infer<typeof chainAssetSnapshotSchema>;
+
 export interface EvidenceResponse {
   id: string;
   originalName: string;

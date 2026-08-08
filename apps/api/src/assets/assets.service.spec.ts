@@ -3,6 +3,7 @@ import type { Repository } from 'typeorm';
 import { CURRENCY_CODES } from '@app/contracts';
 import {
   AssetStatus,
+  AttestationKind,
   type ChainPort,
   type RegisterAssetInput,
   type TxRef,
@@ -42,6 +43,7 @@ describe('AssetsService', () => {
     attest: jest.fn(),
     revokeAttestation: jest.fn(),
     getAsset: jest.fn(),
+    getAssetSnapshot: jest.fn(),
     computeBorrowingBase: jest.fn(),
   };
   const intents = {
@@ -293,5 +295,65 @@ describe('AssetsService', () => {
       NotFoundException,
     );
     expect(chain.getAsset).not.toHaveBeenCalled();
+  });
+
+  it('loads the owned draft before reading a chain snapshot', async () => {
+    assetRepository.findOne.mockResolvedValue(null);
+
+    await expect(service().chainSnapshot('other-user', ASSET_ID)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(chain.getAssetSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when the owned draft is missing on-chain', async () => {
+    assetRepository.findOne.mockResolvedValue(draft());
+    chain.getAssetSnapshot.mockResolvedValue(null);
+
+    await expect(service().chainSnapshot('user-1', ASSET_ID)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('serializes a complete snapshot without persisted private fields', async () => {
+    assetRepository.findOne.mockResolvedValue(draft());
+    chain.getAssetSnapshot.mockResolvedValue({
+      blockNumber: 999n,
+      asset: {
+        assetId: ASSET_ID,
+        merkleRoot: ROOT,
+        ownerIdHash: OWNER,
+        controller: CONTROLLER,
+        registeredAt: new Date('2026-08-08T00:00:00.000Z'),
+        status: AssetStatus.Funded,
+        attestations: [
+          {
+            kind: AttestationKind.RevenueVerified,
+            certifier: `0x${'77'.repeat(20)}`,
+            certificateHash: `0x${'88'.repeat(32)}`,
+            attestedAt: new Date('2026-08-08T00:01:00.000Z'),
+            revokedAt: null,
+          },
+        ],
+      },
+      certificate: { supported: true, valid: true, owner: CONTROLLER, issuanceCount: 2n },
+      loan: {
+        supported: true,
+        value: {
+          borrower: CONTROLLER,
+          lender: `0x${'99'.repeat(20)}`,
+          principal: 800000n,
+          dueAt: new Date('2026-12-01T00:00:00.000Z'),
+          state: 'Funded',
+        },
+      },
+    });
+
+    const result = await service().chainSnapshot('user-1', ASSET_ID);
+
+    expect(result.blockNumber).toBe('999');
+    expect(result.certificate).toMatchObject({ issuanceCount: '2' });
+    expect(result.loan).toMatchObject({ value: { principal: '800000' } });
+    expect(JSON.stringify(result)).not.toMatch(/receivables|debtorSalt|creationKey|createdById/);
   });
 });

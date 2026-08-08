@@ -1,4 +1,10 @@
-import { assetRegistryAbi, certificationAttestorAbi, type Deployment } from '@app/evm';
+import {
+  assetRegistryAbi,
+  certificationAttestorAbi,
+  collateralVaultAbi,
+  paiCertificateAbi,
+  type Deployment,
+} from '@app/evm';
 import { Injectable } from '@nestjs/common';
 import { createPublicClient, http, type Address, type Hex } from 'viem';
 import {
@@ -10,6 +16,7 @@ import {
   type AttestInput,
   type BorrowingBaseInput,
   type BorrowingBaseResult,
+  type ChainAssetSnapshot,
   type ChainPort,
   type OnChainAsset,
   type RegisterAssetInput,
@@ -44,6 +51,8 @@ const KINDS = [
   AttestationKind.RightsAssignable,
   AttestationKind.ServiceContinuity,
 ] as const;
+const LOAN_STATES = [undefined, 'Pledged', 'Funded', 'Repaid', 'Defaulted'] as const;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const order = (log: AttestationLog): readonly [bigint, number, number] => {
   if (log.blockNumber === null || log.transactionIndex === null || log.logIndex === null) {
     throw new Error('RPC returned an unpositioned attestation log.');
@@ -128,13 +137,85 @@ export class ArbitrumChainAdapter implements ChainPort {
   }
 
   async getAsset(assetId: AssetId): Promise<OnChainAsset | null> {
+    return this.assetAt(assetId, await this.safeBlock());
+  }
+
+  async getAssetSnapshot(assetId: AssetId): Promise<ChainAssetSnapshot | null> {
+    const safeBlock = await this.safeBlock();
+    const asset = await this.assetAt(assetId, safeBlock);
+    if (!asset) return null;
+    const [valid, owner, issuanceCount, loan] = (await Promise.all([
+      this.read(
+        this.deployment.addresses.paiCertificate,
+        paiCertificateAbi,
+        'isValid',
+        assetId,
+        safeBlock,
+      ),
+      this.read(
+        this.deployment.addresses.paiCertificate,
+        paiCertificateAbi,
+        'certificateOwner',
+        assetId,
+        safeBlock,
+      ),
+      this.read(
+        this.deployment.addresses.paiCertificate,
+        paiCertificateAbi,
+        'issuanceCount',
+        assetId,
+        safeBlock,
+      ),
+      this.read(
+        this.deployment.addresses.collateralVault,
+        collateralVaultAbi,
+        'getLoan',
+        assetId,
+        safeBlock,
+      ),
+    ])) as [
+      boolean,
+      Address,
+      bigint,
+      { borrower: Address; lender: Address; principal: bigint; dueAt: bigint; state: number },
+    ];
+    const certificateOwner = owner.toLowerCase() === ZERO_ADDRESS ? null : owner;
+    if (valid !== (certificateOwner !== null)) {
+      throw new Error('RPC returned inconsistent certificate state.');
+    }
+    const loanState = LOAN_STATES[Number(loan.state)];
+    if (Number(loan.state) !== 0 && !loanState)
+      throw new Error(`Unknown loan state: ${loan.state}`);
+    return {
+      blockNumber: safeBlock,
+      asset,
+      certificate: { supported: true, valid, owner: certificateOwner, issuanceCount },
+      loan: {
+        supported: true,
+        value: loanState
+          ? {
+              borrower: loan.borrower,
+              lender: loan.lender,
+              principal: loan.principal,
+              dueAt: timestamp(loan.dueAt),
+              state: loanState,
+            }
+          : null,
+      },
+    };
+  }
+
+  private async safeBlock(): Promise<bigint> {
     const chainId = await this.reader.getChainId();
     if (chainId !== this.deployment.chainId) {
       throw new Error(
         `RPC chain ${chainId} does not match deployment chain ${this.deployment.chainId}.`,
       );
     }
-    const { number: safeBlock } = await this.reader.getBlock({ blockTag: 'safe' });
+    return (await this.reader.getBlock({ blockTag: 'safe' })).number;
+  }
+
+  private async assetAt(assetId: AssetId, safeBlock: bigint): Promise<OnChainAsset | null> {
     const exists = await this.reader.readContract({
       address: this.deployment.addresses.assetRegistry,
       abi: assetRegistryAbi,
@@ -185,6 +266,16 @@ export class ArbitrumChainAdapter implements ChainPort {
       status,
       attestations: activeAttestations(assetId, logs),
     };
+  }
+
+  private read(
+    address: Address,
+    abi: object,
+    functionName: string,
+    assetId: AssetId,
+    blockNumber: bigint,
+  ) {
+    return this.reader.readContract({ address, abi, functionName, args: [assetId], blockNumber });
   }
 
   computeBorrowingBase(_input: BorrowingBaseInput): Promise<BorrowingBaseResult> {

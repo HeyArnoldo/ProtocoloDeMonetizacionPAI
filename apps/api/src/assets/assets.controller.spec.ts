@@ -49,4 +49,14 @@ describe('AssetsController', () => {
 
     expect(service.get).toHaveBeenCalledWith(user.id, assetId);
   });
+
+  it('delegates the chain snapshot with authenticated ownership', async () => {
+    const service = { chainSnapshot: jest.fn() } as unknown as jest.Mocked<AssetsService>;
+    const controller = new AssetsController(service);
+    const user = { id: 'user-1' } as User;
+
+    await controller.chainSnapshot(user, 'asset-1');
+
+    expect(service.chainSnapshot).toHaveBeenCalledWith('user-1', 'asset-1');
+  });
 });

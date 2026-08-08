@@ -7,7 +7,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { AssetResponse, CreateAssetInput } from '@app/contracts';
+import {
+  chainAssetSnapshotSchema,
+  type AssetResponse,
+  type ChainAssetSnapshotResponse,
+  type CreateAssetInput,
+} from '@app/contracts';
 import { buildTree, hashDebtor, randomDebtorSalt, toDueDate, type Hex } from '@app/merkle';
 import { In, type Repository } from 'typeorm';
 import { CHAIN_PORT, type ChainPort } from '../chain/chain.port';
@@ -155,6 +160,47 @@ export class AssetsService {
 
   async get(createdById: string, id: string): Promise<AssetResponse> {
     return this.toResponse(await this.findOwned(createdById, id));
+  }
+
+  async chainSnapshot(createdById: string, id: string): Promise<ChainAssetSnapshotResponse> {
+    await this.findOwned(createdById, id);
+    const snapshot = await this.chain.getAssetSnapshot(id as Hex);
+    if (!snapshot) throw new NotFoundException(`Asset ${id} is not registered on-chain.`);
+    const { asset } = snapshot;
+    return chainAssetSnapshotSchema.parse({
+      blockNumber: snapshot.blockNumber?.toString() ?? null,
+      registry: {
+        assetId: asset.assetId,
+        merkleRoot: asset.merkleRoot,
+        ownerIdHash: asset.ownerIdHash,
+        controller: asset.controller,
+        registeredAt: asset.registeredAt.toISOString(),
+        status: asset.status,
+      },
+      attestations: asset.attestations.map(({ kind, certifier, certificateHash, attestedAt }) => ({
+        kind,
+        certifier,
+        certificateHash,
+        attestedAt: attestedAt.toISOString(),
+      })),
+      certificate: snapshot.certificate.supported
+        ? {
+            ...snapshot.certificate,
+            issuanceCount: snapshot.certificate.issuanceCount.toString(),
+          }
+        : snapshot.certificate,
+      loan:
+        snapshot.loan.supported && snapshot.loan.value
+          ? {
+              supported: true,
+              value: {
+                ...snapshot.loan.value,
+                principal: snapshot.loan.value.principal.toString(),
+                dueAt: snapshot.loan.value.dueAt.toISOString(),
+              },
+            }
+          : snapshot.loan,
+    });
   }
 
   private async findOwned(createdById: string, id: string): Promise<Asset> {

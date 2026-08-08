@@ -9,6 +9,7 @@ import {
   type BorrowingBaseInput,
   type BorrowingBaseResult,
   type ChainPort,
+  type ChainAssetSnapshot,
   type OnChainAsset,
   type RegisterAssetInput,
   type RevokeAttestationInput,
@@ -101,6 +102,18 @@ export class InMemoryChainAdapter implements ChainPort {
   async getAsset(assetId: AssetId): Promise<OnChainAsset | null> {
     const asset = this.assets.get(assetId);
     return asset ? this.snapshot(asset) : null;
+  }
+
+  async getAssetSnapshot(assetId: AssetId): Promise<ChainAssetSnapshot | null> {
+    const asset = await this.getAsset(assetId);
+    return asset
+      ? {
+          blockNumber: null,
+          asset,
+          certificate: { supported: false },
+          loan: { supported: false },
+        }
+      : null;
   }
 
   async computeBorrowingBase(_input: BorrowingBaseInput): Promise<BorrowingBaseResult> {

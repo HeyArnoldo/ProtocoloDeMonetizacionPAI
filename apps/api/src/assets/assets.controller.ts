@@ -1,5 +1,10 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { createAssetSchema, type AssetResponse, type CreateAssetInput } from '@app/contracts';
+import {
+  createAssetSchema,
+  type AssetResponse,
+  type ChainAssetSnapshotResponse,
+  type CreateAssetInput,
+} from '@app/contracts';
 import { UserRole } from '@app/contracts';
 import type { SerializedIntent } from '../chain/chain-intent.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -27,6 +32,14 @@ export class AssetsController {
   @Get(':id')
   get(@CurrentUser() user: User, @Param('id') id: string): Promise<AssetResponse> {
     return this.assets.get(user.id, id);
+  }
+
+  @Get(':id/chain')
+  chainSnapshot(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+  ): Promise<ChainAssetSnapshotResponse> {
+    return this.assets.chainSnapshot(user.id, id);
   }
 
   @Post(':id/registration-intent')

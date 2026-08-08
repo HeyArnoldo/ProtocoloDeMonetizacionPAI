@@ -216,4 +216,38 @@ describe('chain runtime boundary', () => {
     );
     await expect(adapter(reader()).registerAsset({} as never)).rejects.toThrow(/never signs/);
   });
+
+  it('aggregates registry, certificate, loan, and attestations at one safe block', async () => {
+    const readContract = jest.fn(
+      ({ functionName }: { functionName: string; blockNumber?: bigint }) => {
+        const values: Record<string, unknown> = {
+          exists: true,
+          getAsset: chainAsset,
+          isValid: true,
+          certificateOwner: address('7'),
+          issuanceCount: 2n,
+          getLoan: {
+            borrower: address('7'),
+            lender: address('8'),
+            principal: 800000n,
+            dueAt: 2_000_000_000n,
+            state: 2,
+          },
+        };
+        return Promise.resolve(values[functionName]);
+      },
+    );
+    const rpc = reader({ readContract });
+
+    const snapshot = await adapter(rpc).getAssetSnapshot(bytes32('a'));
+
+    expect(snapshot).toMatchObject({
+      blockNumber: 999n,
+      certificate: { supported: true, valid: true, issuanceCount: 2n },
+      loan: { supported: true, value: { principal: 800000n, state: 'Funded' } },
+    });
+    expect(rpc.getBlock).toHaveBeenCalledTimes(1);
+    expect(readContract.mock.calls.every(([call]) => call.blockNumber === 999n)).toBe(true);
+    expect(rpc.getContractEvents.mock.calls.every(([call]) => call.toBlock === 999n)).toBe(true);
+  });
 });

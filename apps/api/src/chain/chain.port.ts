@@ -120,6 +120,26 @@ export interface OnChainAsset {
   attestations: Attestation[];
 }
 
+export interface ChainAssetSnapshot {
+  blockNumber: bigint | null;
+  asset: OnChainAsset;
+  certificate:
+    | { supported: false }
+    | { supported: true; valid: boolean; owner: Address | null; issuanceCount: bigint };
+  loan:
+    | { supported: false }
+    | {
+        supported: true;
+        value: null | {
+          borrower: Address;
+          lender: Address;
+          principal: bigint;
+          dueAt: Date;
+          state: 'Pledged' | 'Funded' | 'Repaid' | 'Defaulted';
+        };
+      };
+}
+
 export interface BorrowingBaseInput {
   assetId: AssetId;
   /** Multiproof serializado de las hojas que la empresa decidió divulgar. */
@@ -156,6 +176,7 @@ export interface ChainPort {
   attest(input: AttestInput): Promise<TxRef>;
   revokeAttestation(input: RevokeAttestationInput): Promise<TxRef>;
   getAsset(assetId: AssetId): Promise<OnChainAsset | null>;
+  getAssetSnapshot(assetId: AssetId): Promise<ChainAssetSnapshot | null>;
   /**
    * Recomputa la base prestable contra el motor Stylus.
    *
