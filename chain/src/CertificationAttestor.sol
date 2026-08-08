@@ -38,10 +38,16 @@ contract CertificationAttestor is AccessControl {
     ///      opiniones independientes.
     mapping(bytes32 assetId => mapping(Kind => mapping(address certifier => Attestation))) private
         _attestations;
+    mapping(bytes32 assetId => mapping(address certifier => bool)) private
+        _hasActiveAttestationForAsset;
 
-    /// @dev Contador de atestaciones vigentes por expediente. Sin esto habria
-    ///      que iterar para saber si queda alguna, y iterar on-chain se paga.
+    /// @dev Contador total de atestaciones vigentes por expediente.
     mapping(bytes32 assetId => uint256) public activeCount;
+
+    /// @dev La certificacion exige cobertura por tipo, no solo una cantidad
+    ///      total. Varias opiniones del mismo tipo no reemplazan un tipo
+    ///      faltante.
+    mapping(bytes32 assetId => mapping(Kind => uint256)) public activeCountByKind;
 
     event Attested(
         bytes32 indexed assetId,
@@ -56,6 +62,7 @@ contract CertificationAttestor is AccessControl {
 
     error AssetNotRegistered(bytes32 assetId);
     error AlreadyAttested(bytes32 assetId, Kind kind, address certifier);
+    error CertifierAlreadyActiveForAsset(bytes32 assetId, address certifier);
     error NoActiveAttestation(bytes32 assetId, Kind kind, address certifier);
     error EmptyCertificateHash();
     error InvalidRegistry();
@@ -74,9 +81,14 @@ contract CertificationAttestor is AccessControl {
         if (!registry.exists(assetId)) revert AssetNotRegistered(assetId);
         if (certificateHash == bytes32(0)) revert EmptyCertificateHash();
 
+        bool wasComplete = isComplete(assetId);
+
         Attestation storage attestation = _attestations[assetId][kind][msg.sender];
         if (attestation.exists && attestation.revokedAt == 0) {
             revert AlreadyAttested(assetId, kind, msg.sender);
+        }
+        if (_hasActiveAttestationForAsset[assetId][msg.sender]) {
+            revert CertifierAlreadyActiveForAsset(assetId, msg.sender);
         }
 
         _attestations[assetId][kind][msg.sender] = Attestation({
@@ -85,9 +97,13 @@ contract CertificationAttestor is AccessControl {
             revokedAt: 0,
             exists: true
         });
+        _hasActiveAttestationForAsset[assetId][msg.sender] = true;
         activeCount[assetId] += 1;
+        activeCountByKind[assetId][kind] += 1;
 
-        registry.markAttested(assetId);
+        if (!wasComplete && isComplete(assetId)) {
+            registry.markAttested(assetId);
+        }
 
         emit Attested(assetId, kind, msg.sender, certificateHash, uint64(block.timestamp));
     }
@@ -100,12 +116,16 @@ contract CertificationAttestor is AccessControl {
             revert NoActiveAttestation(assetId, kind, msg.sender);
         }
 
+        bool wasComplete = isComplete(assetId);
+
         // No se borra: la revocacion tambien es evidencia y el historial es lo
         // que hace auditable el expediente.
         attestation.revokedAt = uint64(block.timestamp);
+        _hasActiveAttestationForAsset[assetId][msg.sender] = false;
         activeCount[assetId] -= 1;
+        activeCountByKind[assetId][kind] -= 1;
 
-        if (activeCount[assetId] == 0) {
+        if (wasComplete && !isComplete(assetId)) {
             registry.markUnattested(assetId);
         }
 
@@ -123,5 +143,11 @@ contract CertificationAttestor is AccessControl {
     function isActive(bytes32 assetId, Kind kind, address certifier) external view returns (bool) {
         Attestation storage attestation = _attestations[assetId][kind][certifier];
         return attestation.exists && attestation.revokedAt == 0;
+    }
+
+    function isComplete(bytes32 assetId) public view returns (bool) {
+        return activeCountByKind[assetId][Kind.RevenueVerified] > 0
+            && activeCountByKind[assetId][Kind.RightsAssignable] > 0
+            && activeCountByKind[assetId][Kind.ServiceContinuity] > 0;
     }
 }
