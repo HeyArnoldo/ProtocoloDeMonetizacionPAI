@@ -22,7 +22,6 @@ export const createReceivableSchema = z.object({
 export type CreateReceivableInput = z.infer<typeof createReceivableSchema>;
 
 export const createAssetSchema = z.object({
-  ownerIdHash: bytes32Schema,
   controller: addressSchema,
   receivables: z.array(createReceivableSchema).min(1),
 });

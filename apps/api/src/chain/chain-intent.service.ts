@@ -18,8 +18,9 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { keccak256, toBytes, type Address, type Hex } from 'viem';
+import { type Address, type Hex } from 'viem';
 import { CHAIN_RUNTIME_CONFIG, type ChainRuntimeConfig } from './chain.config';
+import { ownerIdHash } from './owner-id';
 
 export type IntentAction =
   | 'register'
@@ -65,7 +66,7 @@ export class ChainIntentService {
           deployment.addresses.assetRegistry,
           assetId,
           body.merkleRoot as Hex,
-          keccak256(toBytes(userId)),
+          ownerIdHash(userId),
         );
       case 'attest':
         return attestIntent(

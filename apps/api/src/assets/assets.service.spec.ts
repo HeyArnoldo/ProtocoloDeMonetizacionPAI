@@ -1,20 +1,30 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { CURRENCY_CODES } from '@app/contracts';
-import type { ChainPort, RegisterAssetInput, TxRef } from '../chain/chain.port';
+import {
+  AssetStatus,
+  type ChainPort,
+  type RegisterAssetInput,
+  type TxRef,
+} from '../chain/chain.port';
 import { Asset } from './asset.entity';
 import { Receivable } from './receivable.entity';
 import { AssetsService } from './assets.service';
 import { Evidence } from '../evidence/evidence.entity';
+import type { ChainIntentService } from '../chain/chain-intent.service';
+import { ownerIdHash } from '../chain/owner-id';
 
-const OWNER = `0x${'11'.repeat(32)}` as const;
+const OWNER = ownerIdHash('user-1');
 const CONTROLLER = `0x${'22'.repeat(20)}` as const;
+const ASSET_ID = `0x${'55'.repeat(32)}` as const;
+const ROOT = `0x${'44'.repeat(32)}` as const;
 
 describe('AssetsService', () => {
   const assetRepository = {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
     findOne: jest.fn(),
+    update: jest.fn(),
   } as unknown as jest.Mocked<Repository<Asset>>;
   const receivableRepository = {
     create: jest.fn((value) => value),
@@ -34,9 +44,30 @@ describe('AssetsService', () => {
     getAsset: jest.fn(),
     computeBorrowingBase: jest.fn(),
   };
+  const intents = {
+    build: jest.fn(() => ({ chainId: 421614, to: CONTROLLER, data: '0x12', value: '0' })),
+  } as unknown as jest.Mocked<ChainIntentService>;
+  const service = () =>
+    new AssetsService(assetRepository, receivableRepository, evidenceRepository, chain, intents);
+  const draft = (): Asset =>
+    ({
+      id: ASSET_ID,
+      createdById: 'user-1',
+      creationKey: `0x${'33'.repeat(32)}`,
+      ownerIdHash: OWNER,
+      controller: CONTROLLER,
+      debtorSalt: `0x${'66'.repeat(32)}`,
+      merkleRoot: ROOT,
+      registrationConfirmed: false,
+      registrationTxHash: null,
+      registrationBlockNumber: null,
+      receivables: [],
+      createdAt: new Date(0),
+    }) as Asset;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.CHAIN_ADAPTER = 'in-memory';
     assetRepository.findOne.mockResolvedValue(null);
     chain.getAsset.mockResolvedValue(null);
     evidenceRepository.findBy.mockResolvedValue([
@@ -53,10 +84,10 @@ describe('AssetsService', () => {
       receivableRepository,
       evidenceRepository,
       chain,
+      intents,
     );
 
     const asset = await service.create('user-1', {
-      ownerIdHash: OWNER,
       controller: CONTROLLER,
       receivables: [
         {
@@ -96,11 +127,11 @@ describe('AssetsService', () => {
       receivableRepository,
       evidenceRepository,
       chain,
+      intents,
     );
 
     await expect(
       service.create('user-1', {
-        ownerIdHash: OWNER,
         controller: CONTROLLER,
         receivables: [
           {
@@ -135,9 +166,9 @@ describe('AssetsService', () => {
       receivableRepository,
       evidenceRepository,
       chain,
+      intents,
     );
     const input = {
-      ownerIdHash: OWNER,
       controller: CONTROLLER,
       receivables: [
         {
@@ -163,15 +194,104 @@ describe('AssetsService', () => {
 
   it('scopes reads to the authenticated owner', async () => {
     await expect(
-      new AssetsService(assetRepository, receivableRepository, evidenceRepository, chain).get(
-        'other-user',
-        `0x${'55'.repeat(32)}`,
-      ),
+      new AssetsService(
+        assetRepository,
+        receivableRepository,
+        evidenceRepository,
+        chain,
+        intents,
+      ).get('other-user', `0x${'55'.repeat(32)}`),
     ).rejects.toThrow('was not found');
     expect(assetRepository.findOne).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: `0x${'55'.repeat(32)}`, createdById: 'other-user' },
       }),
     );
+  });
+
+  it('persists a real-chain draft without asking the backend to sign', async () => {
+    process.env.CHAIN_ADAPTER = 'arbitrum';
+
+    const result = await service().create('user-1', {
+      controller: CONTROLLER,
+      receivables: [
+        {
+          evidenceId: '7fb79494-272c-4be1-8204-885c0bba3528',
+          debtorTaxId: '20512345678',
+          debtorLabel: 'Customer SAC',
+          amountMinor: '800000',
+          dueDate: '2026-10-15',
+          currency: CURRENCY_CODES.USD,
+        },
+      ],
+    });
+
+    expect(result.ownerIdHash).toBe(OWNER);
+    expect(result.registrationConfirmed).toBe(false);
+    expect(chain.registerAsset).not.toHaveBeenCalled();
+    expect(assetRepository.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('builds registration calldata only from the owner-scoped persisted draft', async () => {
+    assetRepository.findOne.mockResolvedValue(draft());
+
+    await service().registrationIntent('user-1', ASSET_ID);
+
+    expect(intents.build).toHaveBeenCalledWith('register', 'user-1', {
+      assetId: ASSET_ID,
+      merkleRoot: ROOT,
+    });
+  });
+
+  it('rejects missing and mismatched on-chain registrations', async () => {
+    assetRepository.findOne.mockResolvedValue(draft());
+    chain.getAsset.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      assetId: ASSET_ID,
+      merkleRoot: ROOT,
+      ownerIdHash: OWNER,
+      controller: `0x${'99'.repeat(20)}`,
+      registeredAt: new Date(),
+      status: AssetStatus.Registered,
+      attestations: [],
+    });
+
+    await expect(service().confirmRegistration('user-1', ASSET_ID)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service().confirmRegistration('user-1', ASSET_ID)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(assetRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('confirms atomically and is idempotent', async () => {
+    const asset = draft();
+    assetRepository.findOne.mockResolvedValue(asset);
+    chain.getAsset.mockResolvedValue({
+      assetId: ASSET_ID,
+      merkleRoot: asset.merkleRoot as never,
+      ownerIdHash: OWNER,
+      controller: CONTROLLER,
+      registeredAt: new Date(),
+      status: AssetStatus.Registered,
+      attestations: [],
+    });
+
+    await expect(service().confirmRegistration('user-1', ASSET_ID)).resolves.toMatchObject({
+      registrationConfirmed: true,
+    });
+    await service().confirmRegistration('user-1', ASSET_ID);
+
+    expect(assetRepository.update).toHaveBeenCalledTimes(1);
+    expect(chain.getAsset).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not inspect chain state for another owner draft', async () => {
+    assetRepository.findOne.mockResolvedValue(null);
+
+    await expect(service().confirmRegistration('other-user', ASSET_ID)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(chain.getAsset).not.toHaveBeenCalled();
   });
 });

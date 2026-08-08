@@ -7,7 +7,6 @@ describe('AssetsController', () => {
     const service = { create: jest.fn() } as unknown as jest.Mocked<AssetsService>;
     const controller = new AssetsController(service);
     const input = {
-      ownerIdHash: `0x${'11'.repeat(32)}` as const,
       controller: `0x${'22'.repeat(20)}` as const,
       receivables: [
         {
@@ -26,6 +25,19 @@ describe('AssetsController', () => {
 
     expect(service.create).toHaveBeenCalledWith(user.id, input);
   });
+
+  it.each(['registrationIntent', 'confirmRegistration'] as const)(
+    'delegates %s with authenticated ownership',
+    async (method) => {
+      const service = { [method]: jest.fn() } as unknown as jest.Mocked<AssetsService>;
+      const controller = new AssetsController(service);
+      const user = { id: 'user-1' } as User;
+
+      await controller[method](user, 'asset-1');
+
+      expect(service[method]).toHaveBeenCalledWith('user-1', 'asset-1');
+    },
+  );
 
   it('delegates asset retrieval by identifier to the service', async () => {
     const service = { get: jest.fn() } as unknown as jest.Mocked<AssetsService>;

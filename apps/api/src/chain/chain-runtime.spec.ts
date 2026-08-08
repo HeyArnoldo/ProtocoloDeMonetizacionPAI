@@ -51,7 +51,9 @@ const event = (
 const reader = (overrides: Record<string, unknown> = {}) => ({
   getChainId: jest.fn().mockResolvedValue(421614),
   getBlock: jest.fn().mockResolvedValue({ number: 999n }),
-  readContract: jest.fn().mockResolvedValue(chainAsset),
+  readContract: jest.fn(({ functionName }: { functionName: string }) =>
+    Promise.resolve(functionName === 'exists' ? true : chainAsset),
+  ),
   getContractEvents: jest.fn().mockResolvedValue([]),
   ...overrides,
 });
@@ -152,13 +154,15 @@ describe('chain runtime boundary', () => {
 
   it('returns null for a missing asset and rejects unknown registry status', async () => {
     await expect(
-      adapter(reader({ readContract: jest.fn().mockResolvedValue({ exists: false }) })).getAsset(
-        bytes32('a'),
-      ),
+      adapter(reader({ readContract: jest.fn().mockResolvedValue(false) })).getAsset(bytes32('a')),
     ).resolves.toBeNull();
     await expect(
       adapter(
-        reader({ readContract: jest.fn().mockResolvedValue({ ...chainAsset, status: 99 }) }),
+        reader({
+          readContract: jest.fn(({ functionName }: { functionName: string }) =>
+            Promise.resolve(functionName === 'exists' ? true : { ...chainAsset, status: 99 }),
+          ),
+        }),
       ).getAsset(bytes32('a')),
     ).rejects.toThrow(/Unknown on-chain asset status/);
   });

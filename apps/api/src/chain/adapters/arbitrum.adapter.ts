@@ -135,6 +135,14 @@ export class ArbitrumChainAdapter implements ChainPort {
       );
     }
     const { number: safeBlock } = await this.reader.getBlock({ blockTag: 'safe' });
+    const exists = await this.reader.readContract({
+      address: this.deployment.addresses.assetRegistry,
+      abi: assetRegistryAbi,
+      functionName: 'exists',
+      args: [assetId],
+      blockNumber: safeBlock,
+    });
+    if (exists !== true) return null;
     const asset = (await this.reader.readContract({
       address: this.deployment.addresses.assetRegistry,
       abi: assetRegistryAbi,
@@ -149,7 +157,6 @@ export class ArbitrumChainAdapter implements ChainPort {
       status: number;
       exists: boolean;
     };
-    if (!asset.exists) return null;
     const status = Object.entries(ASSET_STATUS_ORDINAL).find(
       ([, ordinal]) => ordinal === Number(asset.status),
     )?.[0] as AssetStatus | undefined;

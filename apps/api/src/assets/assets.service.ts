@@ -1,10 +1,18 @@
 import { createHash } from 'node:crypto';
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { AssetResponse, CreateAssetInput } from '@app/contracts';
 import { buildTree, hashDebtor, randomDebtorSalt, toDueDate, type Hex } from '@app/merkle';
 import { In, type Repository } from 'typeorm';
 import { CHAIN_PORT, type ChainPort } from '../chain/chain.port';
+import { ChainIntentService, type SerializedIntent } from '../chain/chain-intent.service';
+import { ownerIdHash } from '../chain/owner-id';
 import { Evidence } from '../evidence/evidence.entity';
 import { Asset } from './asset.entity';
 import { Receivable } from './receivable.entity';
@@ -16,14 +24,11 @@ export class AssetsService {
     @InjectRepository(Receivable) private readonly receivables: Repository<Receivable>,
     @InjectRepository(Evidence) private readonly evidence: Repository<Evidence>,
     @Inject(CHAIN_PORT) private readonly chain: ChainPort,
+    private readonly intents: ChainIntentService,
   ) {}
 
   async create(createdById: string, input: CreateAssetInput): Promise<AssetResponse> {
-    if ((process.env.CHAIN_ADAPTER ?? 'in-memory') !== 'in-memory') {
-      throw new BadRequestException(
-        'Server-side asset creation is limited to CHAIN_ADAPTER=in-memory; a real controller must submit the transaction from its own wallet.',
-      );
-    }
+    const ownerHash = ownerIdHash(createdById);
     const creationKey = `0x${createHash('sha256')
       .update(`${createdById}:${JSON.stringify(input)}`)
       .digest('hex')}`;
@@ -76,13 +81,13 @@ export class AssetsService {
     const id =
       asset?.id ??
       `0x${createHash('sha256')
-        .update(`${input.ownerIdHash}:${input.controller}:${tree.root}`)
+        .update(`${ownerHash}:${input.controller}:${tree.root}`)
         .digest('hex')}`;
     asset ??= this.assets.create({
       id,
       createdById,
       creationKey,
-      ownerIdHash: input.ownerIdHash,
+      ownerIdHash: ownerHash,
       controller: input.controller,
       debtorSalt,
       merkleRoot: tree.root,
@@ -94,13 +99,17 @@ export class AssetsService {
     for (const receivable of persistedReceivables) receivable.asset = asset;
     if (!asset.createdAt) await this.assets.save(asset);
 
+    if ((process.env.CHAIN_ADAPTER ?? 'in-memory') !== 'in-memory') {
+      return this.toResponse(asset);
+    }
+
     const registered = await this.chain.getAsset(id as Hex);
     const tx = registered
       ? null
       : await this.chain.registerAsset({
           assetId: id as Hex,
           merkleRoot: tree.root,
-          ownerIdHash: input.ownerIdHash as Hex,
+          ownerIdHash: ownerHash,
           controller: input.controller as Hex,
         });
     if (tx) {
@@ -112,14 +121,50 @@ export class AssetsService {
     return this.toResponse(await this.assets.save(asset));
   }
 
+  async registrationIntent(createdById: string, id: string): Promise<SerializedIntent> {
+    const asset = await this.findOwned(createdById, id);
+    return this.intents.build('register', createdById, {
+      assetId: asset.id,
+      merkleRoot: asset.merkleRoot,
+    });
+  }
+
+  async confirmRegistration(createdById: string, id: string): Promise<AssetResponse> {
+    const asset = await this.findOwned(createdById, id);
+    if (asset.registrationConfirmed) return this.toResponse(asset);
+    const registered = await this.chain.getAsset(id as Hex);
+    if (!registered) throw new NotFoundException(`Asset ${id} is not registered on-chain.`);
+    const expected = {
+      assetId: asset.id,
+      merkleRoot: asset.merkleRoot,
+      ownerIdHash: ownerIdHash(createdById),
+      controller: asset.controller,
+    };
+    for (const field of Object.keys(expected) as Array<keyof typeof expected>) {
+      if (registered[field].toLowerCase() !== expected[field].toLowerCase()) {
+        throw new ConflictException(`On-chain ${field} does not match the asset draft.`);
+      }
+    }
+    await this.assets.update(
+      { id, createdById, registrationConfirmed: false },
+      { registrationConfirmed: true },
+    );
+    asset.registrationConfirmed = true;
+    return this.toResponse(asset);
+  }
+
   async get(createdById: string, id: string): Promise<AssetResponse> {
+    return this.toResponse(await this.findOwned(createdById, id));
+  }
+
+  private async findOwned(createdById: string, id: string): Promise<Asset> {
     const asset = await this.assets.findOne({
       where: { id, createdById },
       relations: { receivables: true },
       order: { receivables: { position: 'ASC' } },
     });
     if (!asset) throw new NotFoundException(`Asset ${id} was not found.`);
-    return this.toResponse(asset);
+    return asset;
   }
 
   private toResponse(asset: Asset): AssetResponse {
