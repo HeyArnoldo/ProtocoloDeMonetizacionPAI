@@ -15,15 +15,15 @@ forge test -vv     # 39 tests
 forge fmt          # antes de commitear: el CI corre `forge fmt --check`
 ```
 
-| Pieza                                           | Estado      |
-| ----------------------------------------------- | ----------- |
-| `ReceivableLeaf.sol` + vectores dorados pasando | ✅          |
-| `AssetRegistry.sol`                             | ✅ 16 tests |
-| `CertificationAttestor.sol`                     | ✅ 16 tests |
-| `BorrowingBaseEngine` (Stylus/Rust)             | ⏳          |
-| `CollateralVault.sol`                           | ⏳          |
-| `PAICertificate.sol`                            | ⏳          |
-| Scripts de deploy a Arbitrum Sepolia            | ⏳          |
+| Pieza                                           | Estado                    |
+| ----------------------------------------------- | ------------------------- |
+| `ReceivableLeaf.sol` + vectores dorados pasando | ✅                        |
+| `AssetRegistry.sol`                             | ✅ 16 tests               |
+| `CertificationAttestor.sol`                     | ✅ 16 tests               |
+| `BorrowingBaseEngine` (Stylus/Rust)             | ⏳ spec + vectores listos |
+| `CollateralVault.sol`                           | ⏳                        |
+| `PAICertificate.sol`                            | ⏳                        |
+| Scripts de deploy a Arbitrum Sepolia            | ⏳                        |
 
 Las librerías son **submódulos de git**. Al clonar: `git submodule update --init --recursive`.
 
@@ -46,6 +46,33 @@ leaf = keccak256(keccak256(abi.encode(
 ```
 
 Ese formato es el de `StandardMerkleTree` de OpenZeppelin (hoja de doble hash, pares ordenados), así que `MerkleProof.multiProofVerify` lo verifica sin adaptaciones.
+
+---
+
+## El motor Stylus tiene su propia especificación
+
+`packages/borrowing-base` es la **especificación normativa** del `BorrowingBaseEngine`, con sus propios vectores dorados en `packages/borrowing-base/fixtures/golden-vectors.json`. El motor en Rust debe reproducir **los mismos enteros**, línea por línea del desglose.
+
+Detalles completos en [`docs/arquitectura.md`](../docs/arquitectura.md), pero lo esencial para no perder tiempo:
+
+- **Todo en enteros.** Tasas en bps (18% = `1800`), montos en unidades menores. Cero flotantes, ni siquiera intermedios.
+- **Descuento simple, no compuesto**, y **por cuota**, no sobre una duración promedio.
+- **Los descuentos redondean hacia arriba, el advance rate hacia abajo.** El redondeo nunca puede favorecer al prestatario. Esta es la parte más fácil de romper sin notarlo — y la que los vectores detectan.
+- Los descuentos se aplican **en cadena sobre el saldo corriente**, en este orden: plazo → mora → concentración → continuidad. Cambiar el orden cambia el resultado.
+- La concentración agrupa por `debtorHash`: el motor nunca sabe quién es el deudor.
+- Días hasta el vencimiento recortados en 0: una cuota vencida no puede sumar valor.
+
+Vector de referencia (16 cuotas, 4 deudores, USD):
+
+```
+nominal            12,480,000
+− plazo             1,112,436
+− mora                477,438
+− concentración       784,000
+− continuidad         222,335
+= ajustado          9,883,791
+× 52.8%             5,218,641   ← base prestable
+```
 
 ---
 

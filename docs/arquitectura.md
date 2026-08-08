@@ -100,7 +100,55 @@ Un árbol propio funcionaría en los tests de TypeScript y fallaría en el contr
 
 ---
 
-## 4. `ChainPort` — la cadena como puerto
+## 4. El motor de borrowing base
+
+Segunda pieza normativa, con el mismo patrón que la hoja: la fórmula vive en TypeScript (`packages/borrowing-base`), los vectores dorados están en `fixtures/golden-vectors.json`, y el motor Stylus debe reproducir **los mismos enteros**.
+
+### Todo en enteros, sin excepción
+
+Las tasas van en **puntos básicos**: 1 bps = 0.01%, así que 18% = `1800` y 100% = `10000`. Los montos van en unidades menores como `bigint`. No hay un solo `number` decimal en el motor. En dinero, un float es una discrepancia esperando el peor momento para aparecer — y el peor momento acá es cuando el fondo recomputa en vivo.
+
+### El cálculo, en orden
+
+```
+nominal      = Σ cuotas divulgadas
+
+1. Descuento por plazo   por cuota: monto × tasa × días / (10000 × 365)
+2. Mora histórica        saldo × delinquencyBps / 10000
+3. Concentración         exceso sobre el umbral × penaltyBps / 10000
+4. Continuidad           saldo × (100 − score) × weightBps / (100 × 10000)
+
+= valor ajustado por riesgo
+× advanceRateBps / 10000  →  base prestable
+```
+
+Cada descuento se aplica sobre el **saldo corriente**, no sobre el nominal. El orden es parte de la especificación: cambiarlo cambia el resultado.
+
+### Descuento simple, no compuesto
+
+El descuento por plazo es **lineal**, no valor presente compuesto. Dos razones: es como se descuenta en factoring, y es exacto en aritmética entera. Una exponenciación con exponente fraccionario on-chain es cara e imprecisa, y acá no aporta nada.
+
+Y se calcula **por cuota**, no sobre una duración promedio de la cartera. Eso es exactamente lo que el árbol permite y un agregado no: dos cuotas de 500k a plazos distintos no valen lo mismo que una de 1M al plazo promedio.
+
+### El redondeo nunca favorece al prestatario
+
+Los descuentos redondean **hacia arriba**, el advance rate **hacia abajo**. Un centavo de más en la base prestable es un centavo que el fondo presta sin colateral. Es una decisión de riesgo, no de estilo, y está fijada por los vectores dorados.
+
+### Concentración sin saber quién es el deudor
+
+El haircut agrupa por `debtorHash`. El motor no necesita saber **quién** es el deudor, solo qué cuotas comparten deudor. Por eso el salt del `debtorHash` protege la privacidad sin costar funcionalidad.
+
+### Cuotas vencidas
+
+Los días hasta el vencimiento se recortan en 0. Sin ese recorte, una cuota vencida generaría un descuento negativo y la cartera valdría **más** cuanto más atrasada estuviera. Penalizar activamente lo vencido es una decisión de riesgo aparte, y todavía no está en el modelo.
+
+### Los parámetros son ilustrativos
+
+Los haircuts por defecto (420 bps de mora, 52.8% de advance rate, umbral de concentración 25%) son consistentes y representativos del mercado SaaS B2B peruano, pero **necesitan calibración de un analista de riesgo real** antes de producción. Decirlo en la presentación muestra criterio.
+
+---
+
+## 5. `ChainPort` — la cadena como puerto
 
 El dominio de la API **no conoce Viem, ni direcciones, ni ABIs**. Conoce una interfaz.
 
@@ -223,7 +271,7 @@ STORAGE_FORCE_PATH_STYLE=true   # true para MinIO (path-style), false para S3 re
 | 3   | `ChainPort` + adapter en memoria + esqueleto de `chain/`               | ✅                   |
 | 4   | Expediente: `assets` + `evidence` + storage + SHA-256                  | ⏳                   |
 | 5   | `certifications` + divulgación selectiva + `/verify/:code`             | ⏳                   |
-| 6   | Especificación del `BorrowingBaseEngine` con vectores dorados propios  | ⏳                   |
+| 6   | Especificación del `BorrowingBaseEngine` con vectores dorados propios  | ✅                   |
 | 7a  | `AssetRegistry` + `CertificationAttestor` en Solidity, con tests       | ✅                   |
 | 7b  | Motor Stylus, `CollateralVault`, `PAICertificate`                      | ⏳                   |
 | 8   | Account Abstraction ERC-4337                                           | Si alcanza el tiempo |
