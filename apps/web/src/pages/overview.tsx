@@ -72,8 +72,10 @@ const KPIS = [
 
 export default function OverviewPage() {
   return (
-    <div className="flex max-w-[1180px] flex-col gap-5">
+    <div className="flex max-w-[1180px] flex-col gap-4 sm:gap-5">
       <section aria-label="Indicadores del expediente">
+        {/* `auto-fit` con un mínimo de 240px ya refluye solo: a 393px cae a una
+            columna sin necesidad de punto de corte. */}
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
           {KPIS.map((kpi) => (
             <PendingData key={kpi.title} {...kpi} />
@@ -85,11 +87,14 @@ export default function OverviewPage() {
         <h2 id="lifecycle-heading" className="text-muted-foreground text-[13px] font-medium">
           Máquina de estados on-chain
         </h2>
-        <ol className="flex items-stretch gap-1.5">
+        {/* Seis estados en una sola fila darían 55px de ancho por celda en un
+            teléfono: el nombre del estado no cabría. Se reparten en rejilla y
+            solo vuelven a ser una fila cuando hay ancho para leerlos. */}
+        <ol className="grid grid-cols-2 items-stretch gap-1.5 sm:grid-cols-3 lg:flex">
           {LIFECYCLE.map((state) => (
             <li
               key={state.name}
-              className="bg-card flex flex-1 flex-col gap-1.5 rounded-md px-3 py-[11px]"
+              className="bg-card flex min-w-0 flex-1 flex-col gap-1.5 rounded-md px-3 py-[11px]"
             >
               <span className="mono text-[12px]">{state.name}</span>
               <span className="text-muted-foreground text-[10.5px] leading-snug">
@@ -110,7 +115,7 @@ export default function OverviewPage() {
           <CardKicker>Reparto de responsabilidad</CardKicker>
           {RESPONSIBILITY_SPLIT.map((row) => (
             <div key={row.label} className="flex flex-col gap-1.5">
-              <div className="flex justify-between gap-3 text-[12.5px]">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-[12.5px]">
                 <span>{row.label}</span>
                 <span className="mono text-muted-foreground">{row.where}</span>
               </div>

@@ -14,8 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function LoanPage() {
   return (
-    <div className="grid max-w-[1180px] items-start gap-[18px] lg:grid-cols-2">
-      <div className="flex flex-col gap-3">
+    <div className="grid max-w-[1180px] items-start gap-3 sm:gap-[18px] lg:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-3">
         <PanelCard>
           <CardKicker>CollateralVault · USDC nativo</CardKicker>
           <CardBody>
@@ -43,7 +43,7 @@ export default function LoanPage() {
         />
       </div>
 
-      <Tabs defaultValue="repayment" className="gap-3.5">
+      <Tabs defaultValue="repayment" className="min-w-0 gap-3.5">
         <TabsList>
           <TabsTrigger value="repayment">Desenlace A · repago</TabsTrigger>
           <TabsTrigger value="default">Desenlace B · default</TabsTrigger>
