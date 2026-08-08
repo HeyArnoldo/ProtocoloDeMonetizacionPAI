@@ -31,9 +31,13 @@ import { CHAIN_RUNTIME_CONFIG, chainRuntimeConfig, type ChainRuntimeConfig } fro
 
         if (adapter === 'arbitrum') {
           Logger.log('Adapter de cadena: arbitrum', 'ChainModule');
-          if (!runtime.rpcUrl || !runtime.deployment)
+          if (!runtime.rpcUrl || !runtime.deployment || runtime.deploymentBlock === undefined)
             throw new Error('Arbitrum is not configured.');
-          return new ArbitrumChainAdapter(runtime.rpcUrl, runtime.deployment);
+          return new ArbitrumChainAdapter(
+            runtime.rpcUrl,
+            runtime.deployment,
+            runtime.deploymentBlock,
+          );
         }
 
         // Se avisa fuerte a propósito: es fácil desplegar a producción con el

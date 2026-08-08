@@ -48,6 +48,10 @@ export const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.string().url().optional(),
     ),
+    CHAIN_DEPLOYMENT_BLOCK: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.coerce.number().int().nonnegative().safe().optional(),
+    ),
     ASSET_REGISTRY_ADDRESS: z.string().optional(),
     CERTIFICATION_ATTESTOR_ADDRESS: z.string().optional(),
     PAI_CERTIFICATE_ADDRESS: z.string().optional(),
@@ -70,6 +74,7 @@ export const envSchema = z
 
     for (const key of [
       'CHAIN_RPC_URL',
+      'CHAIN_DEPLOYMENT_BLOCK',
       'ASSET_REGISTRY_ADDRESS',
       'CERTIFICATION_ATTESTOR_ADDRESS',
       'PAI_CERTIFICATE_ADDRESS',

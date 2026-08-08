@@ -5,9 +5,11 @@ import type { Env } from '../config/env.validation';
 export interface ChainRuntimeConfig {
   readonly rpcUrl?: string;
   readonly deployment?: Deployment;
+  readonly deploymentBlock?: bigint;
 }
 
 export function chainRuntimeConfig(config: ConfigService<Env, true>): ChainRuntimeConfig {
+  const deploymentBlock = config.get('CHAIN_DEPLOYMENT_BLOCK', { infer: true });
   const addressKeys = {
     assetRegistry: 'ASSET_REGISTRY_ADDRESS',
     certificationAttestor: 'CERTIFICATION_ATTESTOR_ADDRESS',
@@ -22,6 +24,7 @@ export function chainRuntimeConfig(config: ConfigService<Env, true>): ChainRunti
   const configured = Object.values(addresses).some(Boolean);
   return {
     rpcUrl: config.get('CHAIN_RPC_URL', { infer: true }),
+    deploymentBlock: deploymentBlock === undefined ? undefined : BigInt(deploymentBlock),
     deployment: configured
       ? parseDeployment({ chainId: config.get('CHAIN_ID', { infer: true }), addresses })
       : undefined,

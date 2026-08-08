@@ -25,6 +25,7 @@ function fakeConfigModule(chainAdapter: string | undefined) {
               CHAIN_ADAPTER: chainAdapter,
               CHAIN_ID: 421614,
               CHAIN_RPC_URL: 'https://rpc.example',
+              CHAIN_DEPLOYMENT_BLOCK: 100,
               ASSET_REGISTRY_ADDRESS: address,
               CERTIFICATION_ATTESTOR_ADDRESS: address,
               PAI_CERTIFICATE_ADDRESS: address,
