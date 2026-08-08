@@ -59,4 +59,13 @@ describe('AssetsController', () => {
 
     expect(service.chainSnapshot).toHaveBeenCalledWith('user-1', 'asset-1');
   });
+
+  it('delegates the certification-safe chain snapshot without an owner identity', async () => {
+    const service = { certificationSnapshot: jest.fn() } as unknown as jest.Mocked<AssetsService>;
+    const controller = new AssetsController(service);
+
+    await controller.certificationSnapshot('asset-1');
+
+    expect(service.certificationSnapshot).toHaveBeenCalledWith('asset-1');
+  });
 });

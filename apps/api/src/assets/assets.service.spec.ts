@@ -355,5 +355,9 @@ describe('AssetsService', () => {
     expect(result.certificate).toMatchObject({ issuanceCount: '2' });
     expect(result.loan).toMatchObject({ value: { principal: '800000' } });
     expect(JSON.stringify(result)).not.toMatch(/receivables|debtorSalt|creationKey|createdById/);
+
+    assetRepository.findOne.mockClear();
+    expect(await service().certificationSnapshot(ASSET_ID)).toEqual(result);
+    expect(assetRepository.findOne).not.toHaveBeenCalled();
   });
 });

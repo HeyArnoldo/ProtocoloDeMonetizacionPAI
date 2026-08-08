@@ -42,6 +42,12 @@ export class AssetsController {
     return this.assets.chainSnapshot(user.id, id);
   }
 
+  @Get(':id/certification-chain')
+  @Roles(UserRole.CERTIFIER, UserRole.ADMIN)
+  certificationSnapshot(@Param('id') id: string): Promise<ChainAssetSnapshotResponse> {
+    return this.assets.certificationSnapshot(id);
+  }
+
   @Post(':id/registration-intent')
   registrationIntent(
     @CurrentUser() user: User,

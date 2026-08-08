@@ -164,6 +164,14 @@ export class AssetsService {
 
   async chainSnapshot(createdById: string, id: string): Promise<ChainAssetSnapshotResponse> {
     await this.findOwned(createdById, id);
+    return this.readChainSnapshot(id);
+  }
+
+  certificationSnapshot(id: string): Promise<ChainAssetSnapshotResponse> {
+    return this.readChainSnapshot(id);
+  }
+
+  private async readChainSnapshot(id: string): Promise<ChainAssetSnapshotResponse> {
     const snapshot = await this.chain.getAssetSnapshot(id as Hex);
     if (!snapshot) throw new NotFoundException(`Asset ${id} is not registered on-chain.`);
     const { asset } = snapshot;
