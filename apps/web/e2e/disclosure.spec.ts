@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   buildAuthUser,
   buildSamplePortfolio,
@@ -33,9 +33,14 @@ function checkboxNameFor(index: number): string {
 test.describe('divulgación selectiva', () => {
   test.beforeEach(async ({ page }) => {
     await mockApi(page, { user: buildAuthUser(), portfolio: PORTFOLIO });
-    await page.goto('/disclosure');
+    await page.goto('/divulgacion');
     await expect(page.getByRole('heading', { name: 'Divulgación selectiva' })).toBeVisible();
   });
+
+  /** Devuelve la caja de una cifra del panel de multiproof a partir de su rótulo. */
+  function statTile(page: Page, kicker: string) {
+    return page.getByText(kicker, { exact: true }).locator('..');
+  }
 
   test('construye una prueba verificable de las cuotas seleccionadas', async ({ page }) => {
     await expect(
@@ -57,17 +62,18 @@ test.describe('divulgación selectiva', () => {
     await expect(page.getByTitle(EXPECTED.root)).toBeVisible();
     expect(EXPECTED.verified).toBe(true);
 
-    // Divulgadas / ocultas: la cuenta de lo que el prestamista no llega a ver.
-    await expect(
-      page.getByText(`${EXPECTED.disclosedCount} / ${EXPECTED.hiddenCount}`, { exact: true }),
-    ).toBeVisible();
+    // Divulgadas y ocultas: la cuenta de lo que el prestamista no llega a ver.
+    // El handoff separa las dos cifras en cajas distintas del panel de
+    // multiproof, así que ya no hay un único texto «2 / 14» que localizar.
+    await expect(statTile(page, 'Hojas divulgadas')).toContainText(String(EXPECTED.disclosedCount));
+    await expect(statTile(page, 'Hojas ocultas')).toContainText(String(EXPECTED.hiddenCount));
     await expect(
       page.getByText(`Las ${EXPECTED.hiddenCount} cuotas ocultas no aparecen`, { exact: false }),
     ).toBeVisible();
 
     // USD 800,000 + 1,250,000 en unidades menores = USD 20,500.00
     await expect(page.getByText('USD 20,500.00', { exact: true })).toBeVisible();
-    await expect(page.getByText(`${EXPECTED.proof.length} hashes`, { exact: true })).toBeVisible();
+    await expect(statTile(page, 'Tamaño del proof')).toContainText(String(EXPECTED.proof.length));
 
     // Cada hoja divulgada aparece con su hash completo en el `title`.
     for (const leaf of EXPECTED.disclosedLeaves) {
@@ -76,7 +82,9 @@ test.describe('divulgación selectiva', () => {
     }
 
     // Y ningún identificador de deudor en claro cruza hacia el resultado.
-    const disclosedSection = page.getByText('Hojas divulgadas').locator('..');
+    // El bloque se titula «Detalle de la prueba»: «Hojas divulgadas» pasó a ser
+    // el rótulo de una de las cifras del panel y ya no identifica la sección.
+    const disclosedSection = page.getByText('Detalle de la prueba').locator('..');
     await expect(disclosedSection).not.toContainText('20512345678');
     await expect(disclosedSection).not.toContainText('Supermercados Andinos SAC');
   });
