@@ -13,9 +13,28 @@ import { CHAIN_PORT, type ChainPort } from './chain.port';
  * acá y no en el arranque de producción.
  */
 function fakeConfigModule(chainAdapter: string | undefined) {
+  const address = `0x${'11'.repeat(20)}`;
   @Global()
   @Module({
-    providers: [{ provide: ConfigService, useValue: { get: () => chainAdapter } }],
+    providers: [
+      {
+        provide: ConfigService,
+        useValue: {
+          get: (key: string) =>
+            ({
+              CHAIN_ADAPTER: chainAdapter,
+              CHAIN_ID: 421614,
+              CHAIN_RPC_URL: 'https://rpc.example',
+              ASSET_REGISTRY_ADDRESS: address,
+              CERTIFICATION_ATTESTOR_ADDRESS: address,
+              PAI_CERTIFICATE_ADDRESS: address,
+              BORROWING_BASE_ENGINE_ADDRESS: address,
+              COLLATERAL_VAULT_ADDRESS: address,
+              MOCK_USDC_ADDRESS: address,
+            })[key],
+        },
+      },
+    ],
     exports: [ConfigService],
   })
   class FakeConfigModule {}

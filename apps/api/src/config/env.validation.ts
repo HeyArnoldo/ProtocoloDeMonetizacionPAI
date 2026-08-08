@@ -44,12 +44,16 @@ export const envSchema = z
     // Cadena. in-memory = la API funciona sin cadena (dev, tests, demo Web2).
     CHAIN_ADAPTER: z.enum(['in-memory', 'arbitrum']).default('in-memory'),
     CHAIN_ID: z.coerce.number().int().positive().default(421614),
-    CHAIN_RPC_URL: z.string().optional(),
+    CHAIN_RPC_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().url().optional(),
+    ),
     ASSET_REGISTRY_ADDRESS: z.string().optional(),
     CERTIFICATION_ATTESTOR_ADDRESS: z.string().optional(),
+    PAI_CERTIFICATE_ADDRESS: z.string().optional(),
     BORROWING_BASE_ENGINE_ADDRESS: z.string().optional(),
-    // Wallet del backend: SOLO firma atestaciones EIP-712, nunca mueve dinero.
-    ATTESTOR_PRIVATE_KEY: z.string().optional(),
+    COLLATERAL_VAULT_ADDRESS: z.string().optional(),
+    MOCK_USDC_ADDRESS: z.string().optional(),
 
     // Storage S3-compatible. `STORAGE_ENDPOINT` es opcional para AWS S3 y R2.
     STORAGE_ENDPOINT: z.string().url().optional(),
@@ -68,7 +72,10 @@ export const envSchema = z
       'CHAIN_RPC_URL',
       'ASSET_REGISTRY_ADDRESS',
       'CERTIFICATION_ATTESTOR_ADDRESS',
-      'ATTESTOR_PRIVATE_KEY',
+      'PAI_CERTIFICATE_ADDRESS',
+      'BORROWING_BASE_ENGINE_ADDRESS',
+      'COLLATERAL_VAULT_ADDRESS',
+      'MOCK_USDC_ADDRESS',
     ] as const) {
       if (!env[key]) {
         ctx.addIssue({
