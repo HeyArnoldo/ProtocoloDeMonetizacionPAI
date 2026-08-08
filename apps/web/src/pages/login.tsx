@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { loginSchema, type LoginInput } from '@app/contracts';
 import { useAuthConfig, useLogin, useMe } from '@/hooks/use-auth';
 import { googleAuthUrl } from '@/services/auth.api';
+import { roleLandingPath } from '@/config/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -28,11 +29,11 @@ export default function LoginPage() {
     defaultValues: { email: '', password: '' },
   });
 
-  if (me) return <Navigate to="/" replace />;
+  if (me) return <Navigate to={roleLandingPath(me.role)} replace />;
 
   const onSubmit = (input: LoginInput) => {
     login.mutate(input, {
-      onSuccess: () => navigate('/'),
+      onSuccess: (user) => navigate(roleLandingPath(user.role)),
       onError: () => toast.error('Credenciales inválidas'),
     });
   };

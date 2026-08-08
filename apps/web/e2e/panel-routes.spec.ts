@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
+import { UserRole } from '@app/contracts';
 import { buildAuthUser, mockApi } from './fixtures/api-mock';
 
 /**
@@ -18,17 +19,17 @@ import { buildAuthUser, mockApi } from './fixtures/api-mock';
 const SCREENSHOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '__screenshots__');
 
 /** Las diez pantallas con el `<h1>` que fija `docs/design/README.md`. */
-const PANEL_ROUTES = [
+const PANEL_ROUTES: ReadonlyArray<{ path: string; heading: string; role?: UserRole }> = [
   { path: '/', heading: 'Resumen del expediente' },
   { path: '/expediente', heading: 'Expediente y árbol de Merkle' },
   { path: '/evidencias', heading: 'Evidencias' },
   { path: '/divulgacion', heading: 'Divulgación selectiva' },
   { path: '/borrowing-base', heading: 'Recómputo del borrowing base' },
-  { path: '/certificacion', heading: 'Cola de atestaciones' },
+  { path: '/certificacion', heading: 'Cola de atestaciones', role: UserRole.CERTIFIER },
   { path: '/prestamo', heading: 'Originación y fondeo' },
   { path: '/historial', heading: 'Historial crediticio on-chain' },
   { path: '/actividad', heading: 'Actividad on-chain' },
-] as const;
+];
 
 const VERIFY_CODE = 'PAI-8F3C-2026';
 
@@ -56,7 +57,7 @@ test.describe('rutas del panel', () => {
   for (const route of PANEL_ROUTES) {
     test(`${route.path} carga con su h1 y sin errores de consola`, async ({ page }) => {
       const errors = collectConsoleErrors(page);
-      await mockApi(page, { user: buildAuthUser() });
+      await mockApi(page, { user: buildAuthUser({ role: route.role ?? UserRole.PYME }) });
       await page.goto(route.path);
 
       await expect(page.getByRole('heading', { level: 1, name: route.heading })).toBeVisible();
@@ -85,6 +86,18 @@ test.describe('rutas del panel', () => {
     );
     // Y solo uno: `aria-current` en dos ítems dejaría al lector sin saber dónde está.
     await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+  });
+
+  test('filtra por rol y bloquea una URL protegida de otra persona', async ({ page }) => {
+    await mockApi(page, { user: buildAuthUser({ role: UserRole.CERTIFIER }) });
+    await page.goto('/certificacion');
+
+    const nav = page.getByRole('navigation', { name: 'Secciones del panel' });
+    await expect(nav.getByRole('link', { name: 'Cola de atestaciones' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Evidencias' })).toHaveCount(0);
+
+    await page.goto('/evidencias');
+    await expect(page.getByRole('alert')).toContainText('Access denied');
   });
 
   test('/ se captura para documentar el shell', async ({ page }) => {
