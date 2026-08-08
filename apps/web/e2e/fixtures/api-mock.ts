@@ -3,8 +3,9 @@ import {
   CURRENCY_CODES,
   UserRole,
   authUserSchema,
-  disclosurePreviewRequestSchema,
   disclosurePreviewResponseSchema,
+  persistedDisclosurePreviewRequestSchema,
+  publicVerificationSchema,
   samplePortfolioSchema,
   type AssetResponse,
   type AuthConfig,
@@ -12,6 +13,7 @@ import {
   type DisclosurePreviewRequest,
   type DisclosurePreviewResponse,
   type EvidenceResponse,
+  type PublicVerificationResponse,
   type Receivable,
   type SamplePortfolio,
 } from '@app/contracts';
@@ -46,6 +48,50 @@ import {
 
 /** El salt real es aleatorio por sesión; el del fixture es fijo para que el root sea reproducible. */
 export const SAMPLE_SALT = `0x${'a1b2c3d4'.repeat(8)}` as const;
+export const VERIFY_ASSET_ID = `0x${'ab'.repeat(32)}` as const;
+
+export function buildPublicVerification(): PublicVerificationResponse {
+  return publicVerificationSchema.parse({
+    supported: true,
+    network: 'arbitrum',
+    chainId: 421614,
+    safeBlock: '12345',
+    registry: {
+      assetId: VERIFY_ASSET_ID,
+      merkleRoot: `0x${'cd'.repeat(32)}`,
+      ownerIdHash: `0x${'ef'.repeat(32)}`,
+      controller: `0x${'12'.repeat(20)}`,
+      registeredAt: '2026-08-08T15:00:00.000Z',
+      status: 'Attested',
+    },
+    attestations: [
+      {
+        kind: 'REVENUE_VERIFIED',
+        certifier: `0x${'34'.repeat(20)}`,
+        certificateHash: `0x${'56'.repeat(32)}`,
+        attestedAt: '2026-08-08T15:01:00.000Z',
+      },
+    ],
+    certificate: {
+      supported: true,
+      valid: true,
+      owner: `0x${'12'.repeat(20)}`,
+      issuanceCount: '1',
+    },
+    explorer: {
+      baseUrl: 'https://sepolia.arbiscan.io',
+      registryUrl: `https://sepolia.arbiscan.io/address/0x${'78'.repeat(20)}`,
+      controllerUrl: `https://sepolia.arbiscan.io/address/0x${'12'.repeat(20)}`,
+    },
+  });
+}
+
+export async function mockPublicVerification(
+  page: Page,
+  response: PublicVerificationResponse = buildPublicVerification(),
+): Promise<void> {
+  await page.route('**/api/verification/assets/*', (route) => fulfillJson(route, response));
+}
 
 /** Contratos del caso Contafácil SAC, copiados de `DisclosureService.samplePortfolio()`. */
 const SAMPLE_CONTRACTS = [
@@ -139,17 +185,23 @@ export function computeDisclosurePreview(
   const multiProof = tree.multiProof(request.disclosedIndices);
   const serialized = serializeMultiProof(multiProof);
 
-  const disclosedNominalMinor = multiProof.leaves.reduce(
-    (total, leaf) => total + leaf.amountMinor,
-    0n,
-  );
+  const nominalByCurrency = new Map<number, bigint>();
+  for (const leaf of multiProof.leaves) {
+    nominalByCurrency.set(
+      leaf.currency,
+      (nominalByCurrency.get(leaf.currency) ?? 0n) + leaf.amountMinor,
+    );
+  }
 
   return disclosurePreviewResponseSchema.parse({
     root: tree.root,
     totalLeaves: leaves.length,
     disclosedCount: multiProof.leaves.length,
     hiddenCount: leaves.length - multiProof.leaves.length,
-    disclosedNominalMinor: disclosedNominalMinor.toString(),
+    disclosedNominalByCurrency: [...nominalByCurrency].map(([currency, amountMinor]) => ({
+      currency,
+      amountMinor: amountMinor.toString(),
+    })),
     // El `leafHash` no viaja en `serializeMultiProof`: se añade aquí igual que
     // hace el servicio, para que la UI pueda mostrar la hoja.
     disclosedLeaves: serialized.leaves.map((leaf, index) => ({
@@ -232,10 +284,10 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
 
   await page.route('**/api/disclosure/sample', (route) => fulfillJson(route, portfolio));
 
-  await page.route('**/api/disclosure/preview', (route) => {
+  await page.route('**/api/disclosure/*/preview', (route) => {
     // El request se valida con el mismo schema que usaría el controller: si la
     // UI manda algo fuera de contrato, el test lo ve como 400 y no como éxito.
-    const parsed = disclosurePreviewRequestSchema.safeParse(
+    const parsed = persistedDisclosurePreviewRequestSchema.safeParse(
       JSON.parse(route.request().postData() ?? '{}'),
     );
 
@@ -244,7 +296,14 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
     }
 
     try {
-      return fulfillJson(route, computeDisclosurePreview(parsed.data));
+      return fulfillJson(
+        route,
+        computeDisclosurePreview({
+          salt: portfolio.salt,
+          receivables: portfolio.receivables,
+          disclosedIndices: parsed.data.disclosedIndices,
+        }),
+      );
     } catch (error) {
       // Los errores de `@app/merkle` son de dominio: el servicio real los
       // traduce a 400 con el mensaje original.

@@ -139,13 +139,16 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
   const selectedLeaves = useMemo(
     () =>
       (preview.data?.disclosedLeaves ?? []).map(
-        ({ leafHash: _leafHash, amountMinor, currency, ...leaf }): ReceivableLeaf => ({
-          ...leaf,
-          debtorHash: leaf.debtorHash as Hex,
-          docHash: leaf.docHash as Hex,
-          amountMinor: BigInt(amountMinor),
-          currency: currency as ReceivableLeaf['currency'],
-        }),
+        ({ leafHash, amountMinor, currency, ...leaf }): ReceivableLeaf => {
+          void leafHash;
+          return {
+            ...leaf,
+            debtorHash: leaf.debtorHash as Hex,
+            docHash: leaf.docHash as Hex,
+            amountMinor: BigInt(amountMinor),
+            currency: currency as ReceivableLeaf['currency'],
+          };
+        },
       ),
     [preview.data],
   );
@@ -160,6 +163,7 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
 
   const value: DisclosureSelectionValue = useMemo(
     () => ({
+      assetId,
       isPending,
       isError,
       error,
@@ -186,6 +190,7 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
       buildProof,
     }),
     [
+      assetId,
       isPending,
       isError,
       error,

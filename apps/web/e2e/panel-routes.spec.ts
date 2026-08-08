@@ -2,7 +2,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { UserRole } from '@app/contracts';
-import { buildAuthUser, mockApi } from './fixtures/api-mock';
+import {
+  buildAuthUser,
+  mockApi,
+  mockPublicVerification,
+  VERIFY_ASSET_ID,
+} from './fixtures/api-mock';
 
 /**
  * Recorrido de las diez rutas del panel.
@@ -30,8 +35,6 @@ const PANEL_ROUTES: ReadonlyArray<{ path: string; heading: string; role?: UserRo
   { path: '/historial', heading: 'Historial crediticio on-chain' },
   { path: '/actividad', heading: 'Actividad on-chain' },
 ];
-
-const VERIFY_CODE = 'PAI-8F3C-2026';
 
 /**
  * Recolecta los errores de consola de la página.
@@ -112,17 +115,28 @@ test.describe('rutas del panel', () => {
 });
 
 test.describe('verificación pública', () => {
-  test('/verify/:code carga sin sesión y muestra el código de la URL', async ({ page }) => {
-    const errors = collectConsoleErrors(page);
-
-    // Sin `mockApi`: no hay `GET /api/auth/me` que responda, y no hace falta.
-    await page.goto(`/verify/${VERIFY_CODE}`);
+  test('/verify ofrece una entrada neutral sin inventar un activo', async ({ page }) => {
+    await page.goto('/verify');
 
     await expect(
       page.getByRole('heading', { level: 1, name: 'Verificación pública' }),
     ).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`/verify/${VERIFY_CODE}$`));
-    await expect(page.getByText(VERIFY_CODE).first()).toBeVisible();
+    await expect(page.getByLabel('Asset ID')).toHaveValue('');
+    await expect(page.getByText(VERIFY_ASSET_ID)).toHaveCount(0);
+  });
+
+  test('/verify/:code carga datos públicos sin sesión', async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+    await mockPublicVerification(page);
+    await page.goto(`/verify/${VERIFY_ASSET_ID}`);
+
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Verificación pública' }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/verify/${VERIFY_ASSET_ID}$`));
+    await expect(page.getByText('Attested')).toBeVisible();
+    await expect(page.getByText('Válido')).toBeVisible();
+    await expect(page.getByText('REVENUE_VERIFIED')).toBeVisible();
 
     // Y no arrastra el shell del panel: ni sidebar ni identidad de sesión.
     await expect(page.getByRole('navigation', { name: 'Secciones del panel' })).toHaveCount(0);
@@ -132,10 +146,8 @@ test.describe('verificación pública', () => {
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'verify.png'), fullPage: true });
   });
 
-  test('el código de la URL es el que se verifica, no uno fijo', async ({ page }) => {
-    await page.goto('/verify/OTRO-CODIGO-2027');
-
-    await expect(page.getByText('OTRO-CODIGO-2027').first()).toBeVisible();
-    await expect(page.getByText(VERIFY_CODE)).toHaveCount(0);
+  test('rechaza un identificador que no sea bytes32 minúsculo', async ({ page }) => {
+    await page.goto('/verify/NOT-A-BYTES32');
+    await expect(page.getByRole('alert')).toContainText('bytes32 hexadecimal en minúsculas');
   });
 });

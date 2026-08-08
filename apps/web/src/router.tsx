@@ -27,7 +27,10 @@ export const router = createBrowserRouter([
   // Si dependiera de la sesión, el enlace no serviría para nada.
   {
     element: <PublicLayout />,
-    children: [{ path: '/verify/:code', element: <VerifyPage /> }],
+    children: [
+      { path: '/verify', element: <VerifyPage /> },
+      { path: '/verify/:code', element: <VerifyPage /> },
+    ],
   },
 
   {

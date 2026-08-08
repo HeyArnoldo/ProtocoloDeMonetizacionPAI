@@ -20,7 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDueDate, formatMinorUnits } from '@/domain/money';
-import { useAssetPortfolio, useDisclosurePreview } from '@/hooks/use-disclosure';
+import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
 
 /**
  * Divulgación selectiva: la única pantalla del panel con datos reales de punta
@@ -47,60 +47,32 @@ function useSelectionChangeCount(selectionKey: string): number {
   return seen.count;
 }
 
-function totalsByCurrency(items: Array<{ amountMinor: string; currency: number }>): string {
-  const totals = new Map<number, bigint>();
-  for (const item of items) {
-    totals.set(item.currency, (totals.get(item.currency) ?? 0n) + BigInt(item.amountMinor));
-  }
-  return [...totals].map(([currency, amount]) => formatMinorUnits(amount, currency)).join(' · ');
-}
-
 export default function DisclosurePage() {
-  const assetId = new URLSearchParams(window.location.search).get('assetId');
-  const { data: portfolio, isPending, isError, error } = useAssetPortfolio(assetId);
-  const preview = useDisclosurePreview();
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const receivables = useMemo(() => portfolio?.receivables ?? [], [portfolio]);
-  const selectedIndices = useMemo(() => [...selected].sort((a, b) => a - b), [selected]);
-  const isSelected = (index: number) => selected.has(index);
-  const clear = () => setSelected(new Set());
-  const disclosedCount = selected.size;
-  const hiddenCount = receivables.length - disclosedCount;
-  const treeRoot = portfolio?.merkleRoot ?? null;
-  const proof = preview.data ?? null;
-  const isBuildingProof = preview.isPending;
-  const proofError = preview.error;
-  const totalNominal = useMemo(() => totalsByCurrency(receivables), [receivables]);
-  const selectedNominal = useMemo(
-    () => totalsByCurrency(receivables.filter((_, index) => selected.has(index))),
-    [receivables, selected],
-  );
-
-  function toggle(index: number) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  }
-
-  function toggleDebtor(label: string) {
-    const indices = receivables.flatMap((item, index) =>
-      item.debtorLabel === label ? [index] : [],
-    );
-    const remove = indices.every((index) => selected.has(index));
-    setSelected((current) => {
-      const next = new Set(current);
-      for (const index of indices) remove ? next.delete(index) : next.add(index);
-      return next;
-    });
-  }
-
-  function buildProof() {
-    if (!assetId || selectedIndices.length === 0) return;
-    preview.mutate({ assetId, request: { disclosedIndices: selectedIndices } });
-  }
+  const {
+    assetId,
+    isPending,
+    isError,
+    error,
+    receivables,
+    selectedIndices,
+    isSelected,
+    toggle,
+    toggleDebtor,
+    clear,
+    disclosedCount,
+    hiddenCount,
+    totalNominalMinor,
+    selectedNominalMinor,
+    currency,
+    treeRoot,
+    proof,
+    isBuildingProof,
+    proofError,
+    buildProof,
+  } = useDisclosureSelection();
+  const totalNominal = formatMinorUnits(totalNominalMinor, currency);
+  const selectedNominal =
+    selectedNominalMinor === 0n ? '—' : formatMinorUnits(selectedNominalMinor, currency);
 
   const debtors = useMemo(
     () => [...new Set(receivables.map((item) => item.debtorLabel))],

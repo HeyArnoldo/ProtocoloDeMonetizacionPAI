@@ -30,9 +30,6 @@ export interface NavGroup {
   items: PanelRoute[];
 }
 
-/** Código de ejemplo del enlace de verificación pública del sidebar. */
-export const SAMPLE_VERIFY_CODE = 'PAI-8F3C-2026';
-
 export const NAV_GROUPS: NavGroup[] = [
   {
     heading: 'PYME · Contafácil SAC',
@@ -116,10 +113,10 @@ export const NAV_GROUPS: NavGroup[] = [
         roles: [UserRole.PYME, UserRole.FUND, UserRole.ADMIN],
       },
       {
-        path: `/verify/${SAMPLE_VERIFY_CODE}`,
-        label: 'Página /verify/:code',
+        path: '/verify',
+        label: 'Verificación pública',
         title: 'Verificación pública',
-        subtitle: 'Página abierta: cualquiera re-hashea y compara',
+        subtitle: 'Consulta anónima del estado público registrado on-chain',
       },
     ],
   },
@@ -128,7 +125,7 @@ export const NAV_GROUPS: NavGroup[] = [
 /** Metadatos de la pantalla pública, que no cuelga del shell del panel. */
 export const VERIFY_ROUTE = {
   title: 'Verificación pública',
-  subtitle: 'Página abierta: cualquiera re-hashea y compara',
+  subtitle: 'Consulta anónima del estado público registrado on-chain',
 } as const;
 
 const ROUTES_BY_PATH = new Map(
