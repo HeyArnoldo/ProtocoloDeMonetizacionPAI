@@ -37,14 +37,20 @@ export const samplePortfolioSchema = z.object({
 
 export type SamplePortfolio = z.infer<typeof samplePortfolioSchema>;
 
+export const persistedDisclosurePreviewRequestSchema = z.object({
+  disclosedIndices: z.array(z.number().int().nonnegative()).min(1, 'hay que divulgar al menos una'),
+});
+
 export const disclosurePreviewRequestSchema = z.object({
-  /** Salt del expediente. Se pide explícito para que el root sea estable. */
   salt: hex32,
-  receivables: z.array(receivableSchema).min(1, 'el expediente necesita al menos una cuota'),
+  receivables: z.array(receivableSchema),
   disclosedIndices: z.array(z.number().int().nonnegative()).min(1, 'hay que divulgar al menos una'),
 });
 
 export type DisclosurePreviewRequest = z.infer<typeof disclosurePreviewRequestSchema>;
+export type PersistedDisclosurePreviewRequest = z.infer<
+  typeof persistedDisclosurePreviewRequestSchema
+>;
 
 /** Hoja divulgada tal como viaja al prestamista. Sin identificadores en claro. */
 export const disclosedLeafSchema = z.object({
@@ -62,8 +68,12 @@ export const disclosurePreviewResponseSchema = z.object({
   totalLeaves: z.number().int(),
   disclosedCount: z.number().int(),
   hiddenCount: z.number().int(),
-  /** Suma de lo divulgado, en unidades menores. */
-  disclosedNominalMinor: z.string(),
+  disclosedNominalByCurrency: z.array(
+    z.object({
+      currency: z.union([z.literal(CURRENCY_CODES.USD), z.literal(CURRENCY_CODES.PEN)]),
+      amountMinor: z.string(),
+    }),
+  ),
   disclosedLeaves: z.array(disclosedLeafSchema),
   proof: z.array(hex32),
   proofFlags: z.array(z.boolean()),

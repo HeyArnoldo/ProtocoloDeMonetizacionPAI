@@ -11,7 +11,7 @@
     "sourceMap": true,
     "strictPropertyInitialization": false,
     "noUncheckedIndexedAccess": false,
-    "types": ["node", "jest"]
+    "types": ["node", "jest", "multer"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

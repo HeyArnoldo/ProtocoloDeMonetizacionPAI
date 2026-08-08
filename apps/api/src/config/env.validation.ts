@@ -50,6 +50,14 @@ export const envSchema = z
     BORROWING_BASE_ENGINE_ADDRESS: z.string().optional(),
     // Wallet del backend: SOLO firma atestaciones EIP-712, nunca mueve dinero.
     ATTESTOR_PRIVATE_KEY: z.string().optional(),
+
+    // Storage S3-compatible. `STORAGE_ENDPOINT` es opcional para AWS S3 y R2.
+    STORAGE_ENDPOINT: z.string().url().optional(),
+    STORAGE_REGION: z.string().min(1),
+    STORAGE_BUCKET: z.string().min(1),
+    STORAGE_ACCESS_KEY: z.string().min(1),
+    STORAGE_SECRET_KEY: z.string().min(1),
+    STORAGE_FORCE_PATH_STYLE: boolFlag(true),
   })
   .superRefine((env, ctx) => {
     // Con el adapter real, estas dejan de ser opcionales. Mejor no levantar que

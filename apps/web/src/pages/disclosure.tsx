@@ -20,17 +20,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDueDate, formatMinorUnits } from '@/domain/money';
-import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
+import { useAssetPortfolio, useDisclosurePreview } from '@/hooks/use-disclosure';
 
 /**
  * Divulgación selectiva: la única pantalla del panel con datos reales de punta
- * a punta. La cartera viene de `GET /api/disclosure/sample` y el multiproof lo
- * construye `POST /api/disclosure/preview` con `@app/merkle` — el mismo
- * paquete que verifica los vectores dorados.
- *
- * La selección no es estado local: vive en `DisclosureSelectionProvider` y la
- * comparte con `/borrowing-base`. Ese es el guion de la demo — marcar cuotas
- * aquí y ver el número moverse allá.
+ * a punta. La cartera persistida viene de `GET /api/assets/:assetId` y el
+ * multiproof se construye sobre ese mismo expediente en
+ * `POST /api/disclosure/:assetId/preview`.
  */
 
 /**
@@ -51,28 +47,60 @@ function useSelectionChangeCount(selectionKey: string): number {
   return seen.count;
 }
 
+function totalsByCurrency(items: Array<{ amountMinor: string; currency: number }>): string {
+  const totals = new Map<number, bigint>();
+  for (const item of items) {
+    totals.set(item.currency, (totals.get(item.currency) ?? 0n) + BigInt(item.amountMinor));
+  }
+  return [...totals].map(([currency, amount]) => formatMinorUnits(amount, currency)).join(' · ');
+}
+
 export default function DisclosurePage() {
-  const {
-    isPending,
-    isError,
-    error,
-    receivables,
-    treeRoot,
-    selectedIndices,
-    isSelected,
-    toggle,
-    toggleDebtor,
-    clear,
-    disclosedCount,
-    hiddenCount,
-    totalNominalMinor,
-    selectedNominalMinor,
-    currency,
-    proof,
-    isBuildingProof,
-    proofError,
-    buildProof,
-  } = useDisclosureSelection();
+  const assetId = new URLSearchParams(window.location.search).get('assetId');
+  const { data: portfolio, isPending, isError, error } = useAssetPortfolio(assetId);
+  const preview = useDisclosurePreview();
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const receivables = useMemo(() => portfolio?.receivables ?? [], [portfolio]);
+  const selectedIndices = useMemo(() => [...selected].sort((a, b) => a - b), [selected]);
+  const isSelected = (index: number) => selected.has(index);
+  const clear = () => setSelected(new Set());
+  const disclosedCount = selected.size;
+  const hiddenCount = receivables.length - disclosedCount;
+  const treeRoot = portfolio?.merkleRoot ?? null;
+  const proof = preview.data ?? null;
+  const isBuildingProof = preview.isPending;
+  const proofError = preview.error;
+  const totalNominal = useMemo(() => totalsByCurrency(receivables), [receivables]);
+  const selectedNominal = useMemo(
+    () => totalsByCurrency(receivables.filter((_, index) => selected.has(index))),
+    [receivables, selected],
+  );
+
+  function toggle(index: number) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
+  function toggleDebtor(label: string) {
+    const indices = receivables.flatMap((item, index) =>
+      item.debtorLabel === label ? [index] : [],
+    );
+    const remove = indices.every((index) => selected.has(index));
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const index of indices) remove ? next.delete(index) : next.add(index);
+      return next;
+    });
+  }
+
+  function buildProof() {
+    if (!assetId || selectedIndices.length === 0) return;
+    preview.mutate({ assetId, request: { disclosedIndices: selectedIndices } });
+  }
 
   const debtors = useMemo(
     () => [...new Set(receivables.map((item) => item.debtorLabel))],
@@ -80,6 +108,14 @@ export default function DisclosurePage() {
   );
 
   const selectionChanges = useSelectionChangeCount(selectedIndices.join(','));
+
+  if (!assetId) {
+    return (
+      <p className="text-muted-foreground py-12 text-center">
+        Abre esta página con el identificador del expediente: <code>?assetId=0x…</code>
+      </p>
+    );
+  }
 
   if (isPending) {
     return (
@@ -105,8 +141,8 @@ export default function DisclosurePage() {
           <div className="flex flex-col gap-0.5">
             <CardKicker>Cartera del expediente</CardKicker>
             <p className="text-muted-foreground text-[11.5px]">
-              {receivables.length} cuotas · nominal total{' '}
-              {formatMinorUnits(totalNominalMinor, currency)} · {disclosedCount} seleccionadas
+              {receivables.length} cuotas · nominal total {totalNominal || '—'} · {disclosedCount}{' '}
+              seleccionadas
             </p>
           </div>
 
@@ -202,7 +238,7 @@ export default function DisclosurePage() {
                 bare
                 kicker="Nominal divulgado"
                 emphasis="brand"
-                value={formatMinorUnits(selectedNominalMinor, currency)}
+                value={selectedNominal || '—'}
                 valueClassName="text-[17px]"
               />
               <StatTile
@@ -243,7 +279,8 @@ export default function DisclosurePage() {
               >
                 recómputo del borrowing base
               </Link>{' '}
-              usa exactamente estas {disclosedCount} cuotas.
+              puede continuar con este expediente persistido y sus {disclosedCount} cuotas
+              divulgadas.
             </CardBody>
           </PanelCard>
 
