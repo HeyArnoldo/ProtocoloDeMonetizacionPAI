@@ -16,6 +16,7 @@ contract AssetRegistry is AccessControl, Pausable {
     /// @notice Puede mover el estado por certificacion. Lo tiene el contrato
     ///         `CertificationAttestor`, no una persona.
     bytes32 public constant ATTESTOR_ROLE = keccak256("ATTESTOR_ROLE");
+    bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
     /// @notice Puede pausar en emergencia.
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -94,6 +95,7 @@ contract AssetRegistry is AccessControl, Pausable {
     /// @notice Marca el expediente como certificado. Solo el `CertificationAttestor`.
     function markAttested(bytes32 assetId) external onlyRole(ATTESTOR_ROLE) whenNotPaused {
         Asset storage asset = _get(assetId);
+        if (asset.status >= Status.Pledged) return;
         // Desde Registered o desde Attested (segunda atestacion): idempotente
         // hacia adelante, pero nunca desde un estado con dinero de por medio.
         if (asset.status != Status.Registered && asset.status != Status.Attested) {
@@ -106,10 +108,27 @@ contract AssetRegistry is AccessControl, Pausable {
     ///         ninguna atestacion vigente. Solo el `CertificationAttestor`.
     function markUnattested(bytes32 assetId) external onlyRole(ATTESTOR_ROLE) whenNotPaused {
         Asset storage asset = _get(assetId);
+        if (asset.status >= Status.Pledged) return;
         if (asset.status != Status.Attested) {
             revert InvalidTransition(asset.status, Status.Registered);
         }
         _setStatus(assetId, asset, Status.Registered);
+    }
+
+    function markPledged(bytes32 assetId) external onlyRole(VAULT_ROLE) whenNotPaused {
+        _transition(assetId, Status.Attested, Status.Pledged);
+    }
+
+    function markFunded(bytes32 assetId) external onlyRole(VAULT_ROLE) whenNotPaused {
+        _transition(assetId, Status.Pledged, Status.Funded);
+    }
+
+    function markRepaid(bytes32 assetId) external onlyRole(VAULT_ROLE) whenNotPaused {
+        _transition(assetId, Status.Funded, Status.Repaid);
+    }
+
+    function markDefaulted(bytes32 assetId) external onlyRole(VAULT_ROLE) whenNotPaused {
+        _transition(assetId, Status.Funded, Status.Defaulted);
     }
 
     function getAsset(bytes32 assetId) external view returns (Asset memory) {
@@ -139,5 +158,11 @@ contract AssetRegistry is AccessControl, Pausable {
         if (previous == next) return;
         asset.status = next;
         emit AssetStatusChanged(assetId, previous, next);
+    }
+
+    function _transition(bytes32 assetId, Status expected, Status next) private {
+        Asset storage asset = _get(assetId);
+        if (asset.status != expected) revert InvalidTransition(asset.status, next);
+        _setStatus(assetId, asset, next);
     }
 }
