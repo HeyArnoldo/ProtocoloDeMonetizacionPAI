@@ -1,0 +1,197 @@
+<!doctype html>
+<!--
+  Plantilla de la imagen Open Graph (1200x630).
+
+  Se renderiza con `pnpm --filter @app/web og:generate` y el PNG resultante se
+  versiona en `public/`. Es un archivo autónomo a propósito: usa los valores
+  hexadecimales de Nocturne en vez de los tokens de la aplicacion porque se
+  renderiza fuera del bundle, sin Tailwind ni el CSS del panel.
+
+  Si cambian los colores de marca en `src/index.css`, hay que reflejarlos aqui
+  y volver a generar la imagen.
+-->
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #161826;
+        --surface: #232532;
+        --text: #e9e9ed;
+        --brand: #9184d9;
+        --brand-300: #d2cefd;
+        --brand-500: #968ae0;
+        --brand-900: #2b2741;
+        --ink-500: #9397ab;
+        --ink-800: #3f424d;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        width: 1200px;
+        height: 630px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', system-ui, sans-serif;
+        display: flex;
+        overflow: hidden;
+      }
+
+      /* Barra de acento a la izquierda: la misma firma que `CalloutCard`. */
+      .accent-rail {
+        width: 6px;
+        background: linear-gradient(180deg, var(--brand) 0%, var(--brand-900) 100%);
+        flex: none;
+      }
+
+      .content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 62px 68px;
+        min-width: 0;
+      }
+
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+      }
+
+      .brand-mark {
+        font-size: 44px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-chain {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 17px;
+        letter-spacing: 0.14em;
+        color: var(--brand);
+      }
+
+      h1 {
+        font-size: 52px;
+        font-weight: 500;
+        line-height: 1.12;
+        letter-spacing: -0.022em;
+        max-width: 15ch;
+        margin-top: 30px;
+      }
+
+      h1 .highlight {
+        color: var(--brand-300);
+      }
+
+      .thesis {
+        font-size: 21px;
+        line-height: 1.5;
+        color: var(--ink-500);
+        max-width: 46ch;
+        margin-top: 22px;
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .tag {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: var(--brand-900);
+        color: var(--brand-300);
+      }
+
+      .tag-outline {
+        background: transparent;
+        border: 1px solid var(--ink-800);
+        color: var(--ink-500);
+      }
+
+      /* Mapa de hojas del expediente: la misma rejilla que `/expediente`.
+         Las divulgadas van en acento, las ocultas en neutral — es el argumento
+         de la divulgacion selectiva reducido a una figura. */
+      .leaf-grid {
+        position: absolute;
+        right: -70px;
+        top: 50%;
+        transform: translateY(-50%) rotate(-12deg);
+        display: grid;
+        grid-template-columns: repeat(12, 26px);
+        gap: 6px;
+        opacity: 0.55;
+      }
+
+      .leaf {
+        width: 26px;
+        height: 26px;
+        border-radius: 3px;
+      }
+
+      .leaf.disclosed {
+        background: var(--brand-500);
+        box-shadow: inset 0 0 0 1px var(--brand);
+      }
+
+      .leaf.hidden {
+        background: var(--surface);
+      }
+
+      .leaf.ineligible {
+        box-shadow: inset 0 0 0 1px var(--ink-800);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="accent-rail"></div>
+    <div class="content">
+      <div>
+        <div class="brand">
+          <span class="brand-mark">PAI</span>
+          <span class="brand-chain">× ARBITRUM</span>
+        </div>
+        <h1>La garantía deja de ser <span class="highlight">una promesa</span>.</h1>
+        <p class="thesis">
+          Una PYME sin activos hipotecables convierte su cartera de derechos de cobro en colateral
+          verificable. El monto prestable no lo afirma un servidor: el prestamista lo recomputa.
+        </p>
+      </div>
+      <div class="footer">
+        <span class="tag">DeFi / RWA</span>
+        <span class="tag tag-outline">Merkle · sin ZK</span>
+        <span class="tag tag-outline">Stylus · Rust</span>
+      </div>
+    </div>
+    <div class="leaf-grid" id="grid"></div>
+
+    <script>
+      // 96 celdas: 40 divulgadas, 44 ocultas y 12 no elegibles. Los indices son
+      // fijos —no aleatorios— para que la imagen sea reproducible byte a byte.
+      const grid = document.getElementById('grid');
+      for (let i = 0; i < 96; i += 1) {
+        const leaf = document.createElement('div');
+        const state = i % 7 === 3 || i % 11 === 5 ? 'ineligible' : i % 12 < 5 ? 'disclosed' : 'hidden';
+        leaf.className = `leaf ${state}`;
+        grid.appendChild(leaf);
+      }
+    </script>
+  </body>
+</html>
