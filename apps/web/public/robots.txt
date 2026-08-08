@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /$
+Allow: /verify/
+
+# El resto del panel vive detras de autenticacion: un rastreador solo obtendria
+# el shell de la SPA y no aporta nada al indice.
+Disallow: /expediente
+Disallow: /evidencias
+Disallow: /divulgacion
+Disallow: /borrowing-base
+Disallow: /certificacion
+Disallow: /prestamo
+Disallow: /historial
+Disallow: /actividad
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://pai.cloud.groowtech.com/sitemap.xml

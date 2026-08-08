@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "og:generate": "node scripts/generate-og-image.mjs"
   },
   "dependencies": {
     "@app/borrowing-base": "workspace:*",

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Solo la portada es indexable. `/verify/:code` es publica pero cada URL es un
+  certificado concreto: no hay una lista fija que enumerar, y publicar codigos
+  reales aqui filtraria que expedientes existen.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://pai.cloud.groowtech.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
