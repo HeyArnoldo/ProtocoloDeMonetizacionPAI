@@ -15,15 +15,15 @@ forge test -vv     # 39 tests
 forge fmt          # antes de commitear: el CI corre `forge fmt --check`
 ```
 
-| Pieza                                           | Estado                    |
-| ----------------------------------------------- | ------------------------- |
-| `ReceivableLeaf.sol` + vectores dorados pasando | ✅                        |
-| `AssetRegistry.sol`                             | ✅ 16 tests               |
-| `CertificationAttestor.sol`                     | ✅ 16 tests               |
-| `BorrowingBaseEngine` (Stylus/Rust)             | ⏳ spec + vectores listos |
-| `CollateralVault.sol`                           | ⏳                        |
-| `PAICertificate.sol`                            | ⏳                        |
-| Scripts de deploy a Arbitrum Sepolia            | ⏳                        |
+| Pieza                                           | Estado      |
+| ----------------------------------------------- | ----------- |
+| `ReceivableLeaf.sol` + vectores dorados pasando | ✅          |
+| `AssetRegistry.sol`                             | ✅ 16 tests |
+| `CertificationAttestor.sol`                     | ✅ 16 tests |
+| `BorrowingBaseEngine.sol`                       | ✅ Solidity |
+| `CollateralVault.sol`                           | ✅          |
+| `PAICertificate.sol`                            | ✅          |
+| Deploy en Arbitrum Sepolia                      | ✅          |
 
 Las librerías son **submódulos de git**. Al clonar: `git submodule update --init --recursive`.
 
@@ -133,3 +133,21 @@ Registered → Attested → Pledged → Funded → Repaid → (vuelve a Attested
 ## Verificación en el explorer
 
 La verificación de contratos WASM en el block explorer estaba aún en desarrollo. Si sigue así, hay que compensar publicando **el hash de compilación y un script reproducible en este repo** — "evidencia verificable en el repositorio" es requisito explícito del track.
+
+## Metadatos y smoke de testnet
+
+El deploy no escribe metadatos: durante la simulación todavía no existen recibos y `block.number` no representa el primer bloque confirmado. Después de un broadcast exitoso, el finalizador toma el menor bloque de los seis recibos `CREATE` exitosos y valida las seis direcciones antes de reemplazar `deployments/<chainId>.json`:
+
+```bash
+pnpm --filter @app/evm deployment:finalize -- --chain-id=421614
+```
+
+El archivo canónico es público, se versiona y no contiene claves ni la cuenta que transmitió el deploy. Para comprobar el despliegue sin escribir en la red:
+
+```bash
+pnpm --filter @app/evm smoke:preflight
+```
+
+El preflight carga `chain/.env`, deriva las cuentas de rol con `accountIndex` 0 a 5, valida chain ID, bytecode, bloque de despliegue, wiring, roles, saldos y el estado del activo demo. No crea un wallet client. `smoke:plan` exige `--broadcast` internamente, muestra las diez transacciones previstas y termina como no soportado sin enviar ninguna; la ejecución live requiere autorización humana y tooling adicional.
+
+La demo actual usa contratos Solidity y `MockUSDC`. No usa Stylus, USDC nativo ni atestaciones EIP-712.

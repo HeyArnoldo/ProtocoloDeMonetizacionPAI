@@ -318,6 +318,12 @@ importers:
 
   packages/evm:
     dependencies:
+      '@app/merkle':
+        specifier: workspace:*
+        version: link:../merkle
+      ethereum-cryptography:
+        specifier: ^3.2.0
+        version: 3.2.0
       viem:
         specifier: ^2.38.0
         version: 2.55.11(typescript@5.9.3)(zod@4.4.3)
@@ -328,6 +334,9 @@ importers:
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.15)(tsx@4.23.8)(typescript@5.9.3)(yaml@2.9.0)
+      tsx:
+        specifier: ^4.23.8
+        version: 4.23.8
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

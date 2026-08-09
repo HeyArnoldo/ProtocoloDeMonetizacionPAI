@@ -110,6 +110,8 @@ export const revokeIntent = (to: string, assetId: Hex, attestationKind: number) 
   ]);
 export const approveIntent = (to: string, spender: string, amount: bigint) =>
   intent(to, abis.mockUSDCAbi, 'approve', [address(spender), uint(amount, 256, 'amount', true)]);
+export const mintIntent = (to: string, account: string, amount: bigint) =>
+  intent(to, abis.mockUSDCAbi, 'mint', [address(account), uint(amount, 256, 'amount')]);
 export const fundIntent = (to: string, assetId: Hex) =>
   assetIntent(to, abis.collateralVaultAbi, 'fund', assetId);
 export const repayIntent = (to: string, assetId: Hex) =>

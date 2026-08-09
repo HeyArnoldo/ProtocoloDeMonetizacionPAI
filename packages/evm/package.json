@@ -16,15 +16,21 @@
   "scripts": {
     "abi:generate": "node scripts/generate-abis.mjs",
     "build": "tsup",
+    "deployment:finalize": "tsx --env-file=../../chain/.env src/finalize-cli.ts",
+    "smoke:preflight": "tsx --env-file=../../chain/.env src/smoke-cli.ts preflight",
+    "smoke:plan": "tsx --env-file=../../chain/.env src/smoke-cli.ts --broadcast",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@app/merkle": "workspace:*",
+    "ethereum-cryptography": "^3.2.0",
     "viem": "^2.38.0"
   },
   "devDependencies": {
     "@app/tsconfig": "workspace:*",
     "tsup": "^8.5.0",
+    "tsx": "^4.23.8",
     "typescript": "~5.9.3",
     "vitest": "^3.2.4"
   }

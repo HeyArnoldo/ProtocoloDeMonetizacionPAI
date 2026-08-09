@@ -93,4 +93,22 @@ describe('deployment metadata', () => {
   it('rejects invalid chain ids', () => {
     expect(() => evm.parseDeployments([{ chainId: 0, addresses: metadata }])).toThrow(/chainId/);
   });
+  it('validates canonical live metadata including its receipt block and public roles', () => {
+    const parsed = evm.parseLiveDeployment({
+      chainId: 421_614,
+      deploymentBlock: 296_444_399,
+      addresses: metadata,
+      roles: {
+        admin: address('a'),
+        borrower: address('b'),
+        lender: address('c'),
+        certifiers: [address('d'), address('e'), address('f')],
+      },
+    });
+    expect(parsed.deploymentBlock).toBe(296_444_399);
+    expect(parsed.roles.certifiers).toHaveLength(3);
+    expect(() => evm.parseLiveDeployment({ chainId: 421_614, addresses: metadata })).toThrow(
+      /deploymentBlock/,
+    );
+  });
 });
