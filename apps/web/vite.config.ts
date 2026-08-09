@@ -12,7 +12,31 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    // Los paquetes del workspace se enlazan, así que Vite no los pre-empaqueta
+    // al arrancar: descubre sus dependencias (`@openzeppelin/merkle-tree`,
+    // `ethereum-cryptography`) en la primera navegación que las importa y
+    // recarga la página entera a mitad de camino. Eso deja la pantalla en
+    // blanco un instante y volvió intermitente un spec de Playwright.
+    // Declararlos aquí los pre-empaqueta al arrancar el servidor.
+    include: ['@app/borrowing-base', '@app/contracts', '@app/merkle'],
+  },
   server: {
+    // Cada ruta del panel es un chunk perezoso, así que Vite no la transforma
+    // hasta que alguien navega a ella. Con dos proyectos de Playwright pidiendo
+    // las diez rutas a la vez contra un servidor recién arrancado, esa primera
+    // transformación compite con todo lo demás y algún test llega a mirar la
+    // pantalla todavía en blanco. Precalentarlas al arrancar el servidor mueve
+    // ese trabajo fuera del camino crítico —y de paso la primera navegación del
+    // desarrollador también deja de esperar.
+    warmup: {
+      clientFiles: [
+        './src/main.tsx',
+        './src/router.tsx',
+        './src/layouts/*.tsx',
+        './src/pages/*.tsx',
+      ],
+    },
     // En dev el frontend pega a /api (mismo origen) y Vite lo proxea a la API:
     // sin CORS y la cookie httpOnly viaja sola.
     proxy: {

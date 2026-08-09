@@ -43,7 +43,7 @@ const CERTIFIERS = [
 
 export default function CertificationPage() {
   return (
-    <div className="flex max-w-[1180px] flex-col gap-[18px]">
+    <div className="flex max-w-[1180px] flex-col gap-3 sm:gap-[18px]">
       <p className="text-ink-400 max-w-[760px] text-[13px]">
         Ningún certificador ve todo el expediente. Cada firma es acotada a su ámbito, fechada y
         revocable — y esa separación es lo que hace creíble el resultado.

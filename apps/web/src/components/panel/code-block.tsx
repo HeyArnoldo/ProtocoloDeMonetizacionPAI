@@ -20,12 +20,17 @@ export interface CodeBlockProps {
  * La maqueta alinea las dos columnas rellenando con `&nbsp;`. Aquí la
  * alineación es una rejilla: los espacios duros se copian al portapapeles y
  * ensucian cualquier valor que alguien pegue en una consola.
+ *
+ * En pantalla estrecha el bloque **no** scrollea en horizontal: los valores son
+ * hexadecimal y firmas de función, y partirlos por cualquier carácter
+ * (`break-all`) es preferible a esconder la mitad detrás de un gesto. La
+ * columna de etiquetas se estrecha con `gap-x-2` para dejarle sitio al valor.
  */
 export function CodeBlock({ lines, className }: CodeBlockProps) {
   return (
     <div
       className={cn(
-        'bg-background mono grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-sm p-2.5 text-[11.5px] leading-[1.7]',
+        'bg-background mono grid min-w-0 grid-cols-[auto_1fr] gap-x-2 gap-y-1 rounded-sm p-2.5 text-[11.5px] leading-[1.7] sm:gap-x-4',
         className,
       )}
     >
@@ -40,8 +45,8 @@ export function CodeBlock({ lines, className }: CodeBlockProps) {
             !line.muted && 'text-ink-400',
           )}
         >
-          <span>{line.label ?? ''}</span>
-          <span className="break-all">{line.value}</span>
+          <span className="break-all">{line.label ?? ''}</span>
+          <span className="min-w-0 break-all">{line.value}</span>
         </div>
       ))}
     </div>
