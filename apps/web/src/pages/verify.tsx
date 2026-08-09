@@ -1,10 +1,14 @@
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { CheckCircle2, PlayCircle } from 'lucide-react';
 import { PageHeader } from '@/components/panel/page-header';
 import { CardBody, CardKicker, PanelCard } from '@/components/panel/panel-card';
 import { PendingData } from '@/components/panel/pending-data';
 import { SectionDivider } from '@/components/panel/section-divider';
 import { VERIFY_ROUTE } from '@/config/navigation';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 /**
  * Verificación pública.
@@ -24,8 +28,34 @@ const VERIFICATION_STEPS = [
   'Compararlo con AssetRegistry.assets(assetId).merkleRoot',
 ];
 
+const STEP_INTERVAL_MS = 420;
+
 export default function VerifyPage() {
   const { code } = useParams<{ code: string }>();
+
+  // 0 = nada corrido. 1..5 = ese paso ya se reveló. 6 = terminado, con match.
+  const [step, setStep] = useState(0);
+  const timeoutRef = useRef(0);
+
+  useEffect(() => () => window.clearTimeout(timeoutRef.current), []);
+
+  const running = step > 0 && step <= VERIFICATION_STEPS.length;
+  const done = step > VERIFICATION_STEPS.length;
+
+  function runSimulation() {
+    window.clearTimeout(timeoutRef.current);
+    // `current` sube de 1 a `length + 1`: el último valor es el que marca
+    // "terminado, con match" (`done`, más abajo). El guard va DESPUÉS de
+    // fijar el paso — si va antes, nunca se llega a poner ese último valor,
+    // el contador se frena en el último paso y el match nunca aparece.
+    const next = (current: number) => {
+      setStep(current);
+      if (current <= VERIFICATION_STEPS.length) {
+        timeoutRef.current = window.setTimeout(() => next(current + 1), STEP_INTERVAL_MS);
+      }
+    };
+    next(1);
+  }
 
   return (
     // Es la pantalla que un tercero abre desde su teléfono, así que el
@@ -61,20 +91,68 @@ export default function VerifyPage() {
           unblockedBy="PAICertificate desplegado en Arbitrum Sepolia y un certificado emitido"
         />
 
-        <div className="flex flex-col gap-2">
-          <CardKicker>Qué hará el botón «Verificar»</CardKicker>
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <CardKicker className="mb-0">Qué hará el botón «Verificar»</CardKicker>
+            <Badge
+              variant="outline"
+              className="border-brand-700/60 text-brand-300 text-[9.5px] font-normal"
+            >
+              simulación — sin contrato desplegado todavía
+            </Badge>
+          </div>
+
           {/* 12.5px en móvil: los 11.5px del handoff se leen bien en un
               monitor y quedan justos en una pantalla sostenida a un brazo. El
               contador no se encoge (`flex-none`) para que los cinco pasos
               queden alineados aunque el texto envuelva. */}
           <ol className="mono text-ink-400 flex flex-col gap-1.5 text-[12.5px] sm:gap-1 sm:text-[11.5px]">
-            {VERIFICATION_STEPS.map((step, index) => (
-              <li key={step} className="flex gap-2.5">
-                <span className="text-muted-foreground flex-none">{index + 1}/5</span>
-                <span className="min-w-0">{step}</span>
-              </li>
-            ))}
+            {VERIFICATION_STEPS.map((stepLabel, index) => {
+              const stepNumber = index + 1;
+              const reached = step >= stepNumber;
+              return (
+                <li
+                  key={stepLabel}
+                  className={cn(
+                    'flex items-center gap-2.5 transition-colors duration-300',
+                    reached ? 'text-ink-200' : 'text-ink-400',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'text-muted-foreground flex-none transition-colors duration-300',
+                      reached && 'text-brand-400',
+                    )}
+                  >
+                    {stepNumber}/{VERIFICATION_STEPS.length}
+                  </span>
+                  <span className="min-w-0">{stepLabel}</span>
+                  {reached && <CheckCircle2 className="text-brand-400 size-3" aria-hidden="true" />}
+                </li>
+              );
+            })}
           </ol>
+
+          {done && (
+            <div className="border-brand-700/50 bg-brand-900/40 flex items-center gap-2 rounded-md border px-3 py-2">
+              <CheckCircle2 className="text-brand-300 size-4 flex-none" aria-hidden="true" />
+              <p className="text-brand-200 text-[12.5px]">
+                Coincide con <span className="mono">AssetRegistry.assets(assetId).merkleRoot</span>{' '}
+                — así se vería con el certificado real, cuando exista.
+              </p>
+            </div>
+          )}
+
+          <Button
+            onClick={runSimulation}
+            disabled={running}
+            size="sm"
+            className="w-fit rounded-full px-4"
+          >
+            <PlayCircle className="size-3.5" aria-hidden="true" />
+            {running ? 'Verificando…' : done ? 'Repetir simulación' : 'Verificar (simulación)'}
+          </Button>
+
           <CardBody className="text-muted-foreground">
             Recomputa las huellas desde los archivos originales y compara el root resultante contra
             el que guarda <span className="mono">AssetRegistry</span>. Si coinciden, el expediente
