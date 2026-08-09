@@ -5,6 +5,7 @@ import { mnemonicToAccount } from 'viem/accounts';
 import { describe, expect, it } from 'vitest';
 import { assetRegistryAbi, collateralVaultAbi, mockUSDCAbi } from './generated/abis';
 import { safeErrorLine } from './operational-error';
+import { ArchitectureDecisionRequiredError } from './smoke-executor';
 import {
   buildDemoFixture,
   buildDemoPlan,
@@ -17,6 +18,16 @@ import {
 const mnemonic = 'test test test test test test test test test test test junk';
 const address = (digit: string) => `0x${digit.repeat(40)}`;
 const valuationDate = 1_767_225_600n;
+const runtimeBytecodeHashes = Object.fromEntries(
+  [
+    'assetRegistry',
+    'certificationAttestor',
+    'paiCertificate',
+    'borrowingBaseEngine',
+    'collateralVault',
+    'mockUsdc',
+  ].map((name, index) => [name, `0x${String(index + 1).repeat(64)}`]),
+);
 
 describe('testnet smoke safety boundary', () => {
   it('derives borrower, lender, and certifiers from fixed account indexes', () => {
@@ -38,6 +49,7 @@ describe('testnet smoke safety boundary', () => {
         {
           chainId: 421_614,
           deploymentBlock: 1,
+          runtimeBytecodeHashes,
           addresses: Object.fromEntries(
             [
               'assetRegistry',
@@ -66,6 +78,7 @@ describe('testnet smoke safety boundary', () => {
       {
         chainId: 421_614,
         deploymentBlock: 1,
+        runtimeBytecodeHashes,
         addresses: Object.fromEntries(
           [
             'assetRegistry',
@@ -112,7 +125,7 @@ describe('testnet smoke safety boundary', () => {
     ).toBe('repay');
     expect(plan.readback).toEqual({
       assetStatus: 4,
-      loanState: 2,
+      loanState: 3,
       certificateValid: true,
       borrowerBalance: 0n,
       lenderBalance: 1_000_000n,
@@ -137,6 +150,7 @@ describe('testnet smoke safety boundary', () => {
       {
         chainId: 421_614,
         deploymentBlock: 1,
+        runtimeBytecodeHashes,
         addresses: Object.fromEntries(
           [
             'assetRegistry',
@@ -176,6 +190,23 @@ describe('testnet smoke safety boundary', () => {
     expect(JSON.stringify(outputs)).not.toContain(sentinel);
     expect(outputs.stderr).toBe(
       '{"code":"SMOKE_PREFLIGHT_FAILED","operation":"rpc-preflight","reason":"RPC_FAILURE"}',
+    );
+  });
+
+  it('redacts mnemonics, private keys, RPC URLs, and raw environment values', () => {
+    const secrets = [
+      mnemonic,
+      `0x${'ab'.repeat(32)}`,
+      'https://rpc.example.invalid/private/token',
+      'RAW_ENV_SENTINEL',
+    ];
+    const output = safeErrorLine('broadcast', new Error(secrets.join(' ')));
+    for (const secret of secrets) expect(output).not.toContain(secret);
+  });
+
+  it('reports the stable architecture broadcast block without sensitive detail', () => {
+    expect(safeErrorLine('broadcast', new ArchitectureDecisionRequiredError())).toBe(
+      '{"code":"architecture_decision_required","operation":"broadcast","reason":"ARCHITECTURE_DECISION_REQUIRED"}',
     );
   });
 });

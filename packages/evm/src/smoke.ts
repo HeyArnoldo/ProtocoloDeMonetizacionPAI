@@ -55,7 +55,7 @@ export const DEMO_PRINCIPAL = 400_000n;
 export const DEMO_DEBTOR_SALT = `0x${'a5'.repeat(32)}` as Hex;
 const DEMO_READBACK: DemoReadback = Object.freeze({
   assetStatus: 4,
-  loanState: 2,
+  loanState: 3,
   certificateValid: true,
   borrowerBalance: 0n,
   lenderBalance: 1_000_000n,

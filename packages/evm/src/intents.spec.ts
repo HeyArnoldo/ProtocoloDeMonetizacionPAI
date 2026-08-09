@@ -86,6 +86,9 @@ describe('deployment metadata', () => {
   const metadata = Object.fromEntries(
     evm.contractNames.map((contract, index) => [contract, address(String(index + 1))]),
   );
+  const runtimeBytecodeHashes = Object.fromEntries(
+    evm.contractNames.map((contract, index) => [contract, `0x${String(index + 1).repeat(64)}`]),
+  );
   it('indexes validated deployments by chainId', () => {
     const parsed = evm.parseDeployments([{ chainId: 421_614, addresses: metadata }]);
     expect(parsed[421_614]?.addresses.assetRegistry).toBe(getAddress(address('1')));
@@ -98,6 +101,7 @@ describe('deployment metadata', () => {
       chainId: 421_614,
       deploymentBlock: 296_444_399,
       addresses: metadata,
+      runtimeBytecodeHashes,
       roles: {
         admin: address('a'),
         borrower: address('b'),

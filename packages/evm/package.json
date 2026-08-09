@@ -18,7 +18,8 @@
     "build": "tsup",
     "deployment:finalize": "tsx --env-file=../../chain/.env src/finalize-cli.ts",
     "smoke:preflight": "tsx --env-file=../../chain/.env src/smoke-cli.ts preflight",
-    "smoke:plan": "tsx --env-file=../../chain/.env src/smoke-cli.ts --broadcast",
+    "smoke:plan": "tsx --env-file=../../chain/.env src/smoke-cli.ts plan",
+    "smoke:broadcast": "tsx --env-file=../../chain/.env src/smoke-cli.ts --broadcast",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },

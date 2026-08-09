@@ -136,18 +136,37 @@ La verificación de contratos WASM en el block explorer estaba aún en desarroll
 
 ## Metadatos y smoke de testnet
 
-El deploy no escribe metadatos: durante la simulación todavía no existen recibos y `block.number` no representa el primer bloque confirmado. Después de un broadcast exitoso, el finalizador toma el menor bloque de los seis recibos `CREATE` exitosos y valida las seis direcciones antes de reemplazar `deployments/<chainId>.json`:
+El deploy no escribe metadatos: durante la simulación todavía no existen recibos y `block.number` no representa el primer bloque confirmado. Después de un broadcast exitoso, el finalizador toma el menor bloque de los seis recibos `CREATE` exitosos, valida las seis direcciones y lee su bytecode runtime mediante RPC antes de reemplazar `deployments/<chainId>.json`:
 
 ```bash
 pnpm --filter @app/evm deployment:finalize -- --chain-id=421614
 ```
 
-El archivo canónico es público, se versiona y no contiene claves ni la cuenta que transmitió el deploy. Para comprobar el despliegue sin escribir en la red:
+El archivo canónico es público, se versiona y no contiene claves ni la cuenta que transmitió el deploy. Incluye el `keccak256` del bytecode runtime de cada contrato; el preflight exige coincidencia exacta, no solo código no vacío. Para comprobar el despliegue sin escribir en la red:
 
 ```bash
 pnpm --filter @app/evm smoke:preflight
 ```
 
-El preflight carga `chain/.env`, deriva las cuentas de rol con `accountIndex` 0 a 5, valida chain ID, bytecode, bloque de despliegue, wiring, roles, saldos y el estado del activo demo. No crea un wallet client. `smoke:plan` exige `--broadcast` internamente, muestra las diez transacciones previstas y termina como no soportado sin enviar ninguna; la ejecución live requiere autorización humana y tooling adicional.
+El preflight carga el archivo ignorado `chain/.env`, deriva las cuentas de rol con `accountIndex` exactos (admin 0, borrower 1, lender 2 y certificadores 3 a 5) y valida chain ID, hashes de bytecode runtime, bloque de despliegue, wiring, roles, saldos y estado live. No crea wallet clients ni envía transacciones. También imprime hashes SHA-256 deterministas de los metadatos y del plan vigente.
+
+La operación live tiene dos fases obligatorias:
+
+```bash
+# Fase 1: solo lectura. Repetir inmediatamente antes de autorizar.
+pnpm --filter @app/evm smoke:plan
+
+# Fase 2: BLOQUEADA. Aunque el hash coincida, termina con
+# architecture_decision_required y no crea wallet, firma, journal ni envío.
+pnpm --filter @app/evm smoke:broadcast -- --confirm-plan 0x<planHash>
+```
+
+**La fase 2 está deshabilitada sin excepción.** La arquitectura exige que el registro vuelva a `Attested` después de `Repaid`, pero el contrato desplegado y el readback actual permanecen en `Repaid`. Hasta que una decisión humana cambie primero la arquitectura o los contratos, incluso una solicitud correcta termina de forma estable con `architecture_decision_required`, después de todos los checks de solo lectura y antes de crear cualquier capacidad de escritura.
+
+El ejecutor puro conserva el modelo previsto para una eventual habilitación: prepara y firma una sola vez, calcula el hash localmente, persiste el pending antes de broadcast y solo permite reemitir los mismos bytes firmados y el mismo hash. Nunca deriva éxito de nonce. El raw firmado es una capacidad operacional sensible: si en el futuro se conecta un journal real, debe vivir exclusivamente en `chain/.smoke-journal/` (ignorado), con permisos restringidos al usuario, sin mnemonic ni clave privada, y nunca debe aparecer en logs o errores. Actualmente la CLI no crea ese directorio ni journal.
+
+**Efectos previstos si una decisión futura la habilita:** registraría el activo demo determinista, agregaría tres atestaciones, originaría el préstamo, acuñaría `1_000_000` unidades menores de MockUSDC, configuraría allowances, financiaría `400_000` unidades menores y repagaría `400_000`. El readback desplegado exige registro `Repaid` (ordinal 4), préstamo `Repaid` (ordinal 3), certificado válido y saldos borrower `0`, lender `1_000_000`, vault `0`.
+
+No se aceptan mnemonic ni claves privadas por argumentos y nunca se imprimen errores crudos, transacciones firmadas ni valores del entorno. La API no participa ni firma transacciones de valor. Una autorización del comando no supera el bloqueo arquitectónico: primero hace falta resolver y documentar la transición posterior a `Repaid`.
 
 La demo actual usa contratos Solidity y `MockUSDC`. No usa Stylus, USDC nativo ni atestaciones EIP-712.
