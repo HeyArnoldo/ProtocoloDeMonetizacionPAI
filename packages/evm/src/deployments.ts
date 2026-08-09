@@ -1,4 +1,4 @@
-import { getAddress, type Address } from 'viem';
+import { getAddress, keccak256, type Address, type Hex } from 'viem';
 
 export const contractNames = [
   'assetRegistry',
@@ -11,6 +11,10 @@ export const contractNames = [
 
 export type ContractName = (typeof contractNames)[number];
 export type DeploymentAddresses = Readonly<Record<ContractName, Address>>;
+export type RuntimeBytecodeHashes = Readonly<Record<ContractName, Hex>>;
+export interface RuntimeCodeProvider {
+  getCode(input: { address: Address }): Promise<Hex | undefined>;
+}
 export interface Deployment {
   readonly chainId: number;
   readonly addresses: DeploymentAddresses;
@@ -24,6 +28,7 @@ export interface DeploymentRoles {
 export interface LiveDeployment extends Deployment {
   readonly deploymentBlock: number;
   readonly roles: DeploymentRoles;
+  readonly runtimeBytecodeHashes: RuntimeBytecodeHashes;
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -70,9 +75,20 @@ export function parseLiveDeployment(value: unknown): LiveDeployment {
       throw new TypeError(`roles.certifiers[${index}] must be an address.`);
     return getAddress(value);
   }) as [Address, Address, Address];
+  const hashInput = object(input.runtimeBytecodeHashes);
+  const runtimeBytecodeHashes = Object.fromEntries(
+    contractNames.map((name) => {
+      const hash = hashInput[name];
+      if (typeof hash !== 'string' || !/^0x[\da-fA-F]{64}$/.test(hash)) {
+        throw new TypeError(`runtimeBytecodeHashes.${name} must be bytes32.`);
+      }
+      return [name, hash.toLowerCase()];
+    }),
+  ) as RuntimeBytecodeHashes;
   return Object.freeze({
     ...deployment,
     deploymentBlock: Number(input.deploymentBlock),
+    runtimeBytecodeHashes: Object.freeze(runtimeBytecodeHashes),
     roles: Object.freeze({
       admin: roleAddress('admin'),
       borrower: roleAddress('borrower'),
@@ -80,6 +96,32 @@ export function parseLiveDeployment(value: unknown): LiveDeployment {
       certifiers: Object.freeze(certifiers),
     }),
   });
+}
+
+export async function readRuntimeBytecodeHashes(
+  addresses: DeploymentAddresses,
+  provider: RuntimeCodeProvider,
+): Promise<RuntimeBytecodeHashes> {
+  const entries = await Promise.all(
+    contractNames.map(async (name) => {
+      const code = await provider.getCode({ address: addresses[name] });
+      if (!code || code === '0x') throw new Error(`${name} has no runtime bytecode.`);
+      return [name, keccak256(code)] as const;
+    }),
+  );
+  return Object.freeze(Object.fromEntries(entries) as RuntimeBytecodeHashes);
+}
+
+export async function verifyRuntimeBytecodeHashes(
+  deployment: LiveDeployment,
+  provider: RuntimeCodeProvider,
+): Promise<void> {
+  const actual = await readRuntimeBytecodeHashes(deployment.addresses, provider);
+  for (const name of contractNames) {
+    if (actual[name] !== deployment.runtimeBytecodeHashes[name]) {
+      throw new Error(`${name} runtime bytecode hash mismatch.`);
+    }
+  }
 }
 
 export function parseDeployments(values: readonly unknown[]): Readonly<Record<number, Deployment>> {

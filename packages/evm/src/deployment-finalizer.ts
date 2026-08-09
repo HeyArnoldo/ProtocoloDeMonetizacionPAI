@@ -1,5 +1,11 @@
 import { getAddress, type Address } from 'viem';
-import { parseLiveDeployment, type DeploymentRoles, type LiveDeployment } from './deployments';
+import {
+  parseLiveDeployment,
+  readRuntimeBytecodeHashes,
+  type DeploymentRoles,
+  type LiveDeployment,
+  type RuntimeCodeProvider,
+} from './deployments';
 
 const contractKeys = {
   AssetRegistry: 'assetRegistry',
@@ -63,11 +69,12 @@ const parseReceipts = (values: readonly BroadcastReceipt[]) => {
   return receipts;
 };
 
-export function finalizeDeployment(
+export async function finalizeDeployment(
   value: unknown,
   chainId: number,
   roles: DeploymentRoles,
-): LiveDeployment {
+  codeProvider: RuntimeCodeProvider,
+): Promise<LiveDeployment> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new TypeError('Foundry broadcast must be an object.');
   }
@@ -102,10 +109,15 @@ export function finalizeDeployment(
   if (Object.keys(addresses).length !== 6 || blocks.length !== 6) {
     throw new Error('Broadcast must contain exactly the six successful protocol deployments.');
   }
+  const runtimeBytecodeHashes = await readRuntimeBytecodeHashes(
+    addresses as LiveDeployment['addresses'],
+    codeProvider,
+  );
   return parseLiveDeployment({
     chainId,
     deploymentBlock: Math.min(...blocks),
     addresses,
+    runtimeBytecodeHashes,
     roles,
   });
 }

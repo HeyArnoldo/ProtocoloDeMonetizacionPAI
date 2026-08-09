@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { getAddress } from 'viem';
+import { createPublicClient, getAddress, http } from 'viem';
+import { arbitrumSepolia } from 'viem/chains';
 import { finalizeDeployment } from './deployment-finalizer';
 
 const requiredAddress = (name: string) => {
@@ -27,7 +28,11 @@ async function main() {
   const broadcastPath = resolve(chainRoot, `broadcast/Deploy.s.sol/${chainId}/run-latest.json`);
   const outputPath = resolve(chainRoot, `deployments/${chainId}.json`);
   const broadcast = JSON.parse(await readFile(broadcastPath, 'utf8')) as unknown;
-  const deployment = finalizeDeployment(broadcast, chainId, roles);
+  const rpcUrl = process.env.CHAIN_RPC_URL;
+  if (!rpcUrl) throw new Error('CHAIN_RPC_URL is required.');
+  const client = createPublicClient({ chain: arbitrumSepolia, transport: http(rpcUrl) });
+  if ((await client.getChainId()) !== chainId) throw new Error('RPC chainId mismatch.');
+  const deployment = await finalizeDeployment(broadcast, chainId, roles, client);
   await writeFile(outputPath, `${JSON.stringify(deployment, null, 2)}\n`, { encoding: 'utf8' });
   console.log(
     `Deployment metadata finalized for chain ${chainId} at block ${deployment.deploymentBlock}.`,

@@ -9,6 +9,14 @@
     "mockUsdc": "0xA7b4aFE2e8c1529fe99461c414c5c5dE6aE99694"
   },
   "deploymentBlock": 296444399,
+  "runtimeBytecodeHashes": {
+    "assetRegistry": "0x0712d0f8889ce6f305138695f7f3fa9b44f242320ad47135a180360351b2b6f2",
+    "certificationAttestor": "0xa85fc8182210002a18707606dc87908c749e1742c042a5e54194f37717062a44",
+    "paiCertificate": "0x9ffd2a375f37cae7d7ea215fffbecd3bb5924a07a9a3c907d8e6f55a343d1f21",
+    "borrowingBaseEngine": "0xa303bb4185de37135f444c9b7661e9eb2f70be14743dbbf09e06f38ea774fb8a",
+    "collateralVault": "0x9f0378f46ea2ab5163e5b32fd9122d31a6e592250188bfd32ffbd934d16c3ddc",
+    "mockUsdc": "0xbbee284f19ab6c381807ce6a8881541f8ff343ef6cd0fa8b42f71dc18061b02a"
+  },
   "roles": {
     "admin": "0xF3D03248Ef1DaD9a01627FC749c1038996314443",
     "borrower": "0x5F3f76226962875a3ceCFAb6c7CAbfE74506d918",

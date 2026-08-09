@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Address } from 'viem';
+import { keccak256, type Address, type Hex } from 'viem';
 import { finalizeDeployment } from './deployment-finalizer';
+import { verifyRuntimeBytecodeHashes } from './deployments';
 
 const address = (digit: string) => `0x${digit.repeat(40)}` as Address;
 const hash = (digit: string) => `0x${digit.repeat(64)}`;
@@ -19,6 +20,12 @@ const names = [
   'MockUSDC',
   'CollateralVault',
 ] as const;
+const codes = Object.fromEntries(
+  names.map((name, index) => [address(String(index + 1)), `0x60${index + 1}` as Hex]),
+);
+const codeProvider = {
+  getCode: async ({ address: target }: { address: Address }) => codes[target],
+};
 
 const successfulBroadcast = () => {
   const transactions = names.map((contractName, index) => ({
@@ -36,61 +43,82 @@ const successfulBroadcast = () => {
 };
 
 describe('deployment finalization', () => {
-  it('derives the first successful receipt block and all six addresses', () => {
+  it('derives the first successful receipt block, addresses, and runtime hashes', async () => {
     const { transactions, receipts } = successfulBroadcast();
 
-    const deployment = finalizeDeployment({ transactions, receipts }, 421_614, roles);
+    const deployment = await finalizeDeployment(
+      { transactions, receipts },
+      421_614,
+      roles,
+      codeProvider,
+    );
 
     expect(deployment.deploymentBlock).toBe(296_444_399);
     expect(deployment.addresses.assetRegistry).toBe(address('1'));
     expect(deployment.addresses.collateralVault).toBe(address('6'));
+    expect(deployment.runtimeBytecodeHashes.assetRegistry).toBe(keccak256(codes[address('1')]!));
     expect(deployment).not.toHaveProperty('deployer');
   });
 
-  it('accepts a real-shaped 20-receipt broadcast idempotently', () => {
+  it('accepts a real-shaped 20-receipt broadcast idempotently', async () => {
     const broadcast = successfulBroadcast();
-    const first = JSON.stringify(finalizeDeployment(broadcast, 421_614, roles));
-    const second = JSON.stringify(finalizeDeployment(broadcast, 421_614, roles));
+    const first = JSON.stringify(await finalizeDeployment(broadcast, 421_614, roles, codeProvider));
+    const second = JSON.stringify(
+      await finalizeDeployment(broadcast, 421_614, roles, codeProvider),
+    );
     expect(second).toBe(first);
   });
 
-  it('rejects duplicate receipt hashes globally', () => {
+  it('rejects duplicate receipt hashes globally', async () => {
     const broadcast = successfulBroadcast();
     broadcast.receipts.push({ ...broadcast.receipts[19]!, blockNumber: '0x123' });
-    expect(() => finalizeDeployment(broadcast, 421_614, roles)).toThrow(/duplicate receipt hash/i);
+    await expect(finalizeDeployment(broadcast, 421_614, roles, codeProvider)).rejects.toThrow(
+      /duplicate receipt hash/i,
+    );
   });
 
-  it('rejects malformed unrelated receipts', () => {
+  it('rejects malformed unrelated receipts', async () => {
     const broadcast = successfulBroadcast();
     broadcast.receipts.push({
       transactionHash: 'not-a-hash',
       blockNumber: '0x123',
       status: '0x1',
     });
-    expect(() => finalizeDeployment(broadcast, 421_614, roles)).toThrow(/receipt.*hash/i);
+    await expect(finalizeDeployment(broadcast, 421_614, roles, codeProvider)).rejects.toThrow(
+      /receipt.*hash/i,
+    );
   });
 
-  it('rejects failed and malformed required receipts', () => {
+  it('rejects failed and malformed required receipts', async () => {
     const failed = successfulBroadcast();
     failed.receipts[0] = { ...failed.receipts[0]!, status: '0x0' };
-    expect(() => finalizeDeployment(failed, 421_614, roles)).toThrow(/not successful/i);
+    await expect(finalizeDeployment(failed, 421_614, roles, codeProvider)).rejects.toThrow(
+      /not successful/i,
+    );
 
     const malformed = successfulBroadcast();
     malformed.receipts[0] = { ...malformed.receipts[0]!, blockNumber: 'invalid' };
-    expect(() => finalizeDeployment(malformed, 421_614, roles)).toThrow(/receipt 0 block/i);
+    await expect(finalizeDeployment(malformed, 421_614, roles, codeProvider)).rejects.toThrow(
+      /receipt 0 block/i,
+    );
   });
 
-  it('rejects missing, failed, and duplicate contract deployments', () => {
+  it('rejects missing, failed, and duplicate contract deployments', async () => {
     const transaction = {
       contractName: 'AssetRegistry',
       contractAddress: address('1'),
       hash: hash('1'),
       transactionType: 'CREATE',
     };
-    expect(() =>
-      finalizeDeployment({ transactions: [transaction], receipts: [] }, 421_614, roles),
-    ).toThrow(/receipt|six/i);
-    expect(() =>
+    await expect(
+      finalizeDeployment(
+        { transactions: [transaction], receipts: [] },
+        421_614,
+        roles,
+        codeProvider,
+      ),
+    ).rejects.toThrow(/receipt|six/i);
+    await expect(
       finalizeDeployment(
         {
           transactions: [transaction, { ...transaction, hash: hash('2') }],
@@ -101,7 +129,29 @@ describe('deployment finalization', () => {
         },
         421_614,
         roles,
+        codeProvider,
       ),
-    ).toThrow();
+    ).rejects.toThrow();
+  });
+
+  it('rejects missing deployed runtime bytecode', async () => {
+    await expect(
+      finalizeDeployment(successfulBroadcast(), 421_614, roles, { getCode: async () => undefined }),
+    ).rejects.toThrow(/runtime bytecode/i);
+  });
+
+  it('rejects a runtime bytecode hash mismatch', async () => {
+    const deployment = await finalizeDeployment(
+      successfulBroadcast(),
+      421_614,
+      roles,
+      codeProvider,
+    );
+    await expect(
+      verifyRuntimeBytecodeHashes(deployment, {
+        getCode: async ({ address: target }) =>
+          target === deployment.addresses.assetRegistry ? ('0x6000' as Hex) : codes[target],
+      }),
+    ).rejects.toThrow(/assetRegistry runtime bytecode hash mismatch/i);
   });
 });
