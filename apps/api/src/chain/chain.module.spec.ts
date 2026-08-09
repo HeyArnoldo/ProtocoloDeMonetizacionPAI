@@ -5,6 +5,8 @@ import { ArbitrumChainAdapter } from './adapters/arbitrum.adapter';
 import { InMemoryChainAdapter } from './adapters/in-memory.adapter';
 import { ChainModule } from './chain.module';
 import { CHAIN_PORT, type ChainPort } from './chain.port';
+import { VerificationModule } from '../verification/verification.module';
+import { VerificationService } from '../verification/verification.service';
 
 /**
  * `ChainModule` cuenta con que `ConfigService` sea global — en la app lo es,
@@ -52,6 +54,18 @@ async function resolvePort(chainAdapter: string | undefined): Promise<ChainPort>
 }
 
 describe('ChainModule', () => {
+  it('resuelve VerificationService al iniciar la composición real de módulos', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [fakeConfigModule('in-memory'), ChainModule, VerificationModule],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+
+    await app.init();
+
+    expect(moduleRef.get(VerificationService)).toBeInstanceOf(VerificationService);
+    await app.close();
+  });
+
   it('inyecta el adapter en memoria por defecto', async () => {
     expect(await resolvePort('in-memory')).toBeInstanceOf(InMemoryChainAdapter);
   });

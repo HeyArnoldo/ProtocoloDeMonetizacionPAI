@@ -51,6 +51,6 @@ import { CHAIN_RUNTIME_CONFIG, chainRuntimeConfig, type ChainRuntimeConfig } fro
     },
     ChainIntentService,
   ],
-  exports: [CHAIN_PORT, ChainIntentService],
+  exports: [CHAIN_PORT, CHAIN_RUNTIME_CONFIG, ChainIntentService],
 })
 export class ChainModule {}
