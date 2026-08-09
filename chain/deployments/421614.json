@@ -1,0 +1,22 @@
+{
+  "chainId": 421614,
+  "addresses": {
+    "assetRegistry": "0xFD3c8149F9f1512a15D8e035038640128F476afb",
+    "certificationAttestor": "0xc8b279AF47541617CC3da831998Dd44Cd01c09AA",
+    "paiCertificate": "0xaf85b23453110c7a66FF9292aA37091530e7B67f",
+    "borrowingBaseEngine": "0xcCcC73242daa855cB878aC281347253ebf903947",
+    "collateralVault": "0x784923fCCA5A7246ab4df57F8A5f88d4F89d99cC",
+    "mockUsdc": "0xA7b4aFE2e8c1529fe99461c414c5c5dE6aE99694"
+  },
+  "deploymentBlock": 296444399,
+  "roles": {
+    "admin": "0xF3D03248Ef1DaD9a01627FC749c1038996314443",
+    "borrower": "0x5F3f76226962875a3ceCFAb6c7CAbfE74506d918",
+    "lender": "0x2302Ab2e3E367c3e54096b01aF9626939efe50a8",
+    "certifiers": [
+      "0x22e3073839895D06f326D3d9F1d399c0cB3b3de2",
+      "0xcEDd213FF932A3c41DA0E3A0A1536d80b4373077",
+      "0xeFbE82398a63632F1fB776E0F8e4947A0eaaB85b"
+    ]
+  }
+}

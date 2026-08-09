@@ -50,7 +50,6 @@ contract Deploy is Script {
         vm.startBroadcast(privateKey);
         deployment = _deploy(deployer, config);
         vm.stopBroadcast();
-        writeMetadata(deployer, config, deployment);
     }
 
     /// @dev Test entry point. The script contract acts as temporary admin.
@@ -145,33 +144,4 @@ contract Deploy is Script {
         ) revert WiringMismatch();
     }
 
-    /// @dev Public test entry point; deployment scripts are not runtime contracts.
-    function writeMetadata(address deployer, Config memory config, Deployment memory deployment)
-        public
-    {
-        string memory key = "deployment";
-        vm.serializeUint(key, "chainId", block.chainid);
-        vm.serializeUint(key, "deploymentBlock", block.number);
-        vm.serializeAddress(key, "deployer", deployer);
-        vm.serializeAddress(key, "admin", config.admin);
-        vm.serializeAddress(key, "borrower", config.borrower);
-        vm.serializeAddress(key, "lender", config.lender);
-        vm.serializeAddress(key, "certifierRevenue", config.certifiers[0]);
-        vm.serializeAddress(key, "certifierRights", config.certifiers[1]);
-        string memory json = vm.serializeAddress(key, "certifierService", config.certifiers[2]);
-
-        string memory addressesKey = "addresses";
-        vm.serializeAddress(addressesKey, "assetRegistry", address(deployment.registry));
-        vm.serializeAddress(addressesKey, "paiCertificate", address(deployment.certificate));
-        vm.serializeAddress(addressesKey, "certificationAttestor", address(deployment.attestor));
-        vm.serializeAddress(addressesKey, "borrowingBaseEngine", address(deployment.engine));
-        vm.serializeAddress(addressesKey, "mockUsdc", address(deployment.usdc));
-        string memory addresses =
-            vm.serializeAddress(addressesKey, "collateralVault", address(deployment.vault));
-        string memory directory = string.concat(vm.projectRoot(), "/deployments");
-        string memory path = string.concat(directory, "/", vm.toString(block.chainid), ".json");
-        vm.createDir(directory, true);
-        vm.writeJson(json, path);
-        vm.writeJson(addresses, path, ".addresses");
-    }
 }
