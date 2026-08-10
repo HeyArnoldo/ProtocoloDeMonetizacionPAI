@@ -13,6 +13,8 @@
  * permiso en lugar de mostrarse siempre completo.
  */
 
+import { UserRole } from '@app/contracts';
+
 export interface PanelRoute {
   path: string;
   /** Etiqueta corta del sidebar. */
@@ -20,6 +22,8 @@ export interface PanelRoute {
   /** Título de la pantalla: el `<h1>`. */
   title: string;
   subtitle: string;
+  /** Authenticated personas allowed to mount this protected page. Omitted for public links. */
+  roles?: readonly UserRole[];
 }
 
 export interface NavGroup {
@@ -27,9 +31,6 @@ export interface NavGroup {
   heading: string;
   items: PanelRoute[];
 }
-
-/** Código de ejemplo del enlace de verificación pública del sidebar. */
-export const SAMPLE_VERIFY_CODE = 'PAI-8F3C-2026';
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -40,36 +41,42 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Resumen',
         title: 'Resumen del expediente',
         subtitle: 'Estado del expediente y de la máquina de estados on-chain',
+        roles: [UserRole.PYME, UserRole.FUND, UserRole.ADMIN],
       },
       {
         path: '/expediente',
         label: 'Expediente',
         title: 'Expediente y árbol de Merkle',
         subtitle: 'AssetRegistry.sol · todas las cuotas bajo un root de 32 bytes',
+        roles: [UserRole.PYME, UserRole.ADMIN],
       },
       {
         path: '/evidencias',
         label: 'Evidencias',
         title: 'Evidencias',
         subtitle: 'Documentos cifrados en storage · cero archivos on-chain',
+        roles: [UserRole.PYME, UserRole.ADMIN],
       },
       {
         path: '/divulgacion',
         label: 'Divulgación selectiva',
         title: 'Divulgación selectiva',
         subtitle: 'Prueba sin revelar. Sin ZK: solo un árbol de Merkle',
+        roles: [UserRole.PYME, UserRole.ADMIN],
       },
       {
         path: '/prestamo',
         label: 'Préstamo',
         title: 'Originación y fondeo',
         subtitle: 'CollateralVault.sol · USDC nativo de Circle',
+        roles: [UserRole.PYME, UserRole.FUND, UserRole.ADMIN],
       },
       {
         path: '/historial',
         label: 'Historial crediticio',
         title: 'Historial crediticio on-chain',
         subtitle: 'Portable, verificable, propiedad de la PYME',
+        roles: [UserRole.PYME, UserRole.ADMIN],
       },
     ],
   },
@@ -81,6 +88,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Cola de atestaciones',
         title: 'Cola de atestaciones',
         subtitle: 'CertificationAttestor.sol · CERTIFIER_ROLE',
+        roles: [UserRole.CERTIFIER, UserRole.ADMIN],
       },
     ],
   },
@@ -92,6 +100,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Recómputo Stylus',
         title: 'Recómputo del borrowing base',
         subtitle: 'BorrowingBaseEngine · Stylus (Rust) · función view',
+        roles: [UserRole.PYME, UserRole.ADMIN],
       },
     ],
   },
@@ -103,12 +112,13 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Actividad on-chain',
         title: 'Actividad on-chain',
         subtitle: 'Eventos indexados por el Worker → Postgres',
+        roles: [UserRole.PYME, UserRole.FUND, UserRole.ADMIN],
       },
       {
-        path: `/verify/${SAMPLE_VERIFY_CODE}`,
-        label: 'Página /verify/:code',
+        path: '/verify',
+        label: 'Verificación pública',
         title: 'Verificación pública',
-        subtitle: 'Página abierta: cualquiera re-hashea y compara',
+        subtitle: 'Consulta anónima del estado público registrado on-chain',
       },
     ],
   },
@@ -117,7 +127,7 @@ export const NAV_GROUPS: NavGroup[] = [
 /** Metadatos de la pantalla pública, que no cuelga del shell del panel. */
 export const VERIFY_ROUTE = {
   title: 'Verificación pública',
-  subtitle: 'Página abierta: cualquiera re-hashea y compara',
+  subtitle: 'Consulta anónima del estado público registrado on-chain',
 } as const;
 
 const ROUTES_BY_PATH = new Map(
@@ -127,4 +137,29 @@ const ROUTES_BY_PATH = new Map(
 /** Resuelve el título de la cabecera a partir del `pathname` activo. */
 export function findPanelRoute(pathname: string): PanelRoute | undefined {
   return ROUTES_BY_PATH.get(pathname);
+}
+
+export function canAccessPanelRoute(pathname: string, role: UserRole): boolean {
+  const route = findPanelRoute(pathname === '/disclosure' ? '/divulgacion' : pathname);
+  return Boolean(route && (!route.roles || route.roles.includes(role)));
+}
+
+export function navigationForRole(role: UserRole): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.roles || item.roles.includes(role)),
+  })).filter((group) => group.items.length > 0);
+}
+
+/**
+ * A donde va cada rol tras iniciar sesion.
+ *
+ * El certificador aterriza en su cola de atestaciones, que es lo unico que le
+ * compete. El resto entra al resumen del expediente.
+ *
+ * `/panel` y no `/`: la raiz es la landing publica, asi que devolver `/` dejaba
+ * a la PYME en la pagina de marketing despues de autenticarse.
+ */
+export function roleLandingPath(role: UserRole): string {
+  return role === UserRole.CERTIFIER ? '/certificacion' : '/panel';
 }

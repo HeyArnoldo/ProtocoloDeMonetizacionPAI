@@ -1,0 +1,39 @@
+{
+  "name": "@app/evm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generated EVM bindings, deployment metadata and unsigned transaction intents",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "abi:generate": "node scripts/generate-abis.mjs",
+    "build": "tsup",
+    "deployment:guard": "tsx src/deployment-guard-cli.ts",
+    "deployment:finalize": "tsx --env-file=../../chain/.env src/finalize-cli.ts",
+    "smoke:preflight": "tsx --env-file=../../chain/.env src/smoke-cli.ts preflight",
+    "smoke:plan": "tsx --env-file=../../chain/.env src/smoke-cli.ts plan",
+    "smoke:broadcast": "tsx --env-file=../../chain/.env src/smoke-cli.ts --broadcast",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@app/merkle": "workspace:*",
+    "ethereum-cryptography": "^3.2.0",
+    "viem": "^2.38.0"
+  },
+  "devDependencies": {
+    "@app/tsconfig": "workspace:*",
+    "tsup": "^8.5.0",
+    "tsx": "^4.23.8",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

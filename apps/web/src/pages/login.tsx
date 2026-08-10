@@ -6,6 +6,7 @@ import { loginSchema, type LoginInput } from '@app/contracts';
 import { useAuthConfig, useLogin, useMe } from '@/hooks/use-auth';
 import { googleAuthUrl } from '@/services/auth.api';
 import { AuthShell } from '@/components/auth-shell';
+import { roleLandingPath } from '@/config/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,11 +30,13 @@ export default function LoginPage() {
     defaultValues: { email: '', password: '' },
   });
 
-  if (me) return <Navigate to="/panel" replace />;
+  // El destino sale del rol, no de una ruta fija: `roleLandingPath` ya apunta a
+  // `/panel`, que es donde vive el resumen desde que la raiz es la landing.
+  if (me) return <Navigate to={roleLandingPath(me.role)} replace />;
 
   const onSubmit = (input: LoginInput) => {
     login.mutate(input, {
-      onSuccess: () => navigate('/panel'),
+      onSuccess: (user) => navigate(roleLandingPath(user.role)),
       onError: () => toast.error('Credenciales inválidas'),
     });
   };

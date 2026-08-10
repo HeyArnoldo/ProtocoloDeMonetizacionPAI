@@ -40,16 +40,38 @@ export const envSchema = z
     ADMIN_EMAIL: z.string().optional(),
     ADMIN_PASSWORD: z.string().optional(),
     ADMIN_NAME: z.string().optional(),
+    CERTIFIER_EMAILS: z.string().optional(),
+    FUND_EMAILS: z.string().optional(),
 
     // Cadena. in-memory = la API funciona sin cadena (dev, tests, demo Web2).
     CHAIN_ADAPTER: z.enum(['in-memory', 'arbitrum']).default('in-memory'),
     CHAIN_ID: z.coerce.number().int().positive().default(421614),
-    CHAIN_RPC_URL: z.string().optional(),
+    CHAIN_RPC_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().url().optional(),
+    ),
+    CHAIN_DEPLOYMENT_BLOCK: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.coerce.number().int().nonnegative().safe().optional(),
+    ),
+    CHAIN_EXPLORER_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().url().optional(),
+    ),
     ASSET_REGISTRY_ADDRESS: z.string().optional(),
     CERTIFICATION_ATTESTOR_ADDRESS: z.string().optional(),
+    PAI_CERTIFICATE_ADDRESS: z.string().optional(),
     BORROWING_BASE_ENGINE_ADDRESS: z.string().optional(),
-    // Wallet del backend: SOLO firma atestaciones EIP-712, nunca mueve dinero.
-    ATTESTOR_PRIVATE_KEY: z.string().optional(),
+    COLLATERAL_VAULT_ADDRESS: z.string().optional(),
+    MOCK_USDC_ADDRESS: z.string().optional(),
+
+    // Storage S3-compatible. `STORAGE_ENDPOINT` es opcional para AWS S3 y R2.
+    STORAGE_ENDPOINT: z.string().url().optional(),
+    STORAGE_REGION: z.string().min(1),
+    STORAGE_BUCKET: z.string().min(1),
+    STORAGE_ACCESS_KEY: z.string().min(1),
+    STORAGE_SECRET_KEY: z.string().min(1),
+    STORAGE_FORCE_PATH_STYLE: boolFlag(true),
   })
   .superRefine((env, ctx) => {
     // Con el adapter real, estas dejan de ser opcionales. Mejor no levantar que
@@ -58,9 +80,13 @@ export const envSchema = z
 
     for (const key of [
       'CHAIN_RPC_URL',
+      'CHAIN_DEPLOYMENT_BLOCK',
       'ASSET_REGISTRY_ADDRESS',
       'CERTIFICATION_ATTESTOR_ADDRESS',
-      'ATTESTOR_PRIVATE_KEY',
+      'PAI_CERTIFICATE_ADDRESS',
+      'BORROWING_BASE_ENGINE_ADDRESS',
+      'COLLATERAL_VAULT_ADDRESS',
+      'MOCK_USDC_ADDRESS',
     ] as const) {
       if (!env[key]) {
         ctx.addIssue({

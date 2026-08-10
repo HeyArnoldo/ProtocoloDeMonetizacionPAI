@@ -1,24 +1,35 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { DisclosurePreviewRequest } from '@app/contracts';
-import { fetchSamplePortfolio, previewDisclosure } from '@/services/disclosure.api';
+import type { PersistedDisclosurePreviewRequest } from '@app/contracts';
+import {
+  fetchAsset,
+  fetchCertificationSnapshot,
+  previewDisclosure,
+} from '@/services/disclosure.api';
 
-/**
- * La cartera de ejemplo se pide una sola vez por sesión: trae el salt del
- * expediente y ese salt tiene que ser estable, o el root cambiaría en cada
- * recarga y la demo perdería sentido.
- */
-export function useSamplePortfolio() {
+export function useAssetPortfolio(assetId: string | null) {
   return useQuery({
-    queryKey: ['disclosure', 'sample'],
-    queryFn: fetchSamplePortfolio,
-    staleTime: Infinity,
-    gcTime: Infinity,
-    refetchOnWindowFocus: false,
+    queryKey: ['assets', assetId],
+    queryFn: () => fetchAsset(assetId!),
+    enabled: assetId !== null,
+  });
+}
+
+export function useCertificationSnapshot(assetId: string | null) {
+  return useQuery({
+    queryKey: ['certification-chain', assetId],
+    queryFn: () => fetchCertificationSnapshot(assetId!),
+    enabled: assetId !== null,
   });
 }
 
 export function useDisclosurePreview() {
   return useMutation({
-    mutationFn: (request: DisclosurePreviewRequest) => previewDisclosure(request),
+    mutationFn: ({
+      assetId,
+      request,
+    }: {
+      assetId: string;
+      request: PersistedDisclosurePreviewRequest;
+    }) => previewDisclosure(assetId, request),
   });
 }

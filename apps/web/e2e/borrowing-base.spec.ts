@@ -8,10 +8,12 @@ import {
 } from '@app/borrowing-base';
 import type { Hex } from '@app/merkle';
 import {
+  DEMO_ASSET_ID,
   SAMPLE_SALT,
+  buildAssetReceivables,
+  buildAssetResponse,
   buildAuthUser,
   buildSamplePortfolio,
-  computeDisclosurePreview,
   mockApi,
   toLeaves,
 } from './fixtures/api-mock';
@@ -28,6 +30,16 @@ import {
 const SCREENSHOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '__screenshots__');
 
 const PORTFOLIO = buildSamplePortfolio();
+
+/**
+ * El expediente persistido que sirve el mock.
+ *
+ * `/divulgacion` ya no carga una cartera de muestra: pide el expediente por
+ * `?assetId=` y lo lee de `GET /api/assets/:id`. Los índices de las selecciones
+ * de abajo son posiciones de `ASSET.receivables`, que el fixture mantiene en el
+ * mismo orden que `PORTFOLIO.receivables`.
+ */
+const ASSET = buildAssetResponse(buildAssetReceivables(PORTFOLIO));
 
 /**
  * Reloj fijo.
@@ -59,12 +71,13 @@ const EXPECTED = computeBorrowingBase(
   PARAMS,
 );
 
-/** El root del expediente completo. No depende de qué se divulgue. */
-const TREE_ROOT = computeDisclosurePreview({
-  salt: PORTFOLIO.salt,
-  receivables: PORTFOLIO.receivables,
-  disclosedIndices: [0],
-}).root;
+/**
+ * El root del expediente completo. No depende de qué se divulgue.
+ *
+ * Lo calcula el fixture con `@app/merkle` sobre las cuotas del expediente, así
+ * que afirmar que la pantalla lo muestra es afirmar que muestra el root real.
+ */
+const TREE_ROOT = ASSET.merkleRoot;
 
 /**
  * Formato de importe, escrito aparte a propósito.
@@ -105,6 +118,42 @@ async function selectInstallments(page: Page, indices: number[]): Promise<void> 
   }
 }
 
+/**
+ * Abre la divulgación del expediente.
+ *
+ * El `?assetId=` no es decorativo: sin él la pantalla no carga cartera alguna y
+ * solo ofrece el rótulo que pide el identificador.
+ */
+async function gotoDisclosure(page: Page): Promise<void> {
+  await page.goto(`/divulgacion?assetId=${DEMO_ASSET_ID}`);
+  await expect(page.getByText(`${PORTFOLIO.receivables.length} cuotas`)).toBeVisible();
+}
+
+/**
+ * Construye el multiproof de la selección actual.
+ *
+ * `/borrowing-base` ya no recompone las hojas en el navegador: el desglose se
+ * calcula sobre las que devuelve `POST /api/disclosure/:assetId/preview`, con el
+ * `debtorHash` derivado del salt que solo conoce el servidor. Así que sin prueba
+ * construida no hay hojas, y sin hojas no hay recómputo que ejecutar. Cambiar la
+ * selección descarta la prueba y obliga a construirla otra vez.
+ */
+async function buildProof(page: Page, disclosedCount: number): Promise<void> {
+  await page.getByRole('button', { name: `Construir prueba (${disclosedCount})` }).click();
+  await expect(page.getByText('Prueba construida')).toBeVisible();
+}
+
+/** Vuelve a la divulgación desde cualquier pantalla del panel. */
+async function backToDisclosure(page: Page): Promise<void> {
+  await page
+    .getByRole('navigation', { name: 'Secciones del panel' })
+    .getByRole('link', { name: 'Divulgación selectiva' })
+    .click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Divulgación selectiva' }),
+  ).toBeVisible();
+}
+
 async function gotoBorrowingBase(page: Page): Promise<void> {
   await page
     .getByRole('navigation', { name: 'Secciones del panel' })
@@ -117,13 +166,14 @@ async function gotoBorrowingBase(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
-  await mockApi(page, { user: buildAuthUser(), portfolio: PORTFOLIO });
+  await mockApi(page, { user: buildAuthUser(), asset: ASSET });
 });
 
 test.describe('recómputo del borrowing base', () => {
   test('el desglose usa las cuotas seleccionadas en la divulgación', async ({ page }) => {
-    await page.goto('/divulgacion');
+    await gotoDisclosure(page);
     await selectInstallments(page, SELECTION_A);
+    await buildProof(page, SELECTION_A.length);
 
     await gotoBorrowingBase(page);
 
@@ -166,8 +216,9 @@ test.describe('recómputo del borrowing base', () => {
   });
 
   test('cambiar la selección recalcula el desglose', async ({ page }) => {
-    await page.goto('/divulgacion');
+    await gotoDisclosure(page);
     await selectInstallments(page, SELECTION_A);
+    await buildProof(page, SELECTION_A.length);
     await gotoBorrowingBase(page);
     await page.getByRole('button', { name: 'Ejecutar recómputo' }).click();
     await expect(breakdownRow(page, 'Base prestable')).toContainText(
@@ -176,12 +227,7 @@ test.describe('recómputo del borrowing base', () => {
 
     // Quitar una cuota invalida el desglose en pantalla: los importes ya no
     // corresponden a lo divulgado, así que desaparecen en vez de envejecer.
-    await page
-      .getByRole('navigation', { name: 'Secciones del panel' })
-      .getByRole('link', {
-        name: 'Divulgación selectiva',
-      })
-      .click();
+    await backToDisclosure(page);
     await page.getByRole('checkbox', { name: checkboxNameFor(SELECTION_A[0]!) }).uncheck();
     await gotoBorrowingBase(page);
 
@@ -195,6 +241,12 @@ test.describe('recómputo del borrowing base', () => {
       PARAMS,
     );
 
+    // La prueba anterior se descartó con el cambio de selección: hay que pedir
+    // la nueva antes de que haya nada que recomputar.
+    await backToDisclosure(page);
+    await buildProof(page, SELECTION_A.length - 1);
+    await gotoBorrowingBase(page);
+
     await page.getByRole('button', { name: 'Ejecutar recómputo' }).click();
     await expect(breakdownRow(page, 'Base prestable')).toContainText(
       usd(narrowed.borrowingBaseMinor),
@@ -203,7 +255,7 @@ test.describe('recómputo del borrowing base', () => {
   });
 
   test('el root no cambia entre dos selecciones distintas', async ({ page }) => {
-    await page.goto('/divulgacion');
+    await gotoDisclosure(page);
 
     // Sin selección, el root ya está en pantalla: sale del árbol completo.
     await expect(page.getByTitle(TREE_ROOT)).toBeVisible();
@@ -232,18 +284,14 @@ test.describe('recómputo del borrowing base', () => {
   });
 
   test('limpiar la selección no produce Infinity ni NaN en ninguna pantalla', async ({ page }) => {
-    await page.goto('/divulgacion');
+    await gotoDisclosure(page);
     await selectInstallments(page, SELECTION_A);
+    await buildProof(page, SELECTION_A.length);
     await gotoBorrowingBase(page);
     await page.getByRole('button', { name: 'Ejecutar recómputo' }).click();
     await expect(breakdownRow(page, 'Base prestable')).toBeVisible();
 
-    await page
-      .getByRole('navigation', { name: 'Secciones del panel' })
-      .getByRole('link', {
-        name: 'Divulgación selectiva',
-      })
-      .click();
+    await backToDisclosure(page);
     await page.getByRole('button', { name: 'Limpiar' }).click();
 
     // La maqueta divide por un nominal de 0 y renderiza literalmente
@@ -261,7 +309,7 @@ test.describe('recómputo del borrowing base', () => {
   });
 
   test('la selección sobrevive a un refresco a mitad de demo', async ({ page }) => {
-    await page.goto('/divulgacion');
+    await gotoDisclosure(page);
     await selectInstallments(page, SELECTION_A);
 
     await page.reload();
@@ -281,8 +329,9 @@ test.describe('con movimiento reducido', () => {
   test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
   test('el desglose aparece entero, sin coreografía', async ({ page }) => {
-    await page.goto('/divulgacion');
+    await gotoDisclosure(page);
     await selectInstallments(page, SELECTION_A);
+    await buildProof(page, SELECTION_A.length);
     await gotoBorrowingBase(page);
 
     await page.getByRole('button', { name: 'Ejecutar recómputo' }).click();

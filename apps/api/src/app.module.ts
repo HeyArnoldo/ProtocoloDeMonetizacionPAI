@@ -8,6 +8,9 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { ChainModule } from './chain/chain.module';
 import { DisclosureModule } from './disclosure/disclosure.module';
+import { EvidenceModule } from './evidence/evidence.module';
+import { AssetsModule } from './assets/assets.module';
+import { VerificationModule } from './verification/verification.module';
 
 @Module({
   imports: [
@@ -15,10 +18,13 @@ import { DisclosureModule } from './disclosure/disclosure.module';
     ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, validate: validateEnv }),
     TypeOrmModule.forRoot(dataSourceOptions),
     ChainModule,
+    EvidenceModule,
+    AssetsModule,
     DisclosureModule,
     UsersModule,
     AuthModule,
     HealthModule,
+    VerificationModule,
   ],
 })
 export class AppModule {}

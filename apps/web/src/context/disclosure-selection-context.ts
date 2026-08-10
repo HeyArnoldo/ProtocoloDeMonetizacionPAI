@@ -11,6 +11,9 @@ import type { Hex, ReceivableLeaf } from '@app/merkle';
  */
 
 export interface DisclosureSelectionValue {
+  /** Activo efectivo de la sesión, tomado del query o recuperado de sessionStorage. */
+  assetId: string | null;
+
   /** Estado de `GET /api/disclosure/sample`. */
   isPending: boolean;
   isError: boolean;

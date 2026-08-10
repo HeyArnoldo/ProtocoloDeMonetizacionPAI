@@ -3,13 +3,18 @@ import {
   CURRENCY_CODES,
   UserRole,
   authUserSchema,
-  disclosurePreviewRequestSchema,
   disclosurePreviewResponseSchema,
+  persistedDisclosurePreviewRequestSchema,
+  publicVerificationSchema,
   samplePortfolioSchema,
+  type AssetReceivableResponse,
+  type AssetResponse,
   type AuthConfig,
   type AuthUser,
   type DisclosurePreviewRequest,
   type DisclosurePreviewResponse,
+  type EvidenceResponse,
+  type PublicVerificationResponse,
   type Receivable,
   type SamplePortfolio,
 } from '@app/contracts';
@@ -32,11 +37,10 @@ import {
  *
  * Dos decisiones gobiernan este archivo:
  *
- * 1. **Nada se inventa.** La cartera reproduce el caso Contafácil SAC de
- *    `apps/api/src/disclosure/disclosure.service.ts`, y el root, el proof y
- *    las hojas divulgadas se calculan aquí con `@app/merkle` — el mismo
- *    paquete que usa el servicio real. Un proof inventado haría pasar tests
- *    contra datos imposibles.
+ * 1. **Nada se inventa.** La cartera reproduce el caso Contafácil SAC, y el
+ *    root, el proof y las hojas divulgadas se calculan aquí con `@app/merkle`
+ *    — el mismo paquete que usa `DisclosureService`. Un proof inventado haría
+ *    pasar tests contra datos imposibles.
  * 2. **Todo se valida contra los contratos.** Cada respuesta pasa por su
  *    schema Zod de `@app/contracts` antes de salir. Si el contrato cambia, el
  *    mock falla en vez de mentirle al test.
@@ -44,6 +48,60 @@ import {
 
 /** El salt real es aleatorio por sesión; el del fixture es fijo para que el root sea reproducible. */
 export const SAMPLE_SALT = `0x${'a1b2c3d4'.repeat(8)}` as const;
+export const VERIFY_ASSET_ID = `0x${'ab'.repeat(32)}` as const;
+
+/**
+ * Expediente de la demo.
+ *
+ * `/divulgacion` y `/expediente` ya no cargan una cartera de muestra: exigen el
+ * identificador del expediente en la query. Es la única constante desde la que
+ * los specs construyen esa URL, para que el `assetId` que pide la pantalla y el
+ * que sirve el mock no puedan divergir.
+ */
+export const DEMO_ASSET_ID = `0x${'1d'.repeat(32)}` as const;
+
+export function buildPublicVerification(): PublicVerificationResponse {
+  return publicVerificationSchema.parse({
+    supported: true,
+    network: 'arbitrum',
+    chainId: 421614,
+    safeBlock: '12345',
+    registry: {
+      assetId: VERIFY_ASSET_ID,
+      merkleRoot: `0x${'cd'.repeat(32)}`,
+      ownerIdHash: `0x${'ef'.repeat(32)}`,
+      controller: `0x${'12'.repeat(20)}`,
+      registeredAt: '2026-08-08T15:00:00.000Z',
+      status: 'Attested',
+    },
+    attestations: [
+      {
+        kind: 'REVENUE_VERIFIED',
+        certifier: `0x${'34'.repeat(20)}`,
+        certificateHash: `0x${'56'.repeat(32)}`,
+        attestedAt: '2026-08-08T15:01:00.000Z',
+      },
+    ],
+    certificate: {
+      supported: true,
+      valid: true,
+      owner: `0x${'12'.repeat(20)}`,
+      issuanceCount: '1',
+    },
+    explorer: {
+      baseUrl: 'https://sepolia.arbiscan.io',
+      registryUrl: `https://sepolia.arbiscan.io/address/0x${'78'.repeat(20)}`,
+      controllerUrl: `https://sepolia.arbiscan.io/address/0x${'12'.repeat(20)}`,
+    },
+  });
+}
+
+export async function mockPublicVerification(
+  page: Page,
+  response: PublicVerificationResponse = buildPublicVerification(),
+): Promise<void> {
+  await page.route('**/api/verification/assets/*', (route) => fulfillJson(route, response));
+}
 
 /** Contratos del caso Contafácil SAC, copiados de `DisclosureService.samplePortfolio()`. */
 const SAMPLE_CONTRACTS = [
@@ -88,6 +146,49 @@ export function buildAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
 }
 
 /**
+ * Cuotas persistidas del expediente, tal como las devuelve `GET /api/assets/:id`.
+ *
+ * El orden del array es el que ve `/divulgacion`: los índices que la pantalla
+ * manda en `disclosedIndices` son posiciones de esta lista, no del campo
+ * `position` —que solo ordena la vista del expediente—.
+ */
+export function buildAssetReceivables(
+  portfolio = buildSamplePortfolio(),
+): AssetReceivableResponse[] {
+  return portfolio.receivables.map((item, index) => {
+    const suffix = String(index).padStart(2, '0');
+    return {
+      ...item,
+      id: `8fb79494-272c-4be1-8204-885c0bba35${suffix}`,
+      evidenceId: `7fb79494-272c-4be1-8204-885c0bba35${suffix}`,
+      position: index,
+    };
+  });
+}
+
+/**
+ * Expediente persistido.
+ *
+ * El `merkleRoot` **se calcula** con `@app/merkle` sobre estas mismas cuotas, no
+ * se escribe a mano: es el valor que `/divulgacion` enseña como root del
+ * expediente y contra el que compara el root que devuelve el servidor al
+ * construir la prueba. Un root inventado dejaría esa comparación sin sentido.
+ */
+export function buildAssetResponse(receivables = buildAssetReceivables()): AssetResponse {
+  return {
+    id: DEMO_ASSET_ID,
+    ownerIdHash: `0x${'2'.repeat(64)}`,
+    controller: `0x${'3'.repeat(40)}`,
+    merkleRoot: buildTree(toLeaves(receivables, SAMPLE_SALT)).root,
+    registrationTxHash: `0x${'5'.repeat(64)}`,
+    registrationConfirmed: true,
+    registrationBlockNumber: 12_345,
+    createdAt: '2026-08-08T15:00:00.000Z',
+    receivables,
+  };
+}
+
+/**
  * Misma conversión que `DisclosureService.toLeaves()`.
  *
  * Se exporta para que un spec pueda alimentar `computeBorrowingBase` con las
@@ -105,7 +206,7 @@ export function toLeaves(receivables: Receivable[], salt: Hex): ReceivableLeaf[]
 }
 
 /**
- * Calcula la respuesta de `POST /api/disclosure/preview` con Merkle de verdad.
+ * Calcula la respuesta de `POST /api/disclosure/:assetId/preview` con Merkle de verdad.
  *
  * Se expone además de usarse en el mock para que un spec pueda predecir el
  * root y afirmar que la UI muestra exactamente ese valor.
@@ -118,17 +219,23 @@ export function computeDisclosurePreview(
   const multiProof = tree.multiProof(request.disclosedIndices);
   const serialized = serializeMultiProof(multiProof);
 
-  const disclosedNominalMinor = multiProof.leaves.reduce(
-    (total, leaf) => total + leaf.amountMinor,
-    0n,
-  );
+  const nominalByCurrency = new Map<number, bigint>();
+  for (const leaf of multiProof.leaves) {
+    nominalByCurrency.set(
+      leaf.currency,
+      (nominalByCurrency.get(leaf.currency) ?? 0n) + leaf.amountMinor,
+    );
+  }
 
   return disclosurePreviewResponseSchema.parse({
     root: tree.root,
     totalLeaves: leaves.length,
     disclosedCount: multiProof.leaves.length,
     hiddenCount: leaves.length - multiProof.leaves.length,
-    disclosedNominalMinor: disclosedNominalMinor.toString(),
+    disclosedNominalByCurrency: [...nominalByCurrency].map(([currency, amountMinor]) => ({
+      currency,
+      amountMinor: amountMinor.toString(),
+    })),
     // El `leafHash` no viaja en `serializeMultiProof`: se añade aquí igual que
     // hace el servicio, para que la UI pueda mostrar la hoja.
     disclosedLeaves: serialized.leaves.map((leaf, index) => ({
@@ -146,8 +253,12 @@ export interface ApiMockOptions {
   authConfig?: AuthConfig;
   /** Sesión de `GET /api/auth/me`. `null` responde 401, que es lo que ve un anónimo. */
   user?: AuthUser | null;
-  /** Cartera de `GET /api/disclosure/sample`. */
+  /** Datos de las cuotas del expediente por defecto. Ignorado si se pasa `asset`. */
   portfolio?: SamplePortfolio;
+  evidence?: EvidenceResponse[];
+  evidenceUploadError?: string;
+  asset?: AssetResponse;
+  assetErrorStatus?: 403 | 404;
 }
 
 function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
@@ -166,7 +277,8 @@ function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
 export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise<void> {
   const authConfig: AuthConfig = options.authConfig ?? { localEnabled: true, googleEnabled: true };
   const user = options.user ?? null;
-  const portfolio = options.portfolio ?? buildSamplePortfolio();
+  const evidence = [...(options.evidence ?? [])];
+  const asset = options.asset ?? buildAssetResponse(buildAssetReceivables(options.portfolio));
 
   await page.route('**/api/auth/config', (route) => fulfillJson(route, authConfig));
 
@@ -180,12 +292,36 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
 
   await page.route('**/api/auth/logout', (route) => fulfillJson(route, {}));
 
-  await page.route('**/api/disclosure/sample', (route) => fulfillJson(route, portfolio));
+  await page.route('**/api/evidence', (route) => {
+    if (route.request().method() === 'GET') return fulfillJson(route, evidence);
+    if (options.evidenceUploadError) {
+      return fulfillJson(route, { statusCode: 503, message: options.evidenceUploadError }, 503);
+    }
+    const uploaded: EvidenceResponse = {
+      id: '7fb79494-272c-4be1-8204-885c0bba3528',
+      originalName: 'factura.xml',
+      mimeType: 'application/xml',
+      sizeBytes: '18',
+      sha256: `0x${'a'.repeat(64)}`,
+      createdAt: '2026-08-08T15:00:00.000Z',
+    };
+    evidence.unshift(uploaded);
+    return fulfillJson(route, uploaded, 201);
+  });
 
-  await page.route('**/api/disclosure/preview', (route) => {
+  await page.route('**/api/assets/*', (route) =>
+    options.assetErrorStatus
+      ? fulfillJson(route, { statusCode: options.assetErrorStatus }, options.assetErrorStatus)
+      : fulfillJson(route, asset),
+  );
+
+  // `GET /api/disclosure/sample` ya no existe: la cartera de muestra fija
+  // desapareció y toda pantalla trabaja sobre el expediente persistido.
+
+  await page.route('**/api/disclosure/*/preview', (route) => {
     // El request se valida con el mismo schema que usaría el controller: si la
     // UI manda algo fuera de contrato, el test lo ve como 400 y no como éxito.
-    const parsed = disclosurePreviewRequestSchema.safeParse(
+    const parsed = persistedDisclosurePreviewRequestSchema.safeParse(
       JSON.parse(route.request().postData() ?? '{}'),
     );
 
@@ -194,7 +330,17 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
     }
 
     try {
-      return fulfillJson(route, computeDisclosurePreview(parsed.data));
+      // El árbol se construye sobre las cuotas del expediente que sirve
+      // `GET /api/assets/:id`, que son las que la pantalla enseña. Derivarlo de
+      // otra lista devolvería un root que no es el del expediente.
+      return fulfillJson(
+        route,
+        computeDisclosurePreview({
+          salt: SAMPLE_SALT,
+          receivables: asset.receivables,
+          disclosedIndices: parsed.data.disclosedIndices,
+        }),
+      );
     } catch (error) {
       // Los errores de `@app/merkle` son de dominio: el servicio real los
       // traduce a 400 con el mensaje original.

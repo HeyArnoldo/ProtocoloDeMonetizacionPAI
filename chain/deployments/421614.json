@@ -1,0 +1,30 @@
+{
+  "chainId": 421614,
+  "addresses": {
+    "assetRegistry": "0xFda73e63797dcD7940e1Ce0B000dbE17d03c3208",
+    "certificationAttestor": "0xCc4CF2d2761cFf9a2c871A2bA8e5BCbb6CEB44F6",
+    "paiCertificate": "0x6b15e6715ABdD6D01661bAcf056193D6f9f33FE8",
+    "borrowingBaseEngine": "0x3Ea2f1541d2F8aB3137d2A4F64067E3d69BaA10B",
+    "collateralVault": "0xa281d5342327D35068FCcB9E99f6c0F57ee59611",
+    "mockUsdc": "0x062293daDabE79FC0A47665126B71070cD5689C8"
+  },
+  "deploymentBlock": 296546459,
+  "runtimeBytecodeHashes": {
+    "assetRegistry": "0x4a4bb52e6850a361302aa8850e8c30fe85b9ca635477c34a4b9b251db8fa74c4",
+    "certificationAttestor": "0xc14ce2758f47f76b87a23b3c03106a844d8fd296995790379cecc20f86848439",
+    "paiCertificate": "0x9e162748424ae951427f6b4bbc30407d2d645f35ef3fe13bebeb6eff9c4fe429",
+    "borrowingBaseEngine": "0xa303bb4185de37135f444c9b7661e9eb2f70be14743dbbf09e06f38ea774fb8a",
+    "collateralVault": "0xc4239e9d62ea53312c097acee501e8a4393d236e9a76ffd68b3937e11777a9c8",
+    "mockUsdc": "0xbbee284f19ab6c381807ce6a8881541f8ff343ef6cd0fa8b42f71dc18061b02a"
+  },
+  "roles": {
+    "admin": "0xF3D03248Ef1DaD9a01627FC749c1038996314443",
+    "borrower": "0x5F3f76226962875a3ceCFAb6c7CAbfE74506d918",
+    "lender": "0x2302Ab2e3E367c3e54096b01aF9626939efe50a8",
+    "certifiers": [
+      "0x22e3073839895D06f326D3d9F1d399c0cB3b3de2",
+      "0xcEDd213FF932A3c41DA0E3A0A1536d80b4373077",
+      "0xeFbE82398a63632F1fB776E0F8e4947A0eaaB85b"
+    ]
+  }
+}

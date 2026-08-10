@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { LoginInput, RegisterInput, UserRole } from '@app/contracts';
 import { GoogleProfileData, UsersService } from '../users/users.service';
 import { User } from '../users/user.entity';
+import { roleForEmail } from './role-mapping';
 
 export interface AuthResult {
   user: User;
@@ -21,13 +22,6 @@ export class AuthService {
     return this.jwt.sign({ sub: user.id, email: user.email, role: user.role });
   }
 
-  /** ADMIN_EMAIL actúa como whitelist: ese correo siempre recibe rol admin. */
-  private roleFor(email: string): UserRole {
-    return process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL
-      ? UserRole.ADMIN
-      : UserRole.USER;
-  }
-
   async register(input: RegisterInput): Promise<AuthResult> {
     const existing = await this.users.findByEmail(input.email);
     if (existing) throw new ConflictException('El email ya está registrado');
@@ -37,7 +31,7 @@ export class AuthService {
       email: input.email,
       name: input.name,
       passwordHash: await bcrypt.hash(input.password, rounds),
-      role: this.roleFor(input.email),
+      role: roleForEmail(input.email),
     });
     return { user, token: this.sign(user) };
   }
@@ -54,9 +48,9 @@ export class AuthService {
 
   async loginWithGoogle(profile: GoogleProfileData): Promise<AuthResult> {
     const user = await this.users.upsertFromGoogle(profile);
-    const expected = this.roleFor(user.email);
-    if (expected === UserRole.ADMIN && user.role !== UserRole.ADMIN) {
-      user.role = UserRole.ADMIN;
+    const configured = roleForEmail(user.email);
+    if (configured !== UserRole.PYME && user.role !== configured) {
+      user.role = configured;
       await this.users.save(user);
     }
     return { user, token: this.sign(user) };

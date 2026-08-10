@@ -6,16 +6,19 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 
 import {AssetRegistry} from "../src/AssetRegistry.sol";
 import {CertificationAttestor} from "../src/CertificationAttestor.sol";
+import {PAICertificate} from "../src/PAICertificate.sol";
 
 contract CertificationAttestorTest is Test {
     AssetRegistry internal registry;
     CertificationAttestor internal attestor;
+    PAICertificate internal certificate;
 
     address internal admin = makeAddr("admin");
     address internal company = makeAddr("company");
     address internal accountant = makeAddr("accountant");
     address internal lawyer = makeAddr("lawyer");
     address internal auditor = makeAddr("auditor");
+    address internal backupAuditor = makeAddr("backupAuditor");
     address internal intruder = makeAddr("intruder");
 
     bytes32 internal constant ASSET_ID = keccak256("expediente-1");
@@ -27,7 +30,8 @@ contract CertificationAttestorTest is Test {
 
     function setUp() public {
         registry = new AssetRegistry(admin);
-        attestor = new CertificationAttestor(registry, admin);
+        certificate = new PAICertificate(registry, admin);
+        attestor = new CertificationAttestor(registry, certificate, admin);
 
         // Los roles se leen antes de cualquier prank: son llamadas y lo consumen.
         certifierRole = attestor.CERTIFIER_ROLE();
@@ -37,9 +41,11 @@ contract CertificationAttestorTest is Test {
         // El rol lo tiene el CONTRATO, no una persona: es el unico camino por
         // el que el estado del expediente puede cambiar por certificacion.
         registry.grantRole(attestorRole, address(attestor));
+        certificate.grantRole(certificate.ISSUER_ROLE(), address(attestor));
         attestor.grantRole(certifierRole, accountant);
         attestor.grantRole(certifierRole, lawyer);
         attestor.grantRole(certifierRole, auditor);
+        attestor.grantRole(certifierRole, backupAuditor);
         vm.stopPrank();
 
         vm.prank(company);
@@ -49,6 +55,20 @@ contract CertificationAttestorTest is Test {
     function _attest(address certifier, CertificationAttestor.Kind kind) internal {
         vm.prank(certifier);
         attestor.attest(ASSET_ID, kind, CERTIFICATE_HASH);
+    }
+
+    function test_RevertWhen_CertificateUsesDifferentRegistry() public {
+        AssetRegistry otherRegistry = new AssetRegistry(admin);
+        PAICertificate mismatchedCertificate = new PAICertificate(otherRegistry, admin);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CertificationAttestor.CertificateRegistryMismatch.selector,
+                address(registry),
+                address(otherRegistry)
+            )
+        );
+        new CertificationAttestor(registry, mismatchedCertificate, admin);
     }
 
     // ─── Ordinales ────────────────────────────────────────────────────────
@@ -62,10 +82,10 @@ contract CertificationAttestorTest is Test {
 
     // ─── attest ───────────────────────────────────────────────────────────
 
-    function test_AttestMovesTheAssetToAttested() public {
+    function test_OneCertificationKindDoesNotMoveTheAssetToAttested() public {
         _attest(accountant, CertificationAttestor.Kind.RevenueVerified);
 
-        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Attested));
+        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Registered));
         assertTrue(
             attestor.isActive(ASSET_ID, CertificationAttestor.Kind.RevenueVerified, accountant)
         );
@@ -91,6 +111,7 @@ contract CertificationAttestorTest is Test {
         _attest(auditor, CertificationAttestor.Kind.ServiceContinuity);
 
         assertEq(attestor.activeCount(ASSET_ID), 3);
+        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Attested));
     }
 
     /// @dev Dos certificadores pueden atestar el mismo tipo: son opiniones
@@ -100,6 +121,41 @@ contract CertificationAttestorTest is Test {
         _attest(lawyer, CertificationAttestor.Kind.RevenueVerified);
 
         assertEq(attestor.activeCount(ASSET_ID), 2);
+        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Registered));
+    }
+
+    function test_RevertWhen_CertifierAttestsAnotherKindWhileFirstIsActive() public {
+        _attest(accountant, CertificationAttestor.Kind.RevenueVerified);
+
+        vm.prank(accountant);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CertificationAttestor.CertifierAlreadyActiveForAsset.selector, ASSET_ID, accountant
+            )
+        );
+        attestor.attest(ASSET_ID, CertificationAttestor.Kind.RightsAssignable, CERTIFICATE_HASH);
+    }
+
+    function test_CertifierCanAttestAnotherKindAfterRevokingTheFirst() public {
+        _attest(accountant, CertificationAttestor.Kind.RevenueVerified);
+
+        vm.startPrank(accountant);
+        attestor.revoke(ASSET_ID, CertificationAttestor.Kind.RevenueVerified);
+        attestor.attest(ASSET_ID, CertificationAttestor.Kind.RightsAssignable, CERTIFICATE_HASH);
+        vm.stopPrank();
+
+        assertTrue(
+            attestor.isActive(ASSET_ID, CertificationAttestor.Kind.RightsAssignable, accountant)
+        );
+    }
+
+    function test_MultipleAttestationsOfOneKindCannotSubstituteForMissingKinds() public {
+        _attest(accountant, CertificationAttestor.Kind.RevenueVerified);
+        _attest(lawyer, CertificationAttestor.Kind.RevenueVerified);
+        _attest(auditor, CertificationAttestor.Kind.RightsAssignable);
+
+        assertEq(attestor.activeCount(ASSET_ID), 3);
+        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Registered));
     }
 
     function test_RevertWhen_AttestingTwiceTheSameKindAndCertifier() public {
@@ -162,24 +218,37 @@ contract CertificationAttestorTest is Test {
         assertEq(a.certificateHash, CERTIFICATE_HASH);
     }
 
-    function test_RevokingTheLastActiveReturnsAssetToRegistered() public {
+    function testFuzz_RevokingTheLastActiveOfAnyRequiredKindReturnsAssetToRegistered(uint8 kindSeed)
+        public
+    {
         _attest(accountant, CertificationAttestor.Kind.RevenueVerified);
+        _attest(lawyer, CertificationAttestor.Kind.RightsAssignable);
+        _attest(auditor, CertificationAttestor.Kind.ServiceContinuity);
 
-        vm.prank(accountant);
-        attestor.revoke(ASSET_ID, CertificationAttestor.Kind.RevenueVerified);
+        CertificationAttestor.Kind kind = CertificationAttestor.Kind(bound(kindSeed, 0, 2));
+        address certifier = kind == CertificationAttestor.Kind.RevenueVerified
+            ? accountant
+            : kind == CertificationAttestor.Kind.RightsAssignable ? lawyer : auditor;
+
+        vm.prank(certifier);
+        attestor.revoke(ASSET_ID, kind);
 
         assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Registered));
     }
 
-    function test_AssetStaysAttestedWhileAnyRemainsActive() public {
+    function test_RevokingOneOfMultipleActiveAttestationsForTheSameKindPreservesCompleteness()
+        public
+    {
         _attest(accountant, CertificationAttestor.Kind.RevenueVerified);
-        _attest(lawyer, CertificationAttestor.Kind.RightsAssignable);
+        _attest(lawyer, CertificationAttestor.Kind.RevenueVerified);
+        _attest(auditor, CertificationAttestor.Kind.RightsAssignable);
+        _attest(backupAuditor, CertificationAttestor.Kind.ServiceContinuity);
 
         vm.prank(accountant);
         attestor.revoke(ASSET_ID, CertificationAttestor.Kind.RevenueVerified);
 
         assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Attested));
-        assertEq(attestor.activeCount(ASSET_ID), 1);
+        assertEq(attestor.activeCount(ASSET_ID), 3);
     }
 
     /// @dev Un certificador solo revoca lo que el mismo firmo. Si pudiera
@@ -220,21 +289,23 @@ contract CertificationAttestorTest is Test {
     ///      corrige y vuelve a firmar, con fecha nueva.
     function test_CanReattestAfterRevoking() public {
         _attest(accountant, CertificationAttestor.Kind.RevenueVerified);
+        _attest(lawyer, CertificationAttestor.Kind.RightsAssignable);
+        _attest(auditor, CertificationAttestor.Kind.ServiceContinuity);
 
         vm.startPrank(accountant);
         attestor.revoke(ASSET_ID, CertificationAttestor.Kind.RevenueVerified);
         attestor.attest(ASSET_ID, CertificationAttestor.Kind.RevenueVerified, CERTIFICATE_HASH);
         vm.stopPrank();
 
-        assertEq(attestor.activeCount(ASSET_ID), 1);
+        assertEq(attestor.activeCount(ASSET_ID), 3);
         assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Attested));
     }
 
     // ─── Camino completo del caso ─────────────────────────────────────────
 
     /// @dev Dias 2-7 del caso Contafacil: tres certificadores firman desde tres
-    ///      wallets distintas, y despues uno revoca. El expediente sigue
-    ///      certificado por los otros dos.
+    ///      wallets distintas, y despues uno revoca. Sin los tres tipos
+    ///      vigentes, el expediente deja de estar certificado.
     function test_FullCertificationJourney() public {
         _attest(accountant, CertificationAttestor.Kind.RevenueVerified);
         _attest(lawyer, CertificationAttestor.Kind.RightsAssignable);
@@ -246,7 +317,7 @@ contract CertificationAttestorTest is Test {
         attestor.revoke(ASSET_ID, CertificationAttestor.Kind.ServiceContinuity);
 
         assertEq(attestor.activeCount(ASSET_ID), 2);
-        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Attested));
+        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Registered));
         assertFalse(
             attestor.isActive(ASSET_ID, CertificationAttestor.Kind.ServiceContinuity, auditor)
         );

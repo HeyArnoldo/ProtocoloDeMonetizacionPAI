@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { SAMPLE_VERIFY_CODE } from '@/config/navigation';
 import { Button } from '@/components/ui/button';
 import { Reveal } from './reveal';
 
@@ -46,7 +45,7 @@ export function Cta() {
             variant="ghost"
             className="rounded-full px-6 text-white hover:bg-white/10 hover:text-white"
           >
-            <Link to={`/verify/${SAMPLE_VERIFY_CODE}`}>Ver verificación pública</Link>
+            <Link to="/verify">Ver verificación pública</Link>
           </Button>
         </div>
       </Reveal>

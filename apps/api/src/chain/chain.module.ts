@@ -4,6 +4,9 @@ import type { Env } from '../config/env.validation';
 import { CHAIN_PORT, type ChainPort } from './chain.port';
 import { ArbitrumChainAdapter } from './adapters/arbitrum.adapter';
 import { InMemoryChainAdapter } from './adapters/in-memory.adapter';
+import { ChainIntentController } from './chain-intent.controller';
+import { ChainIntentService } from './chain-intent.service';
+import { CHAIN_RUNTIME_CONFIG, chainRuntimeConfig, type ChainRuntimeConfig } from './chain.config';
 
 /**
  * Elige el adapter de cadena según `CHAIN_ADAPTER`.
@@ -13,16 +16,28 @@ import { InMemoryChainAdapter } from './adapters/in-memory.adapter';
  */
 @Global()
 @Module({
+  controllers: [ChainIntentController],
   providers: [
     {
-      provide: CHAIN_PORT,
+      provide: CHAIN_RUNTIME_CONFIG,
       inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>): ChainPort => {
+      useFactory: chainRuntimeConfig,
+    },
+    {
+      provide: CHAIN_PORT,
+      inject: [ConfigService, CHAIN_RUNTIME_CONFIG],
+      useFactory: (config: ConfigService<Env, true>, runtime: ChainRuntimeConfig): ChainPort => {
         const adapter = config.get('CHAIN_ADAPTER', { infer: true });
 
         if (adapter === 'arbitrum') {
           Logger.log('Adapter de cadena: arbitrum', 'ChainModule');
-          return new ArbitrumChainAdapter();
+          if (!runtime.rpcUrl || !runtime.deployment || runtime.deploymentBlock === undefined)
+            throw new Error('Arbitrum is not configured.');
+          return new ArbitrumChainAdapter(
+            runtime.rpcUrl,
+            runtime.deployment,
+            runtime.deploymentBlock,
+          );
         }
 
         // Se avisa fuerte a propósito: es fácil desplegar a producción con el
@@ -34,7 +49,8 @@ import { InMemoryChainAdapter } from './adapters/in-memory.adapter';
         return new InMemoryChainAdapter();
       },
     },
+    ChainIntentService,
   ],
-  exports: [CHAIN_PORT],
+  exports: [CHAIN_PORT, CHAIN_RUNTIME_CONFIG, ChainIntentService],
 })
 export class ChainModule {}

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  buildAssetReceivables,
+  buildAssetResponse,
   buildAuthUser,
   buildSamplePortfolio,
   computeDisclosurePreview,
@@ -25,6 +27,9 @@ const EXPECTED = computeDisclosurePreview({
   disclosedIndices: DISCLOSED_INDICES,
 });
 
+/** El `merkleRoot` del expediente lo calcula el fixture sobre estas mismas cuotas. */
+const ASSET = buildAssetResponse(buildAssetReceivables(PORTFOLIO));
+
 function checkboxNameFor(index: number): string {
   const item = PORTFOLIO.receivables[index]!;
   return `Divulgar cuota de ${item.debtorLabel} con vencimiento ${item.dueDate}`;
@@ -32,8 +37,10 @@ function checkboxNameFor(index: number): string {
 
 test.describe('divulgación selectiva', () => {
   test.beforeEach(async ({ page }) => {
-    await mockApi(page, { user: buildAuthUser(), portfolio: PORTFOLIO });
-    await page.goto('/divulgacion');
+    await mockApi(page, { user: buildAuthUser(), portfolio: PORTFOLIO, asset: ASSET });
+    await page.goto(`/expediente?assetId=${ASSET.id}`);
+    await page.getByRole('link', { name: 'Divulgación selectiva' }).click();
+    await expect(page).toHaveURL(/\/divulgacion$/);
     await expect(page.getByRole('heading', { name: 'Divulgación selectiva' })).toBeVisible();
   });
 

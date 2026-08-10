@@ -1,8 +1,12 @@
 import { z } from 'zod';
 
 export enum UserRole {
+  PYME = 'pyme',
+  CERTIFIER = 'certifier',
+  FUND = 'fund',
   ADMIN = 'admin',
-  USER = 'user',
+  /** @deprecated Use PYME. Kept temporarily for source compatibility. */
+  USER = 'pyme',
 }
 
 export const registerSchema = z.object({

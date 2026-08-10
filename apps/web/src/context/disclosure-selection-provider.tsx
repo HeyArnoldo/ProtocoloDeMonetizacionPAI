@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { CURRENCY_CODES } from '@app/contracts';
-import { buildTree, type Hex } from '@app/merkle';
+import type { Hex, ReceivableLeaf } from '@app/merkle';
 import {
   debtorIndices,
   parseStoredSelection,
   sanitizeSelection,
   sumNominalMinor,
-  toReceivableLeaves,
 } from '@/domain/disclosure-selection';
-import { useDisclosurePreview, useSamplePortfolio } from '@/hooks/use-disclosure';
+import { useAssetPortfolio, useDisclosurePreview } from '@/hooks/use-disclosure';
 import {
   DisclosureSelectionContext,
   type DisclosureSelectionValue,
@@ -33,6 +33,7 @@ import {
  */
 
 const STORAGE_KEY = 'pai:disclosure-selection';
+const ASSET_STORAGE_KEY = 'pai:disclosure-asset-id';
 
 /** Cota permisiva al leer: la cartera todavía no ha llegado en el primer render. */
 const UNBOUNDED = Number.MAX_SAFE_INTEGER;
@@ -48,7 +49,13 @@ function readStoredSelection(): number[] {
 }
 
 export function DisclosureSelectionProvider({ children }: { children: ReactNode }) {
-  const { data: portfolio, isPending, isError, error } = useSamplePortfolio();
+  const location = useLocation();
+  const requestedAssetId = new URLSearchParams(location.search).get('assetId');
+  const [rememberedAssetId, setRememberedAssetId] = useState(() =>
+    window.sessionStorage.getItem(ASSET_STORAGE_KEY),
+  );
+  const assetId = requestedAssetId ?? rememberedAssetId;
+  const { data: portfolio, isPending, isError, error } = useAssetPortfolio(assetId);
   const preview = useDisclosurePreview();
 
   const [storedIndices, setStoredIndices] = useState<number[]>(readStoredSelection);
@@ -56,7 +63,13 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
   // Memoizado porque el `?? []` crearía un array nuevo en cada render y
   // recalcularía todos los `useMemo` de abajo sin que nada haya cambiado.
   const receivables = useMemo(() => portfolio?.receivables ?? [], [portfolio]);
-  const salt = (portfolio?.salt ?? null) as Hex | null;
+  const salt: Hex | null = null;
+
+  useEffect(() => {
+    if (!requestedAssetId) return;
+    setRememberedAssetId(requestedAssetId);
+    window.sessionStorage.setItem(ASSET_STORAGE_KEY, requestedAssetId);
+  }, [requestedAssetId]);
 
   /**
    * La selección efectiva se recorta a la cartera realmente cargada. Un índice
@@ -121,34 +134,36 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
    * navegador con el mismo paquete que usa la API para que la pantalla pueda
    * afirmar —y no solo prometer— que ninguna selección lo mueve.
    */
-  const treeRoot = useMemo(() => {
-    if (!salt || receivables.length === 0) return null;
-    try {
-      return buildTree(toReceivableLeaves(receivables, salt)).root;
-    } catch {
-      // `buildTree` valida cada hoja y rechaza duplicados. Una cartera que no
-      // forma árbol es un defecto de datos, no algo que la UI deba tapar con
-      // un root inventado.
-      return null;
-    }
-  }, [receivables, salt]);
+  const treeRoot = (portfolio?.merkleRoot ?? null) as Hex | null;
 
   const selectedLeaves = useMemo(
-    () => (salt ? toReceivableLeaves(receivables, salt, selectedIndices) : []),
-    [receivables, salt, selectedIndices],
+    () =>
+      (preview.data?.disclosedLeaves ?? []).map(
+        ({ leafHash, amountMinor, currency, ...leaf }): ReceivableLeaf => {
+          void leafHash;
+          return {
+            ...leaf,
+            debtorHash: leaf.debtorHash as Hex,
+            docHash: leaf.docHash as Hex,
+            amountMinor: BigInt(amountMinor),
+            currency: currency as ReceivableLeaf['currency'],
+          };
+        },
+      ),
+    [preview.data],
   );
 
   const buildProof = useCallback(() => {
-    if (!portfolio || selectedIndices.length === 0) return;
+    if (!assetId || selectedIndices.length === 0) return;
     preview.mutate({
-      salt: portfolio.salt,
-      receivables: portfolio.receivables,
-      disclosedIndices: selectedIndices,
+      assetId,
+      request: { disclosedIndices: selectedIndices },
     });
-  }, [portfolio, selectedIndices, preview]);
+  }, [assetId, selectedIndices, preview]);
 
   const value: DisclosureSelectionValue = useMemo(
     () => ({
+      assetId,
       isPending,
       isError,
       error,
@@ -175,6 +190,7 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
       buildProof,
     }),
     [
+      assetId,
       isPending,
       isError,
       error,

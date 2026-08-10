@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { MOBILE_PROJECT } from '../playwright.config';
-import { buildAuthUser, mockApi } from './fixtures/api-mock';
+import { DEMO_ASSET_ID, buildAuthUser, mockApi } from './fixtures/api-mock';
 
 /**
  * El panel a 393px.
@@ -26,19 +26,46 @@ const SCREENSHOT_DIR = path.join(
 
 const VERIFY_CODE = 'PAI-8F3C-2026';
 
-/** Las diez pantallas. `/verify/:code` es pública y se visita sin sesión. */
-const ROUTES = [
+/**
+ * Las diez pantallas. `/verify/:code` es pública y se visita sin sesión.
+ *
+ * `/expediente` y `/divulgacion` llevan `search` porque exigen el expediente en
+ * la query: sin él renderizan un rótulo pidiéndolo y la auditoría de desborde y
+ * de mínimo táctil no llegaría a medir ni la tabla ni sus controles, que es
+ * justo la superficie densa que hay que probar a 393px.
+ */
+const ASSET_SEARCH = `?assetId=${DEMO_ASSET_ID}`;
+
+interface ResponsiveRoute {
+  path: string;
+  /** Query que la pantalla necesita para cargar datos. */
+  search?: string;
+  heading: string;
+  authenticated: boolean;
+}
+
+const ROUTES: readonly ResponsiveRoute[] = [
   { path: '/panel', heading: 'Resumen del expediente', authenticated: true },
-  { path: '/expediente', heading: 'Expediente y árbol de Merkle', authenticated: true },
+  {
+    path: '/expediente',
+    search: ASSET_SEARCH,
+    heading: 'Expediente y árbol de Merkle',
+    authenticated: true,
+  },
   { path: '/evidencias', heading: 'Evidencias', authenticated: true },
-  { path: '/divulgacion', heading: 'Divulgación selectiva', authenticated: true },
+  {
+    path: '/divulgacion',
+    search: ASSET_SEARCH,
+    heading: 'Divulgación selectiva',
+    authenticated: true,
+  },
   { path: '/borrowing-base', heading: 'Recómputo del borrowing base', authenticated: true },
   { path: '/certificacion', heading: 'Cola de atestaciones', authenticated: true },
   { path: '/prestamo', heading: 'Originación y fondeo', authenticated: true },
   { path: '/historial', heading: 'Historial crediticio on-chain', authenticated: true },
   { path: '/actividad', heading: 'Actividad on-chain', authenticated: true },
   { path: `/verify/${VERIFY_CODE}`, heading: 'Verificación pública', authenticated: false },
-] as const;
+];
 
 /** Un píxel de holgura: los redondeos subpíxel del navegador no son un desborde. */
 const TOLERANCE = 1;
@@ -82,9 +109,9 @@ function isMobile(): boolean {
   return test.info().project.name === MOBILE_PROJECT;
 }
 
-async function open(page: Page, route: (typeof ROUTES)[number]): Promise<void> {
+async function open(page: Page, route: ResponsiveRoute): Promise<void> {
   if (route.authenticated) await mockApi(page, { user: buildAuthUser() });
-  await page.goto(route.path);
+  await page.goto(`${route.path}${route.search ?? ''}`);
   await expect(page.getByRole('heading', { level: 1, name: route.heading })).toBeVisible({
     timeout: APP_BOOT_TIMEOUT,
   });
@@ -360,6 +387,7 @@ test.describe('evidencia visual y accesibilidad en móvil', () => {
     },
     {
       path: '/divulgacion',
+      search: ASSET_SEARCH,
       name: 'disclosure.png',
       heading: 'Divulgación selectiva',
       authenticated: true,
@@ -377,7 +405,7 @@ test.describe('evidencia visual y accesibilidad en móvil', () => {
       test.skip(!isMobile(), 'Las capturas de escritorio ya las producen los otros specs.');
 
       if (capture.authenticated) await mockApi(page, { user: buildAuthUser() });
-      await page.goto(capture.path);
+      await page.goto(`${capture.path}${'search' in capture ? capture.search : ''}`);
       await expect(page.getByRole('heading', { level: 1, name: capture.heading })).toBeVisible({
         timeout: APP_BOOT_TIMEOUT,
       });
@@ -401,7 +429,7 @@ test.describe('evidencia visual y accesibilidad en móvil', () => {
     test.skip(!isMobile(), 'Las capturas de escritorio ya las producen los otros specs.');
 
     await mockApi(page, { user: buildAuthUser() });
-    await page.goto('/divulgacion');
+    await page.goto(`/divulgacion${ASSET_SEARCH}`);
     await expect(
       page.getByRole('heading', { level: 1, name: 'Divulgación selectiva' }),
     ).toBeVisible({
@@ -409,7 +437,20 @@ test.describe('evidencia visual y accesibilidad en móvil', () => {
     });
     await page.getByRole('button', { name: 'Supermercados Andinos SAC' }).click();
 
-    await page.goto('/borrowing-base');
+    // El desglose se calcula sobre las hojas que devuelve el servidor al
+    // construir el multiproof: sin prueba construida no hay nada que recomputar
+    // y la captura mostraría el estado vacío.
+    await page.getByRole('button', { name: /^Construir prueba/ }).click();
+    await expect(page.getByText('Prueba construida')).toBeVisible();
+
+    // Se navega por el cajón y no con `page.goto`: la prueba construida vive en
+    // memoria del proveedor, así que una recarga completa la perdería y la
+    // captura volvería a mostrar el estado vacío.
+    await page.getByRole('button', { name: 'Abrir menú' }).click();
+    await page
+      .getByRole('navigation', { name: 'Secciones del panel' })
+      .getByRole('link', { name: 'Recómputo Stylus' })
+      .click();
     await expect(
       page.getByRole('heading', { level: 1, name: 'Recómputo del borrowing base' }),
     ).toBeVisible();

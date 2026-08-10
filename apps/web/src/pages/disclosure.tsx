@@ -24,13 +24,9 @@ import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
 
 /**
  * Divulgación selectiva: la única pantalla del panel con datos reales de punta
- * a punta. La cartera viene de `GET /api/disclosure/sample` y el multiproof lo
- * construye `POST /api/disclosure/preview` con `@app/merkle` — el mismo
- * paquete que verifica los vectores dorados.
- *
- * La selección no es estado local: vive en `DisclosureSelectionProvider` y la
- * comparte con `/borrowing-base`. Ese es el guion de la demo — marcar cuotas
- * aquí y ver el número moverse allá.
+ * a punta. La cartera persistida viene de `GET /api/assets/:assetId` y el
+ * multiproof se construye sobre ese mismo expediente en
+ * `POST /api/disclosure/:assetId/preview`.
  */
 
 /**
@@ -53,11 +49,11 @@ function useSelectionChangeCount(selectionKey: string): number {
 
 export default function DisclosurePage() {
   const {
+    assetId,
     isPending,
     isError,
     error,
     receivables,
-    treeRoot,
     selectedIndices,
     isSelected,
     toggle,
@@ -68,11 +64,15 @@ export default function DisclosurePage() {
     totalNominalMinor,
     selectedNominalMinor,
     currency,
+    treeRoot,
     proof,
     isBuildingProof,
     proofError,
     buildProof,
   } = useDisclosureSelection();
+  const totalNominal = formatMinorUnits(totalNominalMinor, currency);
+  const selectedNominal =
+    selectedNominalMinor === 0n ? '—' : formatMinorUnits(selectedNominalMinor, currency);
 
   const debtors = useMemo(
     () => [...new Set(receivables.map((item) => item.debtorLabel))],
@@ -80,6 +80,14 @@ export default function DisclosurePage() {
   );
 
   const selectionChanges = useSelectionChangeCount(selectedIndices.join(','));
+
+  if (!assetId) {
+    return (
+      <p className="text-muted-foreground py-12 text-center">
+        Abre esta página con el identificador del expediente: <code>?assetId=0x…</code>
+      </p>
+    );
+  }
 
   if (isPending) {
     return (
@@ -105,8 +113,8 @@ export default function DisclosurePage() {
           <div className="flex flex-col gap-0.5">
             <CardKicker>Cartera del expediente</CardKicker>
             <p className="text-muted-foreground text-[11.5px]">
-              {receivables.length} cuotas · nominal total{' '}
-              {formatMinorUnits(totalNominalMinor, currency)} · {disclosedCount} seleccionadas
+              {receivables.length} cuotas · nominal total {totalNominal || '—'} · {disclosedCount}{' '}
+              seleccionadas
             </p>
           </div>
 
@@ -202,7 +210,7 @@ export default function DisclosurePage() {
                 bare
                 kicker="Nominal divulgado"
                 emphasis="brand"
-                value={formatMinorUnits(selectedNominalMinor, currency)}
+                value={selectedNominal || '—'}
                 valueClassName="text-[17px]"
               />
               <StatTile
@@ -243,7 +251,8 @@ export default function DisclosurePage() {
               >
                 recómputo del borrowing base
               </Link>{' '}
-              usa exactamente estas {disclosedCount} cuotas.
+              puede continuar con este expediente persistido y sus {disclosedCount} cuotas
+              divulgadas.
             </CardBody>
           </PanelCard>
 

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { SAMPLE_VERIFY_CODE } from '@/config/navigation';
 
 interface FooterColumn {
   heading: string;
@@ -17,7 +16,7 @@ const COLUMNS: FooterColumn[] = [
     heading: 'Producto',
     links: [
       { label: 'Entrar al panel', to: '/login' },
-      { label: 'Verificación pública', to: `/verify/${SAMPLE_VERIFY_CODE}` },
+      { label: 'Verificación pública', to: '/verify' },
     ],
   },
   {

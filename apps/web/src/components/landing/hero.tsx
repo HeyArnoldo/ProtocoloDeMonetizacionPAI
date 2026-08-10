@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
-import { SAMPLE_VERIFY_CODE } from '@/config/navigation';
 import { Button } from '@/components/ui/button';
 import { Reveal } from './reveal';
 import { HeroBackground } from './hero-background';
@@ -17,11 +16,14 @@ const HEADLINE_TOKENS: TypewriterToken[] = [
 ];
 
 /**
- * El CTA secundario manda directo a `/verify/:code` con el código de ejemplo
- * del sidebar del panel (`SAMPLE_VERIFY_CODE`) — es la única pantalla que no
- * pide sesión, así que es la que de verdad se puede tocar sin credenciales
- * antes de entrar. Reusa la constante en vez de escribir el código de nuevo:
- * si cambia el caso de referencia, esto no queda desincronizado.
+ * El CTA secundario manda a `/verify`, la entrada neutral: es la única pantalla
+ * que no pide sesión, así que es la que de verdad se puede tocar sin
+ * credenciales antes de entrar.
+ *
+ * A `/verify` y no a `/verify/:code` con un identificador de ejemplo. La página
+ * exige un `assetId` bytes32 y rechaza cualquier otra cosa, así que un código
+ * legible mandaría al visitante a un error de validación; y como todavía no hay
+ * activos publicados, un bytes32 válido daría 404 igual.
  */
 export function Hero() {
   return (
@@ -83,7 +85,7 @@ export function Hero() {
             </Link>
           </Button>
           <Button asChild variant="ghost" size="lg" className="rounded-full px-6">
-            <Link to={`/verify/${SAMPLE_VERIFY_CODE}`}>Ver verificación pública, sin cuenta</Link>
+            <Link to="/verify">Ver verificación pública, sin cuenta</Link>
           </Button>
         </Reveal>
       </div>

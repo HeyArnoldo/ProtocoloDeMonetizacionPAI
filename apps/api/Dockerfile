@@ -35,6 +35,7 @@ RUN pnpm install --prod --frozen-lockfile --ignore-scripts --filter @app/api...
 # directorio, y traerse `packages/` entero arrastraría los node_modules de dev.
 # El job `docker` del CI es lo que impide que esta lista se quede corta.
 COPY --from=build /repo/packages/contracts/dist packages/contracts/dist
+COPY --from=build /repo/packages/evm/dist packages/evm/dist
 COPY --from=build /repo/packages/merkle/dist packages/merkle/dist
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY apps/api/docker-entrypoint.sh ./docker-entrypoint.sh

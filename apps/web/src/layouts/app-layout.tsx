@@ -1,9 +1,15 @@
 import { useEffect, useId, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react';
 import { useLogout, useMe } from '@/hooks/use-auth';
 import { DisclosureSelectionProvider } from '@/context/disclosure-selection-provider';
-import { NAV_GROUPS, findPanelRoute, type NavGroup } from '@/config/navigation';
+import {
+  canAccessPanelRoute,
+  findPanelRoute,
+  navigationForRole,
+  roleLandingPath,
+  type NavGroup,
+} from '@/config/navigation';
 import { NetworkStatus } from '@/components/panel/network-status';
 import { PageHeader } from '@/components/panel/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +49,8 @@ export function AppLayout() {
   const { pathname } = useLocation();
 
   const route = findPanelRoute(pathname);
+  const navGroups = user ? navigationForRole(user.role) : [];
+  const allowed = user ? canAccessPanelRoute(pathname, user.role) : false;
 
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -61,6 +69,10 @@ export function AppLayout() {
     .map((part) => part.charAt(0).toUpperCase())
     .join('');
 
+  if (user && pathname === '/' && !allowed) {
+    return <Navigate to={roleLandingPath(user.role)} replace />;
+  }
+
   return (
     // El proveedor envuelve el shell entero y no cada página: `/divulgacion` y
     // `/borrowing-base` comparten la misma selección, y montarlo aquí es lo
@@ -74,7 +86,7 @@ export function AppLayout() {
           <PanelBrand />
 
           <nav aria-label="Secciones del panel" className="flex flex-col gap-[18px]">
-            {NAV_GROUPS.map((group) => (
+            {navGroups.map((group) => (
               <NavGroupList key={group.heading} group={group} />
             ))}
           </nav>
@@ -118,7 +130,7 @@ export function AppLayout() {
                   </div>
 
                   <nav aria-label="Secciones del panel" className="flex flex-col gap-[18px]">
-                    {NAV_GROUPS.map((group) => (
+                    {navGroups.map((group) => (
                       <NavGroupList key={group.heading} group={group} />
                     ))}
                   </nav>
@@ -198,11 +210,36 @@ export function AppLayout() {
             data-testid="panel-content"
             className="flex-1 overflow-y-auto px-4 pt-4 pb-10 lg:px-[26px] lg:pt-6 lg:pb-[60px]"
           >
-            <Outlet />
+            {allowed ? (
+              <Outlet />
+            ) : (
+              <ForbiddenPanel landing={user ? roleLandingPath(user.role) : '/'} />
+            )}
           </div>
         </main>
       </div>
     </DisclosureSelectionProvider>
+  );
+}
+
+function ForbiddenPanel({ landing }: { landing: string }) {
+  return (
+    <div role="alert" className="border-border max-w-xl rounded-lg border p-5">
+      <h2 className="text-lg font-medium">Access denied</h2>
+      <p className="text-muted-foreground mt-2 text-sm">
+        Your authenticated role does not allow access to this panel page.
+      </p>
+      {/* `min-h-11` hasta `lg`, como el resto de destinos táctiles del shell:
+          los 20px de la línea de texto quedan muy por debajo del mínimo de
+          44px, y este enlace es la única salida de la pantalla de acceso
+          denegado. */}
+      <Link
+        className="text-brand-300 mt-4 inline-flex min-h-11 items-center text-sm underline lg:min-h-0"
+        to={landing}
+      >
+        Go to your role dashboard
+      </Link>
+    </div>
   );
 }
 

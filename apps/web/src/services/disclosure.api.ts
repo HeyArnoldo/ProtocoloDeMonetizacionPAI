@@ -1,18 +1,32 @@
 import type {
-  DisclosurePreviewRequest,
+  AssetResponse,
+  ChainAssetSnapshotResponse,
   DisclosurePreviewResponse,
-  SamplePortfolio,
+  PersistedDisclosurePreviewRequest,
 } from '@app/contracts';
 import { api } from '@/lib/api';
 
-export async function fetchSamplePortfolio(): Promise<SamplePortfolio> {
-  const { data } = await api.get<SamplePortfolio>('/disclosure/sample');
+export async function fetchAsset(assetId: string): Promise<AssetResponse> {
+  const { data } = await api.get<AssetResponse>(`/assets/${assetId}`);
+  return data;
+}
+
+export async function fetchCertificationSnapshot(
+  assetId: string,
+): Promise<ChainAssetSnapshotResponse> {
+  const { data } = await api.get<ChainAssetSnapshotResponse>(
+    `/assets/${assetId}/certification-chain`,
+  );
   return data;
 }
 
 export async function previewDisclosure(
-  request: DisclosurePreviewRequest,
+  assetId: string,
+  request: PersistedDisclosurePreviewRequest,
 ): Promise<DisclosurePreviewResponse> {
-  const { data } = await api.post<DisclosurePreviewResponse>('/disclosure/preview', request);
+  const { data } = await api.post<DisclosurePreviewResponse>(
+    `/disclosure/${assetId}/preview`,
+    request,
+  );
   return data;
 }

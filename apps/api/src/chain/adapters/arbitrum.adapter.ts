@@ -1,67 +1,291 @@
+import {
+  assetRegistryAbi,
+  certificationAttestorAbi,
+  collateralVaultAbi,
+  paiCertificateAbi,
+  type Deployment,
+} from '@app/evm';
 import { Injectable } from '@nestjs/common';
-import type {
-  AssetId,
-  AttestInput,
-  BorrowingBaseInput,
-  BorrowingBaseResult,
-  ChainPort,
-  OnChainAsset,
-  RegisterAssetInput,
-  RevokeAttestationInput,
-  TxRef,
+import { createPublicClient, http, type Address, type Hex } from 'viem';
+import {
+  ASSET_STATUS_ORDINAL,
+  AttestationKind,
+  type AssetStatus,
+  type AssetId,
+  type Attestation,
+  type AttestInput,
+  type BorrowingBaseInput,
+  type BorrowingBaseResult,
+  type ChainAssetSnapshot,
+  type ChainPort,
+  type OnChainAsset,
+  type RegisterAssetInput,
+  type RevokeAttestationInput,
+  type TxRef,
 } from '../chain.port';
 
-/**
- * Adapter real contra Arbitrum. **Territorio Web3 — pendiente de implementar.**
- *
- * Esqueleto a propósito: la interfaz ya está fijada y testeada contra
- * `InMemoryChainAdapter`, así que esto se puede llenar sin tocar nada del
- * dominio. Cada método documenta a qué llamada de contrato corresponde.
- *
- * Notas de implementación:
- * - Usar **Viem** (`packages/evm` expone los ABIs generados desde `chain/`).
- * - Las transacciones que mueven valor **no se firman acá**: las manda el
- *   usuario desde su smart account. Este adapter solo firma atestaciones
- *   EIP-712 con `ATTESTOR_PRIVATE_KEY` y lee estado/eventos.
- * - `registerAsset` y `attest` deberían encolarse (BullMQ) en vez de bloquear
- *   la request esperando confirmación.
- */
+interface Reader {
+  getChainId(): Promise<number>;
+  getBlock(parameters: object): Promise<{ number: bigint }>;
+  readContract(parameters: object): Promise<unknown>;
+  getContractEvents(parameters: object): Promise<AttestationLog[]>;
+}
+interface AttestationLog {
+  eventName: 'Attested' | 'AttestationRevoked';
+  args: {
+    assetId?: Hex;
+    kind?: number;
+    certifier?: Address;
+    certificateHash?: Hex;
+    attestedAt?: bigint;
+  };
+  blockNumber: bigint | null;
+  transactionIndex: number | null;
+  logIndex: number | null;
+  transactionHash: Hex | null;
+  removed?: boolean;
+}
+
+const KINDS = [
+  AttestationKind.RevenueVerified,
+  AttestationKind.RightsAssignable,
+  AttestationKind.ServiceContinuity,
+] as const;
+const LOAN_STATES = [undefined, 'Pledged', 'Funded', 'Repaid', 'Defaulted'] as const;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const order = (log: AttestationLog): readonly [bigint, number, number] => {
+  if (log.blockNumber === null || log.transactionIndex === null || log.logIndex === null) {
+    throw new Error('RPC returned an unpositioned attestation log.');
+  }
+  return [log.blockNumber, log.transactionIndex, log.logIndex];
+};
+const timestamp = (value: bigint | undefined): Date => {
+  if (value === undefined || value > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error('RPC returned an invalid attestation timestamp.');
+  }
+  return new Date(Number(value) * 1000);
+};
+
+/** Deterministically reduces finalized event history to active attestations only. */
+export function activeAttestations(
+  assetId: AssetId,
+  logs: readonly AttestationLog[],
+): Attestation[] {
+  const positioned = logs
+    .filter((log) => !log.removed && log.args.assetId?.toLowerCase() === assetId.toLowerCase())
+    .sort((left, right) => {
+      const a = order(left);
+      const b = order(right);
+      return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1] || a[2] - b[2];
+    });
+  const seen = new Map<string, string>();
+  const active = new Map<string, Attestation>();
+  for (const log of positioned) {
+    const { kind, certifier } = log.args;
+    if (kind === undefined || !KINDS[kind] || !certifier || !log.transactionHash) {
+      throw new Error('RPC returned a malformed attestation log.');
+    }
+    const id = `${log.transactionHash}:${log.logIndex}`;
+    const fingerprint = `${log.eventName}:${kind}:${certifier}:${log.args.certificateHash ?? ''}:${log.args.attestedAt ?? ''}`;
+    if (seen.has(id)) {
+      if (seen.get(id) !== fingerprint) throw new Error('RPC returned conflicting duplicate logs.');
+      continue;
+    }
+    seen.set(id, fingerprint);
+    const key = `${kind}:${certifier.toLowerCase()}`;
+    if (log.eventName === 'AttestationRevoked') active.delete(key);
+    else {
+      if (!log.args.certificateHash) throw new Error('RPC returned a malformed Attested log.');
+      active.set(key, {
+        kind: KINDS[kind],
+        certifier,
+        certificateHash: log.args.certificateHash,
+        attestedAt: timestamp(log.args.attestedAt),
+        revokedAt: null,
+      });
+    }
+  }
+  return [...active.values()].sort(
+    (left, right) =>
+      KINDS.indexOf(left.kind) - KINDS.indexOf(right.kind) ||
+      left.certifier.localeCompare(right.certifier),
+  );
+}
+
+/** Public-RPC adapter. It never owns an account and therefore cannot submit transactions. */
 @Injectable()
 export class ArbitrumChainAdapter implements ChainPort {
-  private notImplemented(method: string, contractCall: string): never {
-    throw new Error(
-      `ArbitrumChainAdapter.${method} todavía no está implementado (debe llamar a ${contractCall}). ` +
-        'Usa CHAIN_ADAPTER=in-memory mientras tanto.',
-    );
+  private readonly reader: Reader;
+
+  constructor(
+    rpcUrl: string,
+    private readonly deployment: Deployment,
+    private readonly deploymentBlock: bigint,
+    reader?: Reader,
+  ) {
+    this.reader = reader ?? (createPublicClient({ transport: http(rpcUrl) }) as unknown as Reader);
   }
 
-  /** → `AssetRegistry.registerAsset(assetId, merkleRoot, ownerIdHash)` */
   registerAsset(_input: RegisterAssetInput): Promise<TxRef> {
-    return this.notImplemented('registerAsset', 'AssetRegistry.registerAsset');
+    return this.unsignedOnly();
   }
-
-  /** → `CertificationAttestor.attest(assetId, kind, certificateHash)` */
   attest(_input: AttestInput): Promise<TxRef> {
-    return this.notImplemented('attest', 'CertificationAttestor.attest');
+    return this.unsignedOnly();
   }
-
-  /** → `CertificationAttestor.revoke(assetId, kind)` */
   revokeAttestation(_input: RevokeAttestationInput): Promise<TxRef> {
-    return this.notImplemented('revokeAttestation', 'CertificationAttestor.revoke');
+    return this.unsignedOnly();
   }
 
-  /** → `AssetRegistry.assets(assetId)` + eventos indexados en Postgres */
-  getAsset(_assetId: AssetId): Promise<OnChainAsset | null> {
-    return this.notImplemented('getAsset', 'AssetRegistry.assets');
+  async getAsset(assetId: AssetId): Promise<OnChainAsset | null> {
+    return this.assetAt(assetId, await this.safeBlock());
   }
 
-  /**
-   * → `BorrowingBaseEngine.compute(root, leaves, proof, proofFlags)` (Stylus, `view`)
-   *
-   * Es una llamada de solo lectura: el prestamista puede hacer exactamente la
-   * misma y obtener el mismo número. Ese es todo el argumento del proyecto.
-   */
+  async getAssetSnapshot(assetId: AssetId): Promise<ChainAssetSnapshot | null> {
+    const safeBlock = await this.safeBlock();
+    const asset = await this.assetAt(assetId, safeBlock);
+    if (!asset) return null;
+    const [valid, owner, issuanceCount, loan] = (await Promise.all([
+      this.read(
+        this.deployment.addresses.paiCertificate,
+        paiCertificateAbi,
+        'isValid',
+        assetId,
+        safeBlock,
+      ),
+      this.read(
+        this.deployment.addresses.paiCertificate,
+        paiCertificateAbi,
+        'certificateOwner',
+        assetId,
+        safeBlock,
+      ),
+      this.read(
+        this.deployment.addresses.paiCertificate,
+        paiCertificateAbi,
+        'issuanceCount',
+        assetId,
+        safeBlock,
+      ),
+      this.read(
+        this.deployment.addresses.collateralVault,
+        collateralVaultAbi,
+        'getLoan',
+        assetId,
+        safeBlock,
+      ),
+    ])) as [
+      boolean,
+      Address,
+      bigint,
+      { borrower: Address; lender: Address; principal: bigint; dueAt: bigint; state: number },
+    ];
+    const certificateOwner = owner.toLowerCase() === ZERO_ADDRESS ? null : owner;
+    if (valid !== (certificateOwner !== null)) {
+      throw new Error('RPC returned inconsistent certificate state.');
+    }
+    const loanState = LOAN_STATES[Number(loan.state)];
+    if (Number(loan.state) !== 0 && !loanState)
+      throw new Error(`Unknown loan state: ${loan.state}`);
+    return {
+      network: 'arbitrum',
+      chainId: this.deployment.chainId,
+      blockNumber: safeBlock,
+      asset,
+      certificate: { supported: true, valid, owner: certificateOwner, issuanceCount },
+      loan: {
+        supported: true,
+        value: loanState
+          ? {
+              borrower: loan.borrower,
+              lender: loan.lender,
+              principal: loan.principal,
+              dueAt: timestamp(loan.dueAt),
+              state: loanState,
+            }
+          : null,
+      },
+    };
+  }
+
+  private async safeBlock(): Promise<bigint> {
+    const chainId = await this.reader.getChainId();
+    if (chainId !== this.deployment.chainId) {
+      throw new Error(
+        `RPC chain ${chainId} does not match deployment chain ${this.deployment.chainId}.`,
+      );
+    }
+    return (await this.reader.getBlock({ blockTag: 'safe' })).number;
+  }
+
+  private async assetAt(assetId: AssetId, safeBlock: bigint): Promise<OnChainAsset | null> {
+    const exists = await this.reader.readContract({
+      address: this.deployment.addresses.assetRegistry,
+      abi: assetRegistryAbi,
+      functionName: 'exists',
+      args: [assetId],
+      blockNumber: safeBlock,
+    });
+    if (exists !== true) return null;
+    const asset = (await this.reader.readContract({
+      address: this.deployment.addresses.assetRegistry,
+      abi: assetRegistryAbi,
+      functionName: 'getAsset',
+      args: [assetId],
+      blockNumber: safeBlock,
+    })) as {
+      merkleRoot: AssetId;
+      ownerIdHash: AssetId;
+      controller: Address;
+      registeredAt: bigint;
+      status: number;
+      exists: boolean;
+    };
+    const status = Object.entries(ASSET_STATUS_ORDINAL).find(
+      ([, ordinal]) => ordinal === Number(asset.status),
+    )?.[0] as AssetStatus | undefined;
+    if (!status) throw new Error(`Unknown on-chain asset status: ${asset.status}`);
+    const logs = (
+      await Promise.all(
+        ['Attested', 'AttestationRevoked'].map((eventName) =>
+          this.reader.getContractEvents({
+            address: this.deployment.addresses.certificationAttestor,
+            abi: certificationAttestorAbi,
+            eventName,
+            args: { assetId },
+            fromBlock: this.deploymentBlock,
+            toBlock: safeBlock,
+            strict: true,
+          }),
+        ),
+      )
+    ).flat();
+    return {
+      assetId,
+      merkleRoot: asset.merkleRoot,
+      ownerIdHash: asset.ownerIdHash,
+      controller: asset.controller,
+      registeredAt: timestamp(asset.registeredAt),
+      status,
+      attestations: activeAttestations(assetId, logs),
+    };
+  }
+
+  private read(
+    address: Address,
+    abi: object,
+    functionName: string,
+    assetId: AssetId,
+    blockNumber: bigint,
+  ) {
+    return this.reader.readContract({ address, abi, functionName, args: [assetId], blockNumber });
+  }
+
   computeBorrowingBase(_input: BorrowingBaseInput): Promise<BorrowingBaseResult> {
-    return this.notImplemented('computeBorrowingBase', 'BorrowingBaseEngine.compute');
+    throw new Error('Real borrowing-base reads require risk parameters; use the intent endpoint.');
+  }
+  private unsignedOnly(): Promise<TxRef> {
+    return Promise.reject(
+      new Error('The API never signs or submits transactions; request an unsigned intent.'),
+    );
   }
 }
