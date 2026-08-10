@@ -1,24 +1,24 @@
 export type SmokeOperation = 'startup' | 'rpc-preflight' | 'broadcast';
 
 export interface SafeOperationalError {
-  readonly code: 'SMOKE_PREFLIGHT_FAILED' | 'architecture_decision_required';
+  readonly code: 'SMOKE_PREFLIGHT_FAILED' | 'redeployment_required';
   readonly operation: SmokeOperation;
   readonly reason:
     | 'RPC_FAILURE'
     | 'INVALID_CONFIGURATION'
     | 'UNEXPECTED_FAILURE'
-    | 'ARCHITECTURE_DECISION_REQUIRED';
+    | 'SOURCE_RUNTIME_MISMATCH';
 }
 
 export function safeOperationalError(
   operation: SmokeOperation,
   error: unknown,
 ): SafeOperationalError {
-  if (error instanceof Error && error.name === 'ArchitectureDecisionRequiredError') {
+  if (error instanceof Error && error.name === 'RedeploymentRequiredError') {
     return Object.freeze({
-      code: 'architecture_decision_required',
+      code: 'redeployment_required',
       operation,
-      reason: 'ARCHITECTURE_DECISION_REQUIRED',
+      reason: 'SOURCE_RUNTIME_MISMATCH',
     });
   }
   const classification = error instanceof Error ? `${error.name} ${error.message}` : '';

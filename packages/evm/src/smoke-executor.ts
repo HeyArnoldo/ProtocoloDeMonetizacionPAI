@@ -117,23 +117,34 @@ export function hashSmokePlan(
   });
 }
 
-export class ArchitectureDecisionRequiredError extends Error {
+export const EXPECTED_ASSET_REGISTRY_RUNTIME_BYTECODE_HASH =
+  '0x4a4bb52e6850a361302aa8850e8c30fe85b9ca635477c34a4b9b251db8fa74c4' as const;
+
+export class RedeploymentRequiredError extends Error {
   constructor() {
-    super('architecture_decision_required');
-    this.name = 'ArchitectureDecisionRequiredError';
+    super('redeployment_required');
+    this.name = 'RedeploymentRequiredError';
+  }
+}
+
+export function assertDeploymentSourceIdentity(deployment: LiveDeployment): void {
+  if (
+    deployment.runtimeBytecodeHashes.assetRegistry !== EXPECTED_ASSET_REGISTRY_RUNTIME_BYTECODE_HASH
+  ) {
+    throw new RedeploymentRequiredError();
   }
 }
 
 export function assertBroadcastRequest(
-  chainId: number,
+  deployment: LiveDeployment,
   currentPlanHash: Hex,
   confirmedPlanHash: string | undefined,
-): never {
-  if (chainId !== 421_614) throw new Error('Broadcast is restricted to chainId 421614.');
+): void {
+  if (deployment.chainId !== 421_614) throw new Error('Broadcast is restricted to chainId 421614.');
   if (!confirmedPlanHash)
     throw new Error('Broadcast requires --confirm-plan with the printed hash.');
   if (confirmedPlanHash !== currentPlanHash) throw new Error('Confirmed plan hash does not match.');
-  throw new ArchitectureDecisionRequiredError();
+  assertDeploymentSourceIdentity(deployment);
 }
 
 export function buildExpectedSmokeStates(
@@ -192,7 +203,14 @@ export function buildExpectedSmokeStates(
     state(asset(2), all, loan(1), true, 0n, 1_000_000n, 0n, DEMO_PRINCIPAL),
     state(asset(3), all, loan(2), true, DEMO_PRINCIPAL, 600_000n),
     state(asset(3), all, loan(2), true, DEMO_PRINCIPAL, 600_000n, DEMO_PRINCIPAL),
-    state(asset(4), all, loan(3), true, plan.readback.borrowerBalance, plan.readback.lenderBalance),
+    state(
+      asset(plan.readback.assetStatus),
+      all,
+      loan(plan.readback.loanState),
+      plan.readback.certificateValid,
+      plan.readback.borrowerBalance,
+      plan.readback.lenderBalance,
+    ),
   ];
   return Object.freeze(expected.map((item) => Object.freeze(item)));
 }

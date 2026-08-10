@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import * as publicApi from './index';
 import type { LiveDeployment } from './deployments';
 import {
-  ArchitectureDecisionRequiredError,
+  EXPECTED_ASSET_REGISTRY_RUNTIME_BYTECODE_HASH,
+  RedeploymentRequiredError,
   assertBroadcastRequest,
+  assertDeploymentSourceIdentity,
   buildExpectedSmokeStates,
   executeSmokePlan,
   hashSmokePlan,
@@ -128,25 +130,41 @@ describe('smoke broadcast boundary', () => {
 
   it('creates no capability when chain or confirmation gates fail', () => {
     const createCapability = vi.fn();
-    expect(() => assertBroadcastRequest(1, planHash, planHash)).toThrow(/421614/);
-    expect(() => assertBroadcastRequest(421_614, planHash, undefined)).toThrow(/confirm-plan/i);
-    expect(() => assertBroadcastRequest(421_614, planHash, `0x${'0'.repeat(64)}`)).toThrow(
+    expect(() => assertBroadcastRequest({ ...deployment, chainId: 1 }, planHash, planHash)).toThrow(
+      /421614/,
+    );
+    expect(() => assertBroadcastRequest(deployment, planHash, undefined)).toThrow(/confirm-plan/i);
+    expect(() => assertBroadcastRequest(deployment, planHash, `0x${'0'.repeat(64)}`)).toThrow(
       /plan hash/i,
     );
     expect(createCapability).not.toHaveBeenCalled();
   });
 
-  it('hard-disables a correctly confirmed broadcast before capability creation', () => {
+  it('requires corrected canonical runtime identity before capability creation', () => {
     const createWallet = vi.fn();
     const sign = vi.fn();
     const journal = vi.fn();
     const send = vi.fn();
-    expect(() => assertBroadcastRequest(421_614, planHash, planHash)).toThrow(
-      ArchitectureDecisionRequiredError,
+    expect(() => assertDeploymentSourceIdentity(deployment)).toThrow(RedeploymentRequiredError);
+    expect(() => assertBroadcastRequest(deployment, planHash, planHash)).toThrow(
+      RedeploymentRequiredError,
     );
     expect(
       [createWallet, sign, journal, send].every((operation) => operation.mock.calls.length === 0),
     ).toBe(true);
+  });
+
+  it('accepts future metadata bound to the corrected AssetRegistry runtime', () => {
+    const corrected = {
+      ...deployment,
+      runtimeBytecodeHashes: {
+        ...deployment.runtimeBytecodeHashes,
+        assetRegistry: EXPECTED_ASSET_REGISTRY_RUNTIME_BYTECODE_HASH,
+      },
+    };
+
+    expect(() => assertDeploymentSourceIdentity(corrected)).not.toThrow();
+    expect(() => assertBroadcastRequest(corrected, planHash, planHash)).not.toThrow();
   });
 });
 

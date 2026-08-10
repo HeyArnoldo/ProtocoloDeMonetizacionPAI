@@ -156,17 +156,25 @@ La operación live tiene dos fases obligatorias:
 # Fase 1: solo lectura. Repetir inmediatamente antes de autorizar.
 pnpm --filter @app/evm smoke:plan
 
-# Fase 2: BLOQUEADA. Aunque el hash coincida, termina con
-# architecture_decision_required y no crea wallet, firma, journal ni envío.
+# Fase 2: BLOQUEADA mientras el despliegue canónico sea el anterior. Termina con
+# redeployment_required y no crea wallet, firma, journal ni envío.
 pnpm --filter @app/evm smoke:broadcast -- --confirm-plan 0x<planHash>
 ```
 
-**La fase 2 está deshabilitada sin excepción.** La arquitectura exige que el registro vuelva a `Attested` después de `Repaid`, pero el contrato desplegado y el readback actual permanecen en `Repaid`. Hasta que una decisión humana cambie primero la arquitectura o los contratos, incluso una solicitud correcta termina de forma estable con `architecture_decision_required`, después de todos los checks de solo lectura y antes de crear cualquier capacidad de escritura.
+**La fase 2 sigue deshabilitada para el despliegue actual.** El código corregido devuelve el activo a `Attested`, pero `deployments/421614.json` conserva de forma intencional las direcciones y hashes del despliegue anterior. El preflight verifica primero que esos hashes describan fielmente el bytecode live y luego exige que el hash runtime de `AssetRegistry` coincida con la identidad compilada corregida. Mientras no coincida termina de forma estable con `redeployment_required`, antes de crear cualquier capacidad de escritura.
+
+Para preparar un redeploy sin falsificar metadatos:
+
+1. Ejecutar tests, generación de ABI y una simulación `forge script` sin `--broadcast`.
+2. Con autorización explícita separada, desplegar los seis contratos mediante `script/Deploy.s.sol`.
+3. Conservar el broadcast real de Foundry y ejecutar `deployment:finalize`; el finalizador exige exactamente seis `CREATE` exitosos, toma el menor bloque de sus receipts y lee los seis hashes runtime desde RPC.
+4. Revisar el diff de `deployments/421614.json`. No copiar direcciones predichas ni resultados de simulación.
+5. Repetir `smoke:preflight`; solo metadata nueva cuyo runtime live incluya el `AssetRegistry` corregido supera `redeployment_required`.
 
 El ejecutor puro conserva el modelo previsto para una eventual habilitación: prepara y firma una sola vez, calcula el hash localmente, persiste el pending antes de broadcast y solo permite reemitir los mismos bytes firmados y el mismo hash. Nunca deriva éxito de nonce. El raw firmado es una capacidad operacional sensible: si en el futuro se conecta un journal real, debe vivir exclusivamente en `chain/.smoke-journal/` (ignorado), con permisos restringidos al usuario, sin mnemonic ni clave privada, y nunca debe aparecer en logs o errores. Actualmente la CLI no crea ese directorio ni journal.
 
-**Efectos previstos si una decisión futura la habilita:** registraría el activo demo determinista, agregaría tres atestaciones, originaría el préstamo, acuñaría `1_000_000` unidades menores de MockUSDC, configuraría allowances, financiaría `400_000` unidades menores y repagaría `400_000`. El readback desplegado exige registro `Repaid` (ordinal 4), préstamo `Repaid` (ordinal 3), certificado válido y saldos borrower `0`, lender `1_000_000`, vault `0`.
+**Efectos previstos si una autorización futura la habilita:** registraría el activo demo determinista, agregaría tres atestaciones, originaría el préstamo, acuñaría `1_000_000` unidades menores de MockUSDC, configuraría allowances, financiaría `400_000` unidades menores y repagaría `400_000`. El readback corregido exige activo `Attested` (ordinal 1), préstamo `Repaid` (ordinal 3), certificado válido y saldos borrower `0`, lender `1_000_000`, vault `0`.
 
-No se aceptan mnemonic ni claves privadas por argumentos y nunca se imprimen errores crudos, transacciones firmadas ni valores del entorno. La API no participa ni firma transacciones de valor. Una autorización del comando no supera el bloqueo arquitectónico: primero hace falta resolver y documentar la transición posterior a `Repaid`.
+No se aceptan mnemonic ni claves privadas por argumentos y nunca se imprimen errores crudos, transacciones firmadas ni valores del entorno. La API no participa ni firma transacciones de valor. Una autorización del comando no supera el gate de redeploy: primero hacen falta metadata canónica nueva y hashes runtime leídos del despliegue corregido.
 
 La demo actual usa contratos Solidity y `MockUSDC`. No usa Stylus, USDC nativo ni atestaciones EIP-712.

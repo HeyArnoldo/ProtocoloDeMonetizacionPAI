@@ -5,7 +5,7 @@ import { mnemonicToAccount } from 'viem/accounts';
 import { describe, expect, it } from 'vitest';
 import { assetRegistryAbi, collateralVaultAbi, mockUSDCAbi } from './generated/abis';
 import { safeErrorLine } from './operational-error';
-import { ArchitectureDecisionRequiredError } from './smoke-executor';
+import { RedeploymentRequiredError } from './smoke-executor';
 import {
   buildDemoFixture,
   buildDemoPlan,
@@ -124,7 +124,7 @@ describe('testnet smoke safety boundary', () => {
         .functionName,
     ).toBe('repay');
     expect(plan.readback).toEqual({
-      assetStatus: 4,
+      assetStatus: 1,
       loanState: 3,
       certificateValid: true,
       borrowerBalance: 0n,
@@ -132,7 +132,7 @@ describe('testnet smoke safety boundary', () => {
       vaultBalance: 0n,
     });
     expect(() => verifyDemoReadback(plan.readback, plan.readback)).not.toThrow();
-    expect(() => verifyDemoReadback({ ...plan.readback, assetStatus: 1 }, plan.readback)).toThrow(
+    expect(() => verifyDemoReadback({ ...plan.readback, assetStatus: 4 }, plan.readback)).toThrow(
       /assetStatus/,
     );
   });
@@ -204,9 +204,9 @@ describe('testnet smoke safety boundary', () => {
     for (const secret of secrets) expect(output).not.toContain(secret);
   });
 
-  it('reports the stable architecture broadcast block without sensitive detail', () => {
-    expect(safeErrorLine('broadcast', new ArchitectureDecisionRequiredError())).toBe(
-      '{"code":"architecture_decision_required","operation":"broadcast","reason":"ARCHITECTURE_DECISION_REQUIRED"}',
+  it('reports the stable redeployment block without sensitive detail', () => {
+    expect(safeErrorLine('rpc-preflight', new RedeploymentRequiredError())).toBe(
+      '{"code":"redeployment_required","operation":"rpc-preflight","reason":"SOURCE_RUNTIME_MISMATCH"}',
     );
   });
 });

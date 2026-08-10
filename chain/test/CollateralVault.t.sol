@@ -68,7 +68,34 @@ contract CollateralVaultTest is Test {
         vm.prank(borrower);
         vault.repay(ASSET_ID);
         assertEq(usdc.balanceOf(lender), 2_000_000);
-        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Repaid));
+        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Attested));
+        assertEq(uint8(vault.getLoan(ASSET_ID).state), uint8(CollateralVault.State.Repaid));
+        assertTrue(certificate.isValid(ASSET_ID));
+    }
+
+    function test_RevertWhen_NonBorrowerRepays() public {
+        _originate(PRINCIPAL);
+        vm.prank(lender);
+        vault.fund(ASSET_ID);
+
+        vm.prank(outsider);
+        vm.expectRevert(CollateralVault.NotController.selector);
+        vault.repay(ASSET_ID);
+
+        assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Funded));
+        assertEq(uint8(vault.getLoan(ASSET_ID).state), uint8(CollateralVault.State.Funded));
+    }
+
+    function test_RevertWhen_MarkingRepaidOutsideFundedTransition() public {
+        vm.prank(address(vault));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AssetRegistry.InvalidTransition.selector,
+                AssetRegistry.Status.Attested,
+                AssetRegistry.Status.Attested
+            )
+        );
+        registry.markRepaid(ASSET_ID);
     }
 
     function test_RevertWhen_DisclosureDoesNotMatchRootOrPrincipalExceedsBase() public {

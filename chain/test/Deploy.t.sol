@@ -134,11 +134,13 @@ contract DeployTest is Test {
         deployment.vault.repay(ASSET_ID);
         assertEq(deployment.usdc.balanceOf(lender), 1_000_000);
         assertEq(
-            uint8(deployment.registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Repaid)
+            uint8(deployment.registry.getAsset(ASSET_ID).status),
+            uint8(AssetRegistry.Status.Attested)
         );
         assertEq(
             uint8(deployment.vault.getLoan(ASSET_ID).state), uint8(CollateralVault.State.Repaid)
         );
+        assertTrue(deployment.certificate.isValid(ASSET_ID));
     }
 
     function _receivables() private pure returns (ReceivableLeaf.Data[] memory leaves) {

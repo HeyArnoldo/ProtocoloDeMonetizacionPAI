@@ -10,7 +10,12 @@ import {
   paiCertificateAbi,
 } from './generated/abis';
 import { buildDemoPlan, DEMO_ASSET_ID, deriveRoleAccounts, validateSmokeConfig } from './smoke';
-import { assertBroadcastRequest, hashDeploymentMetadata, hashSmokePlan } from './smoke-executor';
+import {
+  assertBroadcastRequest,
+  assertDeploymentSourceIdentity,
+  hashDeploymentMetadata,
+  hashSmokePlan,
+} from './smoke-executor';
 import { readSmokeState } from './smoke-live';
 import { verifyRuntimeBytecodeHashes } from './deployments';
 import { safeErrorLine, type SmokeOperation } from './operational-error';
@@ -53,6 +58,7 @@ async function main() {
   await client.getBlock({ blockNumber: BigInt(deployment.deploymentBlock) });
 
   await verifyRuntimeBytecodeHashes(deployment, client);
+  assertDeploymentSourceIdentity(deployment);
   const [
     registryAttestor,
     registryVault,
@@ -272,7 +278,7 @@ async function main() {
   }
   if (broadcast) {
     operation = 'broadcast';
-    assertBroadcastRequest(chainId, planHash, confirmedPlanHash);
+    assertBroadcastRequest(deployment, planHash, confirmedPlanHash);
   }
 }
 

@@ -54,7 +54,7 @@ export const DEMO_ASSET_ID = keccak256(stringToHex('pai-arbitrum-sepolia-demo-v1
 export const DEMO_PRINCIPAL = 400_000n;
 export const DEMO_DEBTOR_SALT = `0x${'a5'.repeat(32)}` as Hex;
 const DEMO_READBACK: DemoReadback = Object.freeze({
-  assetStatus: 4,
+  assetStatus: 1,
   loanState: 3,
   certificateValid: true,
   borrowerBalance: 0n,

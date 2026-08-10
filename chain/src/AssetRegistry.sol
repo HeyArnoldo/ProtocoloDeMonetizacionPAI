@@ -124,7 +124,7 @@ contract AssetRegistry is AccessControl, Pausable {
     }
 
     function markRepaid(bytes32 assetId) external onlyRole(VAULT_ROLE) whenNotPaused {
-        _transition(assetId, Status.Funded, Status.Repaid);
+        _transition(assetId, Status.Funded, Status.Attested);
     }
 
     function markDefaulted(bytes32 assetId) external onlyRole(VAULT_ROLE) whenNotPaused {
