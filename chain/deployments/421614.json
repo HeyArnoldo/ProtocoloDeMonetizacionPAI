@@ -1,20 +1,20 @@
 {
   "chainId": 421614,
   "addresses": {
-    "assetRegistry": "0xFD3c8149F9f1512a15D8e035038640128F476afb",
-    "certificationAttestor": "0xc8b279AF47541617CC3da831998Dd44Cd01c09AA",
-    "paiCertificate": "0xaf85b23453110c7a66FF9292aA37091530e7B67f",
-    "borrowingBaseEngine": "0xcCcC73242daa855cB878aC281347253ebf903947",
-    "collateralVault": "0x784923fCCA5A7246ab4df57F8A5f88d4F89d99cC",
-    "mockUsdc": "0xA7b4aFE2e8c1529fe99461c414c5c5dE6aE99694"
+    "assetRegistry": "0xFda73e63797dcD7940e1Ce0B000dbE17d03c3208",
+    "certificationAttestor": "0xCc4CF2d2761cFf9a2c871A2bA8e5BCbb6CEB44F6",
+    "paiCertificate": "0x6b15e6715ABdD6D01661bAcf056193D6f9f33FE8",
+    "borrowingBaseEngine": "0x3Ea2f1541d2F8aB3137d2A4F64067E3d69BaA10B",
+    "collateralVault": "0xa281d5342327D35068FCcB9E99f6c0F57ee59611",
+    "mockUsdc": "0x062293daDabE79FC0A47665126B71070cD5689C8"
   },
-  "deploymentBlock": 296444399,
+  "deploymentBlock": 296546459,
   "runtimeBytecodeHashes": {
-    "assetRegistry": "0x0712d0f8889ce6f305138695f7f3fa9b44f242320ad47135a180360351b2b6f2",
-    "certificationAttestor": "0xa85fc8182210002a18707606dc87908c749e1742c042a5e54194f37717062a44",
-    "paiCertificate": "0x9ffd2a375f37cae7d7ea215fffbecd3bb5924a07a9a3c907d8e6f55a343d1f21",
+    "assetRegistry": "0x4a4bb52e6850a361302aa8850e8c30fe85b9ca635477c34a4b9b251db8fa74c4",
+    "certificationAttestor": "0xc14ce2758f47f76b87a23b3c03106a844d8fd296995790379cecc20f86848439",
+    "paiCertificate": "0x9e162748424ae951427f6b4bbc30407d2d645f35ef3fe13bebeb6eff9c4fe429",
     "borrowingBaseEngine": "0xa303bb4185de37135f444c9b7661e9eb2f70be14743dbbf09e06f38ea774fb8a",
-    "collateralVault": "0x9f0378f46ea2ab5163e5b32fd9122d31a6e592250188bfd32ffbd934d16c3ddc",
+    "collateralVault": "0xc4239e9d62ea53312c097acee501e8a4393d236e9a76ffd68b3937e11777a9c8",
     "mockUsdc": "0xbbee284f19ab6c381807ce6a8881541f8ff343ef6cd0fa8b42f71dc18061b02a"
   },
   "roles": {
