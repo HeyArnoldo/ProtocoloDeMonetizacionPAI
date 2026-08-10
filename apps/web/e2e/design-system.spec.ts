@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { buildAuthUser, mockApi } from './fixtures/api-mock';
+import { DEMO_ASSET_ID, buildAuthUser, mockApi } from './fixtures/api-mock';
 
 /**
  * Prueba de que el sistema visual Nocturne quedó realmente aplicado sobre los
@@ -117,7 +117,9 @@ test.describe('sistema visual Nocturne', () => {
 
   test('la divulgación selectiva mantiene el sistema sobre tablas y tarjetas', async ({ page }) => {
     await mockApi(page, { user: buildAuthUser() });
-    await page.goto('/divulgacion');
+    // Sin el expediente en la query no hay tabla ni tarjetas que auditar: la
+    // pantalla solo pide el identificador.
+    await page.goto(`/divulgacion?assetId=${DEMO_ASSET_ID}`);
 
     await expect(page.getByRole('heading', { name: 'Divulgación selectiva' })).toBeVisible();
     // El layout del handoff pone varias tarjetas en la pantalla, así que ya no

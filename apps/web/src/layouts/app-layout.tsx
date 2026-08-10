@@ -229,7 +229,14 @@ function ForbiddenPanel({ landing }: { landing: string }) {
       <p className="text-muted-foreground mt-2 text-sm">
         Your authenticated role does not allow access to this panel page.
       </p>
-      <Link className="text-brand-300 mt-4 inline-block text-sm underline" to={landing}>
+      {/* `min-h-11` hasta `lg`, como el resto de destinos táctiles del shell:
+          los 20px de la línea de texto quedan muy por debajo del mínimo de
+          44px, y este enlace es la única salida de la pantalla de acceso
+          denegado. */}
+      <Link
+        className="text-brand-300 mt-4 inline-flex min-h-11 items-center text-sm underline lg:min-h-0"
+        to={landing}
+      >
         Go to your role dashboard
       </Link>
     </div>

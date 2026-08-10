@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
-  buildAuthUser,
+  buildAssetReceivables,
   buildAssetResponse,
+  buildAuthUser,
   buildSamplePortfolio,
   computeDisclosurePreview,
   mockApi,
@@ -26,16 +27,8 @@ const EXPECTED = computeDisclosurePreview({
   disclosedIndices: DISCLOSED_INDICES,
 });
 
-const ASSET = {
-  ...buildAssetResponse(PORTFOLIO),
-  merkleRoot: EXPECTED.root,
-  receivables: PORTFOLIO.receivables.map((item, index) => ({
-    ...item,
-    id: `8fb79494-272c-4be1-8204-885c0bba35${String(index).padStart(2, '0')}`,
-    evidenceId: `7fb79494-272c-4be1-8204-885c0bba35${String(index).padStart(2, '0')}`,
-    position: index,
-  })),
-};
+/** El `merkleRoot` del expediente lo calcula el fixture sobre estas mismas cuotas. */
+const ASSET = buildAssetResponse(buildAssetReceivables(PORTFOLIO));
 
 function checkboxNameFor(index: number): string {
   const item = PORTFOLIO.receivables[index]!;

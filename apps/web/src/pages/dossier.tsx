@@ -124,7 +124,10 @@ export default function DossierPage() {
               <CardKicker>Ordered receivables</CardKicker>
               <h2 className="text-[17px] font-medium">{receivables.length} persisted entries</h2>
             </div>
-            <ol className="grid gap-2 md:grid-cols-2">
+            {/* La lista lleva nombre accesible: el sidebar del panel también es
+                una lista de `listitem` y sin nombre no hay forma —ni para un
+                lector de pantalla ni para un test— de referirse solo a esta. */}
+            <ol aria-label="Ordered receivables" className="grid gap-2 md:grid-cols-2">
               {receivables.map((item) => (
                 <li key={item.id} className="border-border min-w-0 rounded-md border p-3">
                   <p className="text-sm font-medium">

@@ -74,9 +74,11 @@ export default function LoanPage() {
         <form className="mt-2 grid gap-4" onSubmit={submit} noValidate>
           <div className="grid gap-1.5">
             <Label htmlFor="loan-action">Action</Label>
+            {/* `min-h-11` hasta `lg`, igual que `Button` e `Input`: los 36px de
+                `h-9` están por debajo del mínimo táctil de 44px. */}
             <select
               id="loan-action"
-              className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+              className="border-input bg-background h-9 min-h-11 rounded-md border px-3 text-sm lg:min-h-0"
               value={action}
               onChange={(event) => setAction(event.target.value as LoanAction)}
               disabled={busy}
