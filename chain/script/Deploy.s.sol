@@ -143,5 +143,4 @@ contract Deploy is Script {
                 || address(deployment.vault.token()) != address(deployment.usdc)
         ) revert WiringMismatch();
     }
-
 }
