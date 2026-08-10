@@ -25,7 +25,10 @@ async function main() {
     ],
   } as const;
   const chainRoot = resolve(process.cwd(), '../../chain');
-  const broadcastPath = resolve(chainRoot, `broadcast/Deploy.s.sol/${chainId}/run-latest.json`);
+  const broadcastPathArgument = process.argv.find((value) => value.startsWith('--broadcast-path='));
+  const broadcastPath = broadcastPathArgument
+    ? resolve(process.cwd(), broadcastPathArgument.split('=')[1]!)
+    : resolve(chainRoot, `broadcast/Deploy.s.sol/${chainId}/run-latest.json`);
   const outputPath = resolve(chainRoot, `deployments/${chainId}.json`);
   const broadcast = JSON.parse(await readFile(broadcastPath, 'utf8')) as unknown;
   const rpcUrl = process.env.CHAIN_RPC_URL;

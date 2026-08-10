@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "compilerVersion": "0.8.28+commit.7893614a",
+  "compilerSettingsHash": "a11d652a055fcea70eb8ce1962ac67927fadb1811e7575cf8bd47fd1f0d2c148",
+  "sourceTreeHash": "5eda51342d6b5468a3dbc77be0f3909369f5027a0221d3e59b9df0e0af091990",
+  "deployScriptHash": "82a61423f971f5ac8726765ba6c3fcab1002916fd5c309a5163c4fc1ad65d3b3",
+  "artifacts": {
+    "assetRegistry": {
+      "artifactSha256": "b8bbb53d07eb00a1fa8ba1ad23fa9ebc04f11e2c70231b3f976141a59cb34b44",
+      "creationBytecodeHash": "0x8929870094e05d1e1cb0682dd7a92696299bdbe3c0fea075c8c70c4ce1042790",
+      "runtimeBytecodeHash": "0x4a4bb52e6850a361302aa8850e8c30fe85b9ca635477c34a4b9b251db8fa74c4"
+    },
+    "certificationAttestor": {
+      "artifactSha256": "dcab936157b2cd9738b8d8f8aff2f07299ec64fc76848efdfed3f99ed6a516d9",
+      "creationBytecodeHash": "0x8074ef888eefffd44db3e3e8555fee06b82792c7712dd72f15e9328deb9ce774",
+      "runtimeBytecodeHash": "0xdef7b59ee3d6341077cd21fee7b9e73efaa03962cf89026ad5ec54831d36de3d"
+    },
+    "paiCertificate": {
+      "artifactSha256": "377bef60bdf7eb0b20d0213f9c10153cfd3b8d873c1a189fcf66c100db105b4d",
+      "creationBytecodeHash": "0xa58e1b87d7525f9fbec9ce4fed0beb29dcf5a211d0dc3f85b715b0b6911fdbc1",
+      "runtimeBytecodeHash": "0xb8b0e98ae41bbf36464dbcc626643dacce70d8a87a88a437f64e5d77554a4af2"
+    },
+    "borrowingBaseEngine": {
+      "artifactSha256": "97026b50fb6957de5c806e09d05ba92528051a883ace1005c6b35b385d0e579c",
+      "creationBytecodeHash": "0x5ef88af9d5b54fb9820554d306ca03f5eb6b1653ccd4f8bf89d9a5390a7b23ae",
+      "runtimeBytecodeHash": "0xa303bb4185de37135f444c9b7661e9eb2f70be14743dbbf09e06f38ea774fb8a"
+    },
+    "collateralVault": {
+      "artifactSha256": "54a9ece5ffe6c3d1765d05ddb310e945f703d94aba453c23bab504ce10e608d8",
+      "creationBytecodeHash": "0xfcf38835e8bac368726693cab8451f62f215100443f49531da28a261022d3342",
+      "runtimeBytecodeHash": "0xf0d2d50a48dc54fd4395781552025a1d36239f4a866d98d21a134825ad0804f7"
+    },
+    "mockUsdc": {
+      "artifactSha256": "8a65f774485adcbde7d5086093f6a5445943e6465ddf5ded37ff0c6f4e85369c",
+      "creationBytecodeHash": "0xac6403c5155ac51ca6d9e530d373c30c2d11d99c3deeb2ed8a492647905e88ab",
+      "runtimeBytecodeHash": "0xbbee284f19ab6c381807ce6a8881541f8ff343ef6cd0fa8b42f71dc18061b02a"
+    }
+  }
+}

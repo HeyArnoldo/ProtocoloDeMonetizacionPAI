@@ -1,11 +1,13 @@
 import { getAddress, type Address } from 'viem';
 import {
+  contractNames,
   parseLiveDeployment,
   readRuntimeBytecodeHashes,
   type DeploymentRoles,
   type LiveDeployment,
   type RuntimeCodeProvider,
 } from './deployments';
+import type { RuntimeBytecodeHashes } from './deployments';
 
 const contractKeys = {
   AssetRegistry: 'assetRegistry',
@@ -68,6 +70,60 @@ const parseReceipts = (values: readonly BroadcastReceipt[]) => {
   });
   return receipts;
 };
+
+export function validateGuardedBroadcast(value: unknown): asserts value is FoundryBroadcast {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new TypeError('Guarded broadcast artifact must be an object.');
+  }
+  const broadcast = value as FoundryBroadcast;
+  if (
+    !Array.isArray(broadcast.transactions) ||
+    !Array.isArray(broadcast.receipts) ||
+    broadcast.transactions.length !== 20 ||
+    broadcast.receipts.length !== 20
+  ) {
+    throw new Error('Guarded broadcast must contain the complete 20-transaction receipt set.');
+  }
+  const receipts = parseReceipts(broadcast.receipts);
+  const transactionHashes = new Set<string>();
+  const creations = new Set<string>();
+  for (const [index, transaction] of broadcast.transactions.entries()) {
+    if (typeof transaction !== 'object' || transaction === null || Array.isArray(transaction)) {
+      throw new TypeError(`Transaction ${index} must be an object.`);
+    }
+    if (typeof transaction.hash !== 'string' || !TRANSACTION_HASH.test(transaction.hash)) {
+      throw new TypeError(`Transaction ${index} hash is invalid.`);
+    }
+    const hash = transaction.hash.toLowerCase();
+    if (transactionHashes.has(hash)) throw new Error(`Duplicate transaction hash ${hash}.`);
+    transactionHashes.add(hash);
+    const receipt = receipts.get(hash);
+    if (!receipt || receipt.status !== '0x1') {
+      throw new Error(`Transaction ${index} must have a successful receipt.`);
+    }
+    if (transaction.transactionType === 'CREATE') {
+      const name = String(transaction.contractName);
+      if (!(name in contractKeys) || creations.has(name)) {
+        throw new Error('Guarded broadcast contains an unexpected contract creation.');
+      }
+      creations.add(name);
+    }
+  }
+  if (transactionHashes.size !== receipts.size || creations.size !== 6) {
+    throw new Error('Guarded broadcast must contain the complete six-contract deployment.');
+  }
+}
+
+export function verifyExpectedRuntimeBytecodeHashes(
+  actual: RuntimeBytecodeHashes,
+  expected: RuntimeBytecodeHashes,
+): void {
+  for (const name of contractNames) {
+    if (actual[name] !== expected[name]) {
+      throw new Error(`${name} live runtime bytecode hash mismatch.`);
+    }
+  }
+}
 
 export async function finalizeDeployment(
   value: unknown,

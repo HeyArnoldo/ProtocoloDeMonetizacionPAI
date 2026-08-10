@@ -1,0 +1,13 @@
+{
+  "chainId": 421614,
+  "roles": {
+    "admin": "0xF3D03248Ef1DaD9a01627FC749c1038996314443",
+    "borrower": "0x5F3f76226962875a3ceCFAb6c7CAbfE74506d918",
+    "lender": "0x2302Ab2e3E367c3e54096b01aF9626939efe50a8",
+    "certifiers": [
+      "0x22e3073839895D06f326D3d9F1d399c0cB3b3de2",
+      "0xcEDd213FF932A3c41DA0E3A0A1536d80b4373077",
+      "0xeFbE82398a63632F1fB776E0F8e4947A0eaaB85b"
+    ]
+  }
+}

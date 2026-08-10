@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { keccak256, type Address, type Hex } from 'viem';
-import { finalizeDeployment } from './deployment-finalizer';
-import { verifyRuntimeBytecodeHashes } from './deployments';
+import {
+  finalizeDeployment,
+  validateGuardedBroadcast,
+  verifyExpectedRuntimeBytecodeHashes,
+} from './deployment-finalizer';
+import { contractNames, verifyRuntimeBytecodeHashes } from './deployments';
 
 const address = (digit: string) => `0x${digit.repeat(40)}` as Address;
 const hash = (digit: string) => `0x${digit.repeat(64)}`;
@@ -43,6 +47,55 @@ const successfulBroadcast = () => {
 };
 
 describe('deployment finalization', () => {
+  it.each(contractNames)('rejects a %s live runtime mismatch', (name) => {
+    const expected = Object.fromEntries(contractNames.map((key) => [key, hash('1')])) as Record<
+      (typeof contractNames)[number],
+      Hex
+    >;
+    const actual = { ...expected, [name]: hash('2') };
+    expect(() => verifyExpectedRuntimeBytecodeHashes(actual, expected)).toThrow(
+      new RegExp(`${name}.*mismatch`, 'i'),
+    );
+  });
+
+  it('accepts only a complete 20-transaction guarded broadcast', () => {
+    const broadcast = successfulBroadcast();
+    broadcast.transactions.push(
+      ...Array.from({ length: 14 }, (_, offset) => ({
+        contractName: names[0],
+        contractAddress: address('1'),
+        hash: indexedHash(offset + 7),
+        transactionType: 'CALL',
+      })),
+    );
+    expect(() => validateGuardedBroadcast(broadcast)).not.toThrow();
+  });
+
+  it('rejects missing, failed, duplicate, or extra guarded receipts', () => {
+    const complete = successfulBroadcast();
+    complete.transactions.push(
+      ...Array.from({ length: 14 }, (_, offset) => ({
+        contractName: names[0],
+        contractAddress: address('1'),
+        hash: indexedHash(offset + 7),
+        transactionType: 'CALL',
+      })),
+    );
+    const missing = structuredClone(complete);
+    missing.receipts.pop();
+    expect(() => validateGuardedBroadcast(missing)).toThrow(/complete/i);
+    const failed = structuredClone(complete);
+    failed.receipts[19]!.status = '0x0';
+    expect(() => validateGuardedBroadcast(failed)).toThrow(/successful/i);
+    const extra = structuredClone(complete);
+    extra.receipts.push({
+      transactionHash: indexedHash(21),
+      blockNumber: '0x123',
+      status: '0x1',
+    });
+    expect(() => validateGuardedBroadcast(extra)).toThrow(/complete/i);
+  });
+
   it('derives the first successful receipt block, addresses, and runtime hashes', async () => {
     const { transactions, receipts } = successfulBroadcast();
 
