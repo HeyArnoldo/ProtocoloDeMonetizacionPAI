@@ -163,13 +163,50 @@ pnpm --filter @app/evm smoke:broadcast -- --confirm-plan 0x<planHash>
 
 **La fase 2 sigue deshabilitada para el despliegue actual.** El código corregido devuelve el activo a `Attested`, pero `deployments/421614.json` conserva de forma intencional las direcciones y hashes del despliegue anterior. El preflight verifica primero que esos hashes describan fielmente el bytecode live y luego exige que el hash runtime de `AssetRegistry` coincida con la identidad compilada corregida. Mientras no coincida termina de forma estable con `redeployment_required`, antes de crear cualquier capacidad de escritura.
 
-Para preparar un redeploy sin falsificar metadatos:
+Para preparar un redeploy sin falsificar metadatos se usa exclusivamente el guard pre-broadcast. `prepare` copia fuentes, tests, configuración y dependencias a un snapshot temporal ignorado, calcula su digest, lo monta read-only y compila con `--force` usando `out/cache/broadcast` separados y escribibles. Compara artefacto completo, bytecode de creación, bytecode runtime, compilador y settings contra `deployment-identities.json`; no usa `mtime`. El candidato incluye commit, árbol, snapshot, script, chain ID y roles públicos.
 
-1. Ejecutar tests, generación de ABI y una simulación `forge script` sin `--broadcast`.
-2. Con autorización explícita separada, desplegar los seis contratos mediante `script/Deploy.s.sol`.
-3. Conservar el broadcast real de Foundry y ejecutar `deployment:finalize`; el finalizador exige exactamente seis `CREATE` exitosos, toma el menor bloque de sus receipts y lee los seis hashes runtime desde RPC.
-4. Revisar el diff de `deployments/421614.json`. No copiar direcciones predichas ni resultados de simulación.
-5. Repetir `smoke:preflight`; solo metadata nueva cuyo runtime live incluya el `AssetRegistry` corregido supera `redeployment_required`.
+El token dura como máximo cinco minutos, usa HMAC-SHA256 con un secreto local aleatorio y no exportable de `chain/.deploy-guard/`, y contiene un `tokenId` y digest de candidato. `prepare` lee una sola vez las variables operativas requeridas y vincula fingerprints HMAC de `CHAIN_RPC_URL`, `DEPLOYER_PRIVATE_KEY` y las seis direcciones de rol; no persiste ni muestra sus valores ni hashes simples. Se rechazan campos desconocidos, tiempos no enteros, TTL inválido, HMAC incorrecto y candidatos alterados. Secreto, token, nonce y estado usan permisos restrictivos; nunca se imprimen secretos ni stdout/stderr crudos. Comprometer el filesystem local y su cuenta propietaria está fuera de este modelo de amenaza.
+
+Secuencia exacta, desde la raíz:
+
+```bash
+# 1. Preparar. La salida entrega rutas específicas TOKEN y NONCE para este candidato.
+pnpm --filter @app/evm deployment:guard -- prepare
+
+# Sustituir <tokenId> solo por el identificador recién generado.
+TOKEN=chain/.deploy-guard/candidates/<tokenId>/authorization.json
+NONCE=chain/.deploy-guard/candidates/<tokenId>/authorization-nonce
+
+# 2. Inspección humana obligatoria; registra el candidato exacto como inspeccionado.
+pnpm --filter @app/evm deployment:guard -- inspect --token="$TOKEN"
+
+# 3. Simulación local opcional, desde el mismo snapshot; no usa RPC ni --broadcast.
+pnpm --filter @app/evm deployment:guard -- simulate --token="$TOKEN"
+
+# 4. SOLO después de consentimiento humano explícito para este candidato:
+# el orquestador invoca authorize una vez con el nonce generado por prepare.
+pnpm --filter @app/evm deployment:guard -- authorize --token="$TOKEN" --nonce-file="$NONCE"
+
+# 5. Broadcast de un solo uso. Nunca ejecutar sin una autorización recién consumible.
+pnpm --filter @app/evm deployment:guard -- broadcast --token="$TOKEN"
+```
+
+`authorize` es la única transición que habilita el candidato. Lee `.env` exactamente una vez en un objeto inmutable, exige coincidencia de todos sus fingerprints y consulta `eth_chainId` con ese mismo `CHAIN_RPC_URL` capturado mediante un cliente read-only; exige `421614` y sanitiza URL y errores. `broadcast` hace otra captura única, la revalida y entrega exactamente ese objeto al child mediante variables de proceso nombradas: no usa `--env-file`, valores secretos en argv ni una segunda lectura del archivo. El nonce no sustituye el consentimiento: el orquestador solo debe ejecutar esa transición después de recibir autorización humana explícita para el digest inspeccionado.
+
+No se ejecuta `forge script ... --broadcast` directamente ni desde el worktree escribible. Antes del child se recalculan snapshot y artefactos; Docker monta las fuentes congeladas read-only y obliga a Foundry a usar el `out/cache` fresco y ya validado, sin una segunda compilación sobre el worktree. La autorización se marca atómicamente `consumed` **antes** de lanzar el proceso, así que fallo, salida vacía/ambigua o validación inconclusa nunca permiten retry. Cualquier nuevo intento requiere `prepare -> inspect -> consentimiento -> authorize` nuevos.
+
+El estado persistido usa schema v2 exacto y firmado: token/candidato/nonce, fase y timestamps monotónicos específicos de `prepared`, `inspected`, `authorized` y `consumed`. Se valida antes de cada uso y transición; `consumed` es terminal.
+
+La CLI captura stdout/stderr sin mostrarlos. Un exit code cero no implica éxito: exige salida reconocible, un `run-latest.json` parseable con las 20 transacciones y receipts exitosos, exactamente los seis `CREATE`, y validación mediante el finalizador estricto y lecturas de bytecode live antes de reportar éxito. Los seis hashes live se comparan byte por byte: para contratos con `immutable`, la identidad esperada se materializa desde el artefacto congelado y el wiring estricto de las seis direcciones desplegadas. El guard no reemplaza metadata canónica.
+
+Después de un broadcast guardado y exitoso:
+
+1. Conservar el `run-latest.json` del candidato en `chain/.deploy-guard/candidates/<tokenId>/writable/broadcast/`, que está ignorado.
+2. Ejecutar `deployment:finalize -- --chain-id=421614 --broadcast-path=../../chain/.deploy-guard/candidates/<tokenId>/writable/broadcast/Deploy.s.sol/421614/run-latest.json`; exige exactamente seis `CREATE` exitosos, toma el menor bloque de sus receipts y lee los seis hashes runtime desde RPC.
+3. Revisar el diff de `deployments/421614.json`. No copiar direcciones predichas ni resultados de simulación.
+4. Repetir `smoke:preflight`; solo metadata nueva cuyo runtime live incluya el `AssetRegistry` corregido supera `redeployment_required`.
+
+El redeploy rechazado por bytecode obsoleto se conserva solo en el historial ignorado de `broadcast/`. No se ejecuta el finalizador sobre ese historial y no se modifica la metadata canónica ni el entorno raíz. Si cambia una fuente, el script, Foundry o sus settings, primero se revisan y versionan las nuevas identidades esperadas; borrar cache o regenerar un token nunca acepta el cambio por sí solo.
 
 El ejecutor puro conserva el modelo previsto para una eventual habilitación: prepara y firma una sola vez, calcula el hash localmente, persiste el pending antes de broadcast y solo permite reemitir los mismos bytes firmados y el mismo hash. Nunca deriva éxito de nonce. El raw firmado es una capacidad operacional sensible: si en el futuro se conecta un journal real, debe vivir exclusivamente en `chain/.smoke-journal/` (ignorado), con permisos restringidos al usuario, sin mnemonic ni clave privada, y nunca debe aparecer en logs o errores. Actualmente la CLI no crea ese directorio ni journal.
 

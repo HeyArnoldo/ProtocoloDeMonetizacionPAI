@@ -3,3 +3,4 @@ cache/
 broadcast/
 target/
 .smoke-journal/
+.deploy-guard/

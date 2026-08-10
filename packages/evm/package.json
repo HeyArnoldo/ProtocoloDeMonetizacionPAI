@@ -16,6 +16,7 @@
   "scripts": {
     "abi:generate": "node scripts/generate-abis.mjs",
     "build": "tsup",
+    "deployment:guard": "tsx src/deployment-guard-cli.ts",
     "deployment:finalize": "tsx --env-file=../../chain/.env src/finalize-cli.ts",
     "smoke:preflight": "tsx --env-file=../../chain/.env src/smoke-cli.ts preflight",
     "smoke:plan": "tsx --env-file=../../chain/.env src/smoke-cli.ts plan",
