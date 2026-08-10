@@ -13,6 +13,8 @@
  * permiso en lugar de mostrarse siempre completo.
  */
 
+import { UserRole } from '@app/contracts';
+
 export interface PanelRoute {
   path: string;
   /** Etiqueta corta del sidebar. */
@@ -35,7 +37,7 @@ export const NAV_GROUPS: NavGroup[] = [
     heading: 'PYME · Contafácil SAC',
     items: [
       {
-        path: '/',
+        path: '/panel',
         label: 'Resumen',
         title: 'Resumen del expediente',
         subtitle: 'Estado del expediente y de la máquina de estados on-chain',
@@ -149,7 +151,15 @@ export function navigationForRole(role: UserRole): NavGroup[] {
   })).filter((group) => group.items.length > 0);
 }
 
+/**
+ * A donde va cada rol tras iniciar sesion.
+ *
+ * El certificador aterriza en su cola de atestaciones, que es lo unico que le
+ * compete. El resto entra al resumen del expediente.
+ *
+ * `/panel` y no `/`: la raiz es la landing publica, asi que devolver `/` dejaba
+ * a la PYME en la pagina de marketing despues de autenticarse.
+ */
 export function roleLandingPath(role: UserRole): string {
-  return role === UserRole.CERTIFIER ? '/certificacion' : '/';
+  return role === UserRole.CERTIFIER ? '/certificacion' : '/panel';
 }
-import { UserRole } from '@app/contracts';

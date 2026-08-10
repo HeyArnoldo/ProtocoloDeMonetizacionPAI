@@ -8,7 +8,7 @@ const paths = (role: UserRole) =>
 describe('role-aware panel navigation', () => {
   it('maps each persona to only its supported panel routes', () => {
     expect(paths(UserRole.PYME)).toEqual([
-      '/',
+      '/panel',
       '/expediente',
       '/evidencias',
       '/divulgacion',
@@ -19,7 +19,7 @@ describe('role-aware panel navigation', () => {
       '/verify',
     ]);
     expect(paths(UserRole.CERTIFIER)).toEqual(['/certificacion', '/verify']);
-    expect(paths(UserRole.FUND)).toEqual(['/', '/prestamo', '/actividad', '/verify']);
+    expect(paths(UserRole.FUND)).toEqual(['/panel', '/prestamo', '/actividad', '/verify']);
   });
 
   it('allows admins everywhere and rejects direct cross-persona access', () => {
@@ -30,8 +30,8 @@ describe('role-aware panel navigation', () => {
   });
 
   it('selects a valid landing page for every authenticated role', () => {
-    expect(roleLandingPath(UserRole.PYME)).toBe('/');
+    expect(roleLandingPath(UserRole.PYME)).toBe('/panel');
     expect(roleLandingPath(UserRole.CERTIFIER)).toBe('/certificacion');
-    expect(roleLandingPath(UserRole.FUND)).toBe('/');
+    expect(roleLandingPath(UserRole.FUND)).toBe('/panel');
   });
 });

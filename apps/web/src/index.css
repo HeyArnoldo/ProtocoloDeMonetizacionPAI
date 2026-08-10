@@ -147,6 +147,19 @@
   }
 }
 
+/* Marquee de la landing (sección "Cómo se reparte la confianza"). El track
+   triplica su contenido y se mueve exactamente -33.3333% (un tercio): al
+   llegar ahí el frame es idéntico al inicial y el loop no salta. Ver
+   DESIGN_SYSTEM.md §3.1 — misma mecánica, sin librería de animación. */
+@keyframes landing-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-33.3333%);
+  }
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: var(--radius);
@@ -216,6 +229,9 @@
   /* Entrada única de la maqueta y el latido del indicador de bloque en vivo. */
   --animate-pulse-in: pulseIn 260ms ease both;
   --animate-blink: blink 2.4s infinite;
+  /* La duración real la fija cada uso vía `style` (escala con el contenido,
+     ver DESIGN_SYSTEM.md §3.1); esta es solo el fallback. */
+  --animate-landing-marquee: landing-marquee 30s linear infinite;
 }
 
 /* Cifras, hashes y direcciones. `tabular-nums` mantiene las columnas de montos
@@ -281,7 +297,8 @@
    las utilidades `animate-*`, que viven en la capa `utilities`. */
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-in,
-  .animate-blink {
+  .animate-blink,
+  .animate-landing-marquee {
     animation: none;
     opacity: 1;
     transform: none;

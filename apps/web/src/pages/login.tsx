@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { loginSchema, type LoginInput } from '@app/contracts';
 import { useAuthConfig, useLogin, useMe } from '@/hooks/use-auth';
 import { googleAuthUrl } from '@/services/auth.api';
+import { AuthShell } from '@/components/auth-shell';
 import { roleLandingPath } from '@/config/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +30,8 @@ export default function LoginPage() {
     defaultValues: { email: '', password: '' },
   });
 
+  // El destino sale del rol, no de una ruta fija: `roleLandingPath` ya apunta a
+  // `/panel`, que es donde vive el resumen desde que la raiz es la landing.
   if (me) return <Navigate to={roleLandingPath(me.role)} replace />;
 
   const onSubmit = (input: LoginInput) => {
@@ -39,7 +42,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center p-4">
+    <AuthShell>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Iniciar sesión</CardTitle>
@@ -98,6 +101,6 @@ export default function LoginPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }

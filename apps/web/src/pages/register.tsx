@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { registerSchema, type RegisterInput } from '@app/contracts';
 import { useAuthConfig, useMe, useRegister } from '@/hooks/use-auth';
+import { AuthShell } from '@/components/auth-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -27,19 +28,19 @@ export default function RegisterPage() {
     defaultValues: { name: '', email: '', password: '' },
   });
 
-  if (me) return <Navigate to="/" replace />;
+  if (me) return <Navigate to="/panel" replace />;
   // Registro local apagado (proyecto solo-Google): no existe esta página.
   if (config && !config.localEnabled) return <Navigate to="/login" replace />;
 
   const onSubmit = (input: RegisterInput) => {
     register.mutate(input, {
-      onSuccess: () => navigate('/'),
+      onSuccess: () => navigate('/panel'),
       onError: () => toast.error('No se pudo crear la cuenta. ¿El email ya existe?'),
     });
   };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center p-4">
+    <AuthShell>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Crear cuenta</CardTitle>
@@ -100,6 +101,6 @@ export default function RegisterPage() {
           </p>
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }

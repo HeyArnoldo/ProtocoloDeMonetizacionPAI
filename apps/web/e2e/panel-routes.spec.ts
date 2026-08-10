@@ -25,7 +25,8 @@ const SCREENSHOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '
 
 /** Las diez pantallas con el `<h1>` que fija `docs/design/README.md`. */
 const PANEL_ROUTES: ReadonlyArray<{ path: string; heading: string; role?: UserRole }> = [
-  { path: '/', heading: 'Resumen del expediente' },
+  // `/panel` y no `/`: la raiz la ocupa la landing publica.
+  { path: '/panel', heading: 'Resumen del expediente' },
   { path: '/expediente', heading: 'Expediente y árbol de Merkle' },
   { path: '/evidencias', heading: 'Evidencias' },
   { path: '/divulgacion', heading: 'Divulgación selectiva' },
@@ -103,14 +104,86 @@ test.describe('rutas del panel', () => {
     await expect(page.getByRole('alert')).toContainText('Access denied');
   });
 
-  test('/ se captura para documentar el shell', async ({ page }) => {
+  test('/panel se captura para documentar el shell', async ({ page }) => {
     await mockApi(page, { user: buildAuthUser() });
-    await page.goto('/');
+    await page.goto('/panel');
     await expect(
       page.getByRole('heading', { level: 1, name: 'Resumen del expediente' }),
     ).toBeVisible();
 
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'overview.png'), fullPage: true });
+  });
+});
+
+test.describe('landing pública', () => {
+  test('/ carga sin sesión, sin shell del panel y sin errores de consola', async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+
+    // Sin `mockApi`: la landing es lo primero que ve alguien sin cuenta.
+    await page.goto('/');
+
+    await expect(
+      page.getByRole('heading', { level: 1, name: /Tu banco no tiene que creerte/ }),
+    ).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Secciones del panel' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Entrar al panel' }).first()).toHaveAttribute(
+      'href',
+      '/login',
+    );
+
+    expect(errors).toEqual([]);
+
+    // `toBeVisible()` no mira opacidad: resuelve apenas el H1 tiene tamaño,
+    // sin esperar el reveal por scroll. En el peor caso (una sección que el
+    // observer no llegó a interceptar) `useReveal` tiene una red de
+    // seguridad de 1800ms + 700ms de transición — sin esperar eso, la
+    // captura agarra secciones a mitad de camino.
+    await page.waitForTimeout(2800);
+
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'landing.png'), fullPage: true });
+  });
+
+  test('el CTA de verificación pública lleva a la entrada neutral, no a un error', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Ver verificación pública, sin cuenta' }).click();
+
+    await expect(page).toHaveURL(/\/verify$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Verificación pública' }),
+    ).toBeVisible();
+    // La pantalla exige un assetId bytes32: mandar un código legible desde la
+    // landing dejaba al visitante en una alerta de validación.
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('tocar una foto del carrusel abre su detalle en un modal', async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+    await page.goto('/');
+
+    const firstPhoto = page.getByRole('button', { name: /Un taller que factura/ }).first();
+    // El carrusel nunca deja de moverse salvo que algo lo pause, y `hover()`
+    // exige que el blanco ya esté quieto antes de moverle el mouse encima —
+    // un candado que un mouse real no tiene, porque cruza el blanco en
+    // movimiento y ahí recién dispara `mouseenter`. `focus()` no depende de
+    // coordenadas: dispara `onFocus` (que pausa el carrusel) sin ese candado,
+    // y para cuando llega el `click()` ya está quieto.
+    await firstPhoto.focus();
+    await firstPhoto.click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole('heading', { name: 'Del cuaderno al expediente verificable' }),
+    ).toBeVisible();
+    await expect(dialog.getByText(/huella criptográfica única/)).toBeVisible();
+
+    // Cerrar con Escape también debe funcionar (accesibilidad de Radix).
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+
+    expect(errors).toEqual([]);
   });
 });
 
@@ -141,6 +214,10 @@ test.describe('verificación pública', () => {
     // Y no arrastra el shell del panel: ni sidebar ni identidad de sesión.
     await expect(page.getByRole('navigation', { name: 'Secciones del panel' })).toHaveCount(0);
 
+    // La marca tiene que sacar de vuelta a la landing: antes era un <span>
+    // fijo, sin enlace, que no hacía nada al tocarlo.
+    await expect(page.getByRole('link', { name: /^PAI/ })).toHaveAttribute('href', '/');
+
     expect(errors).toEqual([]);
 
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'verify.png'), fullPage: true });
@@ -150,4 +227,9 @@ test.describe('verificación pública', () => {
     await page.goto('/verify/NOT-A-BYTES32');
     await expect(page.getByRole('alert')).toContainText('bytes32 hexadecimal en minúsculas');
   });
+
+  // Aqui vivia un test de la simulacion de cinco pasos etiquetada como
+  // «sin contrato desplegado todavia». Se elimina con ella: la pagina ahora
+  // consulta datos publicos reales a traves de `verification.api`, y mantener
+  // el test obligaria a conservar la simulacion que lo reemplazo.
 });

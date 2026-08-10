@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, Menu, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, X } from 'lucide-react';
 import { useLogout, useMe } from '@/hooks/use-auth';
 import { DisclosureSelectionProvider } from '@/context/disclosure-selection-provider';
 import {
@@ -162,7 +162,16 @@ export function AppLayout() {
                 </Badge>
 
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="bg-card flex min-h-11 min-w-11 flex-none items-center justify-center gap-2 rounded-full py-[5px] pr-2.5 pl-1.5 text-left lg:min-h-0 lg:min-w-0 lg:justify-start">
+                  {/* Antes no había ninguna señal de que esto abriera algo —
+                      parecía una etiqueta, no un botón. La flecha y el borde
+                      que aparece al pasar el mouse son las dos pistas mínimas
+                      de "esto es un menú, tocalo para salir". Se esconde en
+                      móvil junto con el nombre: ahí el control ya es un
+                      círculo chico, sin lugar para una tercera señal. */}
+                  <DropdownMenuTrigger
+                    aria-label="Cuenta y sesión"
+                    className="bg-card hover:border-brand-600/50 flex min-h-11 min-w-11 flex-none items-center justify-center gap-2 rounded-full border border-transparent py-[5px] pr-2.5 pl-1.5 text-left transition-colors lg:min-h-0 lg:min-w-0 lg:justify-start"
+                  >
                     <span className="bg-brand-800 text-brand-200 grid size-[22px] flex-none place-items-center rounded-full text-[10px]">
                       {initials || '··'}
                     </span>
@@ -177,6 +186,10 @@ export function AppLayout() {
                         sin smart account
                       </span>
                     </span>
+                    <ChevronDown
+                      className="text-muted-foreground hidden size-3.5 lg:block"
+                      aria-hidden="true"
+                    />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel className="text-muted-foreground font-normal">
@@ -263,7 +276,6 @@ function NavGroupList({ group }: { group: NavGroup }) {
           <li key={item.path}>
             <NavLink
               to={item.path}
-              end={item.path === '/'}
               className={({ isActive }) =>
                 cn(
                   'flex min-h-11 items-center rounded-md px-[9px] py-[7px] text-[13px] transition-colors lg:block lg:min-h-0',

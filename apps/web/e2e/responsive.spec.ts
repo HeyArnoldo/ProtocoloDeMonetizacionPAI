@@ -28,7 +28,7 @@ const VERIFY_CODE = 'PAI-8F3C-2026';
 
 /** Las diez pantallas. `/verify/:code` es pública y se visita sin sesión. */
 const ROUTES = [
-  { path: '/', heading: 'Resumen del expediente', authenticated: true },
+  { path: '/panel', heading: 'Resumen del expediente', authenticated: true },
   { path: '/expediente', heading: 'Expediente y árbol de Merkle', authenticated: true },
   { path: '/evidencias', heading: 'Evidencias', authenticated: true },
   { path: '/divulgacion', heading: 'Divulgación selectiva', authenticated: true },
@@ -291,7 +291,7 @@ test.describe('navegación del shell', () => {
     test.skip(!isMobile(), 'En escritorio el sidebar es fijo; no hay cajón que probar.');
 
     await mockApi(page, { user: buildAuthUser() });
-    await page.goto('/');
+    await page.goto('/panel');
     await expect(
       page.getByRole('heading', { level: 1, name: 'Resumen del expediente' }),
     ).toBeVisible({
@@ -337,7 +337,7 @@ test.describe('navegación del shell', () => {
     test.skip(isMobile(), 'El sidebar fijo solo existe a partir de 1024px.');
 
     await mockApi(page, { user: buildAuthUser() });
-    await page.goto('/');
+    await page.goto('/panel');
     await expect(
       page.getByRole('heading', { level: 1, name: 'Resumen del expediente' }),
     ).toBeVisible({
@@ -352,7 +352,12 @@ test.describe('navegación del shell', () => {
 
 test.describe('evidencia visual y accesibilidad en móvil', () => {
   const CAPTURES = [
-    { path: '/', name: 'overview.png', heading: 'Resumen del expediente', authenticated: true },
+    {
+      path: '/panel',
+      name: 'overview.png',
+      heading: 'Resumen del expediente',
+      authenticated: true,
+    },
     {
       path: '/divulgacion',
       name: 'disclosure.png',
