@@ -17,6 +17,12 @@ COPY apps/web apps/web
 # URL absoluta de la API: queda horneada en el bundle (build-time, no runtime).
 ARG VITE_API_URL=
 ENV VITE_API_URL=$VITE_API_URL
+
+# Base del explorador para enlazar los hashes de transaccion. Sin esta, la
+# pantalla de fondeo compila igual pero el enlace a Arbiscan queda vacio: es un
+# `undefined` silencioso, no un fallo de build.
+ARG VITE_EXPLORER_TX_URL=
+ENV VITE_EXPLORER_TX_URL=$VITE_EXPLORER_TX_URL
 # El sufijo `...` compila el front y sus dependencias en orden topológico.
 RUN pnpm --filter @app/web... build
 
