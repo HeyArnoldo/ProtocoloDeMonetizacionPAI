@@ -98,14 +98,14 @@ contract CollateralVaultTest is Test {
         registry.markRepaid(ASSET_ID);
     }
 
-    function test_RevertWhen_DisclosureDoesNotMatchRootOrPrincipalExceedsBase() public {
+    // El techo del principal ya no se prueba acá: vive en
+    // `test_RevertWhen_PrincipalExceedsTheBaseInTokenUnits`, que lo mide en la
+    // unidad correcta. Este test se queda solo con la divulgación.
+    function test_RevertWhen_DisclosureDoesNotMatchRoot() public {
         ReceivableLeaf.Data[] memory receivables = _receivables();
         receivables[0].amountMinor += 1;
         vm.expectRevert(CollateralVault.InvalidDisclosure.selector);
         _callOriginate(borrower, PRINCIPAL, receivables);
-
-        vm.expectRevert(CollateralVault.PrincipalExceedsBorrowingBase.selector);
-        _callOriginate(borrower, 500_001, _receivables());
     }
 
     function test_RequiresControllerAndValidCertificate() public {
@@ -159,6 +159,47 @@ contract CollateralVaultTest is Test {
         vm.prank(admin);
         registry.markUnattested(ASSET_ID);
         assertEq(uint8(registry.getAsset(ASSET_ID).status), uint8(AssetRegistry.Status.Pledged));
+    }
+
+    /// @dev La base prestable del fixture: una cuota de 1_000_000 centavos con
+    ///      advance rate 50% y descuentos en cero = 500_000 centavos = USD 5.000,00.
+    uint256 internal constant BORROWING_BASE_MINOR = 500_000;
+    /// @dev Los mismos USD 5.000,00 en unidades del token de 6 decimales.
+    uint128 internal constant BORROWING_BASE_TOKEN_UNITS = 5_000_000_000;
+
+    /// El techo del préstamo se mide en unidades del token, no en centavos.
+    ///
+    /// `amountMinor` son centavos (2 decimales) y MockUSDC tiene 6: comparar el
+    /// principal contra `borrowingBaseMinor` sin escalar deja pasar un préstamo
+    /// 10.000 veces menor de lo que el colateral respalda, y `fund` transfiere
+    /// exactamente ese monto encogido.
+    function test_PrincipalCeilingIsDenominatedInTokenUnits() public {
+        assertEq(usdc.decimals(), 6);
+        usdc.mint(lender, BORROWING_BASE_TOKEN_UNITS);
+
+        _originate(BORROWING_BASE_TOKEN_UNITS);
+        uint256 borrowerBefore = usdc.balanceOf(borrower);
+        vm.prank(lender);
+        vault.fund(ASSET_ID);
+
+        assertEq(usdc.balanceOf(borrower) - borrowerBefore, BORROWING_BASE_TOKEN_UNITS);
+    }
+
+    function test_RevertWhen_PrincipalExceedsTheBaseInTokenUnits() public {
+        usdc.mint(lender, BORROWING_BASE_TOKEN_UNITS + 1);
+
+        vm.prank(borrower);
+        vm.expectRevert(CollateralVault.PrincipalExceedsBorrowingBase.selector);
+        vault.originate(
+            ASSET_ID,
+            lender,
+            BORROWING_BASE_TOKEN_UNITS + 1,
+            dueAt,
+            _receivables(),
+            new bytes32[](0),
+            new bool[](0),
+            _params()
+        );
     }
 
     function _originate(uint128 principal) internal {
