@@ -137,7 +137,9 @@ test.describe('rutas del panel', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Resumen del expediente' }),
     ).toBeVisible();
-    await expect(page.getByText('6 contratos leídos desde el despliegue canónico.')).toBeVisible();
+    // «Leídos desde el despliegue» solo contaba variables de entorno. Ahora el
+    // pie afirma lo que confirmó: bytecode presente en las seis direcciones.
+    await expect(page.getByText('6 de 6 contratos verificados on-chain.')).toBeVisible();
     const timeline = page.getByRole('navigation', { name: 'Progreso operativo' });
     await expect(timeline).toBeVisible();
     await expect(timeline.getByText('Evidencias', { exact: true })).toBeVisible();
