@@ -55,13 +55,9 @@ Hoy no existe: `apps/web/src` no tiene una sola llamada a `/assets`. Se suben ev
 
 > La API ya expone creación, intent y confirmación en `AssetsController`. Falta únicamente el recorrido de producto en Web.
 
-### 2. Apuntar la aplicación al despliegue nuevo ← **producción está desalineada**
+### 2. ~~Apuntar la aplicación al despliegue nuevo~~ ✅
 
-El redespliegue ya ocurrió (bloque `297286907`), así que **las direcciones del `.env` en Coolify son las viejas**. Hasta actualizarlas, la API lee contratos que ya no son los canónicos.
-
-- [ ] Reemplazar las seis `*_ADDRESS` y `CHAIN_DEPLOYMENT_BLOCK` en las variables de entorno de la API en Coolify, copiándolas de `chain/deployments/421614.json`.
-- [ ] Redesplegar la API para que tome las variables nuevas.
-- [ ] Confirmar `GET /api/chain/status` en `"live"` con `deploymentBlock` 297286907.
+Hecho. Las seis `*_ADDRESS` y `CHAIN_DEPLOYMENT_BLOCK` se actualizaron en Coolify —en los pares de producción **y** de preview, para no dejar un duplicado obsoleto— y la API se redesplegó. `GET /api/chain/status` responde `"live"` con `deploymentBlock` 297286907 y las seis direcciones canónicas.
 
 ### 3. Provisionar actores y wallets
 
