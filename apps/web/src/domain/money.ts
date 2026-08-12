@@ -27,8 +27,13 @@ function groupThousands(digits: string): string {
  *
  * Sin etiqueta conocida se muestra el código numérico: inventar un símbolo
  * para una moneda que el protocolo no soporta sería peor que enseñar el 978.
+ *
+ * **Omitir `currency` es una tercera opción, no un descuido.** El listado de
+ * `GET /assets` suma `amountMinor` de todas las cuotas sin agrupar por moneda,
+ * así que el total no tiene una: sin argumento sale la cifra sola, porque
+ * pegarle «USD» sería afirmar un dato que la respuesta no trae.
  */
-export function formatMinorUnits(amountMinor: string | bigint, currency: number): string {
+export function formatMinorUnits(amountMinor: string | bigint, currency?: number): string {
   const minor = BigInt(amountMinor);
   const negative = minor < 0n;
   const absolute = negative ? -minor : minor;
@@ -36,10 +41,11 @@ export function formatMinorUnits(amountMinor: string | bigint, currency: number)
   const units = absolute / MINOR_UNITS_PER_UNIT;
   const cents = absolute % MINOR_UNITS_PER_UNIT;
 
-  const label = CURRENCY_LABEL[currency] ?? String(currency);
+  const label = currency === undefined ? null : (CURRENCY_LABEL[currency] ?? String(currency));
   const amount = `${groupThousands(units.toString())}.${cents.toString().padStart(2, '0')}`;
+  const signed = `${negative ? '-' : ''}${amount}`;
 
-  return `${label} ${negative ? '-' : ''}${amount}`;
+  return label === null ? signed : `${label} ${signed}`;
 }
 
 /**

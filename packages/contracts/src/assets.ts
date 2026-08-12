@@ -45,6 +45,49 @@ export interface AssetResponse {
   createdAt: string;
 }
 
+/**
+ * Estado de registro derivable **sin consultar la cadena**.
+ *
+ * El listado se pinta con una sola consulta a Postgres: pedirle a la cadena el
+ * estado real de cada fila convertiría abrir una lista de veinte expedientes en
+ * veinte llamadas RPC. Lo que la base sí sabe con certeza es si ya se emitió la
+ * transacción y si se confirmó, y eso alcanza para elegir cuál abrir.
+ */
+export const ASSET_REGISTRATION_STATES = ['draft', 'submitted', 'registered'] as const;
+export type AssetRegistrationState = (typeof ASSET_REGISTRATION_STATES)[number];
+
+/**
+ * Los hashes del listado se validan sin exigir minúsculas.
+ *
+ * `bytes32Schema` sí las exige porque gobierna lo que *entra* al dominio. Aquí
+ * el `registrationTxHash` lo devuelve el adaptador de cadena y viene como venga:
+ * atarlo a minúsculas haría que el navegador rechazara una lista correcta.
+ */
+const listHashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/, 'must be a hexadecimal bytes32');
+
+export const assetListItemSchema = z.object({
+  id: listHashSchema,
+  createdAt: z.iso.datetime(),
+  merkleRoot: listHashSchema,
+  controller: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+  registrationConfirmed: z.boolean(),
+  registrationTxHash: listHashSchema.nullable(),
+  registrationBlockNumber: z.number().int().nonnegative().nullable(),
+  registrationState: z.enum(ASSET_REGISTRATION_STATES),
+  receivableCount: z.number().int().nonnegative(),
+  /** Suma en unidades menores. String para no perder precisión (numeric 78,0). */
+  totalAmountMinor: z.string().regex(/^\d+$/),
+  /**
+   * Distingue «lo creé yo» de «lo veo porque soy ADMIN».
+   * No expone quién es el creador: solo si el que mira lo es.
+   */
+  ownedByRequester: z.boolean(),
+});
+export type AssetListItemResponse = z.infer<typeof assetListItemSchema>;
+
+export const assetListSchema = z.array(assetListItemSchema);
+export type AssetListResponse = AssetListItemResponse[];
+
 const chainAddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const chainIntegerSchema = z.string().regex(/^\d+$/);
 export const chainAssetSnapshotSchema = z.object({

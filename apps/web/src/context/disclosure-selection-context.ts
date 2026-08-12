@@ -13,6 +13,14 @@ import type { Hex, ReceivableLeaf } from '@app/merkle';
 export interface DisclosureSelectionValue {
   /** Activo efectivo de la sesión, tomado del query o recuperado de sessionStorage. */
   assetId: string | null;
+  /**
+   * Fija el expediente recordado de la sesión; `null` lo olvida.
+   *
+   * Es el **único** camino para cambiarlo: antes lo escribían tres pantallas
+   * con dos claves distintas y el panel podía estar mirando dos expedientes a
+   * la vez según por dónde se hubiera entrado.
+   */
+  selectAsset: (assetId: string | null) => void;
   registrationConfirmed: boolean;
 
   /** Estado de `GET /api/disclosure/sample`. */

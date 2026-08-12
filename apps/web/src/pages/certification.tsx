@@ -1,16 +1,19 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CardBody, CardKicker, PanelCard } from '@/components/panel/panel-card';
 import { HashValue } from '@/components/panel/hash-value';
+import { AssetListPicker } from '@/components/panel/asset-list-picker';
+import { assetDiscovery, unresolvedAssetMessage } from '@/domain/asset-discovery';
 import {
   CERTIFICATION_KINDS,
   buildCertificationIntent,
   type CertificationKind,
 } from '@/domain/certification-intent';
 import { validateDossierAssetId } from '@/domain/dossier-view';
-import { useCertificationSnapshot } from '@/hooks/use-disclosure';
+import { useAssetList, useCertificationSnapshot } from '@/hooks/use-disclosure';
+import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
 import { useTransactionIntent } from '@/hooks/use-transaction-intent';
 import { useWalletSubmitter } from '@/hooks/use-wallet-submitter';
 
@@ -21,15 +24,27 @@ function message(error: unknown): string {
 }
 
 export default function CertificationPage() {
-  const [input, setInput] = useState('');
-  const [assetId, setAssetId] = useState<string | null>(null);
+  // Misma selección que el resto del panel: el certificador que abre un
+  // expediente aquí es el que la timeline operativa acompaña.
+  const { assetId, selectAsset } = useDisclosureSelection();
+  const [input, setInput] = useState(assetId ?? '');
   const [kind, setKind] = useState<CertificationKind>(0);
   const [certificateHash, setCertificateHash] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const snapshot = useCertificationSnapshot(assetId);
+  const list = useAssetList();
+  const discovery = assetDiscovery(list);
   const submitter = useWalletSubmitter();
   const transaction = useTransactionIntent(submitter);
   const busy = transaction.status === 'preparing' || transaction.status === 'submitting';
+
+  useEffect(() => setInput(assetId ?? ''), [assetId]);
+
+  const open = (next: string) => {
+    setValidationError(null);
+    transaction.reset();
+    selectAsset(next);
+  };
 
   const inspect = (event: FormEvent) => {
     event.preventDefault();
@@ -37,8 +52,19 @@ export default function CertificationPage() {
     const error = validateDossierAssetId(next);
     setValidationError(error);
     transaction.reset();
-    if (!error) setAssetId(next);
+    if (!error) open(next);
   };
+
+  /**
+   * Un 404 de la cadena y un expediente que no se ve no dicen lo mismo.
+   *
+   * Si el identificador está en el listado, el 404 significa lo que dice: no
+   * hay registro on-chain todavía. Si no está, lo que falta no es el registro
+   * sino el expediente, y la cifra del listado es lo único que distingue «no
+   * existe» de «no es tuyo».
+   */
+  const visibleInList = list.data?.some((item) => item.id === assetId) ?? false;
+  const snapshotError = visibleInList ? message(snapshot.error) : unresolvedAssetMessage(discovery);
 
   const transact = (action: 'attest' | 'revoke') => {
     if (!assetId) return;
@@ -57,12 +83,31 @@ export default function CertificationPage() {
 
   return (
     <div className="flex max-w-[1180px] flex-col gap-4">
+      <PanelCard className="gap-3">
+        <div>
+          <CardKicker>Expedientes a la vista</CardKicker>
+          <h2 className="text-[17px] font-medium">
+            {discovery.kind === 'ready'
+              ? `${discovery.total} expediente${discovery.total === 1 ? '' : 's'} en la cola`
+              : 'Elige un expediente'}
+          </h2>
+        </div>
+        <AssetListPicker
+          discovery={discovery}
+          assets={list.data}
+          selectedId={assetId}
+          onSelect={open}
+        />
+      </PanelCard>
+
       <PanelCard>
         <CardKicker>Public chain inspection</CardKicker>
         <CardBody>
           Certifiers inspect public registry and attestation state only. Private receivables,
           evidence, debtor identifiers, and dossier salts are never returned by this endpoint.
         </CardBody>
+        {/* Pegar el identificador sigue siendo una vía: un certificador recibe
+            el `assetId` por fuera del panel. Ya no es la única. */}
         <form className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={inspect}>
           <div className="grid gap-1.5">
             <Label htmlFor="certification-asset-id">Asset ID</Label>
@@ -82,7 +127,7 @@ export default function CertificationPage() {
           </p>
         ) : null}
         {!assetId ? (
-          <CardBody>Enter a registered asset ID to inspect certification state.</CardBody>
+          <CardBody>Elige un expediente de la lista o pega su identificador.</CardBody>
         ) : snapshot.isPending ? (
           <p role="status" className="text-muted-foreground text-sm">
             Loading public chain state…
@@ -90,7 +135,7 @@ export default function CertificationPage() {
         ) : snapshot.isError ? (
           <div className="flex items-center gap-3">
             <p role="alert" className="text-destructive text-sm">
-              {message(snapshot.error)}
+              {snapshotError}
             </p>
             <Button
               type="button"

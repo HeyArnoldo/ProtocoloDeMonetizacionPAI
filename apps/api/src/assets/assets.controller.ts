@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import {
   createAssetSchema,
+  type AssetListResponse,
   type AssetResponse,
   type ChainAssetSnapshotResponse,
   type CreateAssetInput,
@@ -29,9 +30,16 @@ export class AssetsController {
     return this.assets.create(user.id, input);
   }
 
+  // Va antes que `@Get(':id')`: Nest resuelve por orden de declaración y `:id`
+  // capturaría la raíz si se declarara primero.
+  @Get()
+  list(@CurrentUser() user: User): Promise<AssetListResponse> {
+    return this.assets.list(user);
+  }
+
   @Get(':id')
   get(@CurrentUser() user: User, @Param('id') id: string): Promise<AssetResponse> {
-    return this.assets.get(user.id, id);
+    return this.assets.get(user, id);
   }
 
   @Get(':id/chain')
@@ -39,7 +47,7 @@ export class AssetsController {
     @CurrentUser() user: User,
     @Param('id') id: string,
   ): Promise<ChainAssetSnapshotResponse> {
-    return this.assets.chainSnapshot(user.id, id);
+    return this.assets.chainSnapshot(user, id);
   }
 
   @Get(':id/certification-chain')
@@ -53,11 +61,11 @@ export class AssetsController {
     @CurrentUser() user: User,
     @Param('id') id: string,
   ): Promise<SerializedIntent> {
-    return this.assets.registrationIntent(user.id, id);
+    return this.assets.registrationIntent(user, id);
   }
 
   @Post(':id/confirm-registration')
   confirmRegistration(@CurrentUser() user: User, @Param('id') id: string): Promise<AssetResponse> {
-    return this.assets.confirmRegistration(user.id, id);
+    return this.assets.confirmRegistration(user, id);
   }
 }

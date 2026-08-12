@@ -44,6 +44,16 @@ describe('formatMinorUnits', () => {
   it('rotula el sol peruano', () => {
     expect(formatMinorUnits(100n, CURRENCY_CODES.PEN)).toBe('PEN 1.00');
   });
+
+  /**
+   * El total del listado suma cuotas sin agrupar por moneda: no hay una que
+   * rotular. Se muestra la cifra sola en vez de atribuirla a un dólar que la
+   * respuesta nunca dijo.
+   */
+  it('omite la etiqueta cuando no hay moneda que afirmar', () => {
+    expect(formatMinorUnits('12480000')).toBe('124,800.00');
+    expect(formatMinorUnits(-5n)).toBe('-0.05');
+  });
 });
 
 describe('formatDueDate', () => {

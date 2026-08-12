@@ -2,6 +2,8 @@ import type { Page, Route } from '@playwright/test';
 import {
   CURRENCY_CODES,
   UserRole,
+  assetListItemSchema,
+  assetListSchema,
   authUserSchema,
   chainAssetSnapshotSchema,
   chainStatusSchema,
@@ -9,6 +11,8 @@ import {
   persistedDisclosurePreviewRequestSchema,
   publicVerificationSchema,
   samplePortfolioSchema,
+  type AssetListItemResponse,
+  type AssetListResponse,
   type AssetReceivableResponse,
   type AssetResponse,
   type AuthConfig,
@@ -63,6 +67,9 @@ export const VERIFY_ASSET_ID = `0x${'ab'.repeat(32)}` as const;
  * que sirve el mock no puedan divergir.
  */
 export const DEMO_ASSET_ID = `0x${'1d'.repeat(32)}` as const;
+
+/** Segundo expediente del listado: sirve para afirmar que se listan varios. */
+export const SECOND_ASSET_ID = `0x${'2e'.repeat(32)}` as const;
 
 export const MOCK_WALLET_ACCOUNT = `0x${'42'.repeat(20)}`;
 export const MOCK_TX_HASH = `0x${'ee'.repeat(32)}`;
@@ -271,6 +278,57 @@ export function buildAssetResponse(receivables = buildAssetReceivables()): Asset
 }
 
 /**
+ * Fila del listado de `GET /api/assets`.
+ *
+ * No es un recorte de `buildAssetResponse()`: el listado es otra respuesta, con
+ * agregados (`receivableCount`, `totalAmountMinor`) y con `ownedByRequester`,
+ * que es el campo con el que un ADMIN distingue lo suyo de lo ajeno. Se valida
+ * con `assetListSchema` para que un cambio de contrato rompa el fixture y no
+ * la pantalla.
+ */
+export function buildAssetListItem(
+  overrides: Partial<AssetListItemResponse> = {},
+): AssetListItemResponse {
+  return assetListItemSchema.parse({
+    id: DEMO_ASSET_ID,
+    createdAt: '2026-08-08T15:00:00.000Z',
+    merkleRoot: `0x${'cd'.repeat(32)}`,
+    controller: `0x${'12'.repeat(20)}`,
+    registrationConfirmed: true,
+    registrationTxHash: `0x${'55'.repeat(32)}`,
+    registrationBlockNumber: 12_345,
+    registrationState: 'registered',
+    receivableCount: 16,
+    totalAmountMinor: '12480000',
+    ownedByRequester: true,
+    ...overrides,
+  });
+}
+
+/** Listado por defecto: el expediente de la demo y uno anterior, ya registrado. */
+export function buildAssetList(
+  overrides: Partial<AssetListItemResponse>[] = [],
+): AssetListResponse {
+  const base: Partial<AssetListItemResponse>[] = overrides.length
+    ? overrides
+    : [
+        {},
+        {
+          id: SECOND_ASSET_ID,
+          createdAt: '2026-07-02T10:30:00.000Z',
+          registrationState: 'draft',
+          registrationConfirmed: false,
+          registrationTxHash: null,
+          registrationBlockNumber: null,
+          receivableCount: 4,
+          totalAmountMinor: '3120000',
+        },
+      ];
+
+  return assetListSchema.parse(base.map((item) => buildAssetListItem(item)));
+}
+
+/**
  * Misma conversión que `DisclosureService.toLeaves()`.
  *
  * Se exporta para que un spec pueda alimentar `computeBorrowingBase` con las
@@ -405,6 +463,13 @@ export interface ApiMockOptions {
   evidenceUploadError?: string;
   asset?: AssetResponse;
   assetErrorStatus?: 403 | 404;
+  /**
+   * Respuesta de `GET /api/assets`. Un array vacío es el estado «todavía no hay
+   * expedientes», que la pantalla tiene que distinguir de «el listado falló».
+   */
+  assetList?: AssetListResponse;
+  /** Estado con el que falla `GET /api/assets`. Nunca degrada a lista vacía. */
+  assetListErrorStatus?: 401 | 403 | 500;
   /** Estado de `GET /api/chain/status`. Por defecto, la cadena responde viva. */
   chainStatus?: ChainStatusResponse;
   /** Expediente que devuelve `POST /api/assets`. */
@@ -469,13 +534,25 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
       ? fulfillJson(route, { statusCode: 409, message: options.confirmRegistrationError }, 409)
       : fulfillJson(route, { ...createdAsset, registrationConfirmed: true }),
   );
-  await page.route('**/api/assets', (route) =>
-    route.request().method() === 'POST'
-      ? options.createAssetError
+  // `**/api/assets` sirve dos verbos: POST crea el expediente y GET devuelve el
+  // listado. Se ramifica por método en una sola ruta porque `page.route()`
+  // resuelve por patrón, no por verbo: registrar dos rutas con el mismo patrón
+  // dejaría a la última tapando a la primera.
+  const assetList = options.assetList ?? buildAssetList();
+  await page.route('**/api/assets', (route) => {
+    if (route.request().method() === 'POST') {
+      return options.createAssetError
         ? fulfillJson(route, { statusCode: 400, message: options.createAssetError }, 400)
-        : fulfillJson(route, createdAsset, 201)
-      : fulfillJson(route, createdAsset),
-  );
+        : fulfillJson(route, createdAsset, 201);
+    }
+    return options.assetListErrorStatus
+      ? fulfillJson(
+          route,
+          { statusCode: options.assetListErrorStatus, message: 'Asset listing failed.' },
+          options.assetListErrorStatus,
+        )
+      : fulfillJson(route, assetList);
+  });
 
   // La instantánea de cadena del expediente vive en dos sub-recursos y no en la
   // ruta comodín: `**/api/assets/*` no cruza la barra, así que ampliarla a

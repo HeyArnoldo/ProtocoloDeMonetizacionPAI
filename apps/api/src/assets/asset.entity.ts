@@ -1,6 +1,9 @@
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
 import { Receivable } from './receivable.entity';
 
+// Sostiene `GET /assets`: filtro por creador y orden por fecha.
+// Se crea en la migración AddAssetListingIndex1786240000000.
+@Index('IDX_assets_created_by_created_at', ['createdById', 'createdAt'])
 @Entity('assets')
 export class Asset {
   /** bytes32 usado por AssetRegistry; no es un UUID de base de datos. */

@@ -1,6 +1,11 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Repository } from 'typeorm';
-import { CURRENCY_CODES } from '@app/contracts';
+import { CURRENCY_CODES, UserRole } from '@app/contracts';
 import {
   AssetStatus,
   AttestationKind,
@@ -10,7 +15,7 @@ import {
 } from '../chain/chain.port';
 import { Asset } from './asset.entity';
 import { Receivable } from './receivable.entity';
-import { AssetsService } from './assets.service';
+import { AssetsService, type AssetRequester } from './assets.service';
 import { Evidence } from '../evidence/evidence.entity';
 import type { ChainIntentService } from '../chain/chain-intent.service';
 import { ownerIdHash } from '../chain/owner-id';
@@ -20,12 +25,29 @@ const CONTROLLER = `0x${'22'.repeat(20)}` as const;
 const ASSET_ID = `0x${'55'.repeat(32)}` as const;
 const ROOT = `0x${'44'.repeat(32)}` as const;
 
+const pyme = (id: string): AssetRequester => ({ id, role: UserRole.PYME });
+const admin = (id: string): AssetRequester => ({ id, role: UserRole.ADMIN });
+
 describe('AssetsService', () => {
+  // El listado se arma con un query builder porque tiene que salir en UNA sola
+  // sentencia SQL (conteo y suma incluidos). El doble encadena y cuenta cuántas
+  // veces se ejecuta, que es justamente lo que hay que poder afirmar.
+  const getRawMany = jest.fn(async () => [] as unknown[]);
+  const queryBuilder = {
+    leftJoin: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    getRawMany,
+  };
   const assetRepository = {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
     findOne: jest.fn(),
     update: jest.fn(),
+    createQueryBuilder: jest.fn(() => queryBuilder),
   } as unknown as jest.Mocked<Repository<Asset>>;
   const receivableRepository = {
     create: jest.fn((value) => value),
@@ -196,6 +218,134 @@ describe('AssetsService', () => {
     expect(chain.registerAsset).toHaveBeenCalledTimes(1);
   });
 
+  describe('read authorization', () => {
+    it('lets an ADMIN open an asset it did not create', async () => {
+      const foreign = { ...draft(), createdById: 'pyme-9' } as Asset;
+      assetRepository.findOne.mockResolvedValue(foreign);
+
+      await expect(service().get(admin('admin-1'), ASSET_ID)).resolves.toMatchObject({
+        id: ASSET_ID,
+      });
+      // El ADMIN busca por identificador y nada más: si el `where` siguiera
+      // llevando `createdById`, la consulta no encontraría nada.
+      expect(assetRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: ASSET_ID } }),
+      );
+    });
+
+    it("refuses another PYME's asset with a 404, never a 403", async () => {
+      assetRepository.findOne.mockResolvedValue(null);
+
+      const rejection = service().get(pyme('pyme-otra'), ASSET_ID);
+
+      await expect(rejection).rejects.toBeInstanceOf(NotFoundException);
+      // Un 403 confirmaría que el expediente existe. El aislamiento entre PYMEs
+      // depende de que las dos respuestas sean indistinguibles.
+      await expect(rejection).rejects.not.toBeInstanceOf(ForbiddenException);
+      expect(assetRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: ASSET_ID, createdById: 'pyme-otra' } }),
+      );
+    });
+
+    it('lets a PYME open its own asset', async () => {
+      assetRepository.findOne.mockResolvedValue(draft());
+
+      await expect(service().get(pyme('user-1'), ASSET_ID)).resolves.toMatchObject({
+        id: ASSET_ID,
+      });
+      expect(assetRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: ASSET_ID, createdById: 'user-1' } }),
+      );
+    });
+  });
+
+  describe('list', () => {
+    const row = (overrides: Record<string, unknown> = {}) => ({
+      id: ASSET_ID,
+      createdById: 'user-1',
+      createdAt: new Date('2026-08-10T12:00:00.000Z'),
+      merkleRoot: ROOT,
+      controller: CONTROLLER,
+      registrationConfirmed: true,
+      registrationTxHash: `0x${'33'.repeat(32)}`,
+      registrationBlockNumber: '7',
+      receivableCount: '2',
+      totalAmountMinor: '1300000',
+      ...overrides,
+    });
+
+    it('scopes a non-admin listing to its own assets in a single query', async () => {
+      getRawMany.mockResolvedValue([row()]);
+
+      const result = await service().list(pyme('user-1'));
+
+      expect(queryBuilder.where).toHaveBeenCalledWith('asset.createdById = :createdById', {
+        createdById: 'user-1',
+      });
+      expect(getRawMany).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: ASSET_ID,
+        createdAt: '2026-08-10T12:00:00.000Z',
+        receivableCount: 2,
+        totalAmountMinor: '1300000',
+        registrationBlockNumber: 7,
+        ownedByRequester: true,
+      });
+    });
+
+    it('lists every asset for an ADMIN and marks the ones it did not create', async () => {
+      getRawMany.mockResolvedValue([row(), row({ id: `0x${'66'.repeat(32)}`, createdById: 'x' })]);
+
+      const result = await service().list(admin('admin-1'));
+
+      expect(queryBuilder.where).not.toHaveBeenCalled();
+      expect(getRawMany).toHaveBeenCalledTimes(1);
+      expect(result.map((item) => item.ownedByRequester)).toEqual([false, false]);
+    });
+
+    it('derives the registration state without asking the chain', async () => {
+      getRawMany.mockResolvedValue([
+        row({ registrationConfirmed: true }),
+        row({ id: `0x${'66'.repeat(32)}`, registrationConfirmed: false }),
+        row({
+          id: `0x${'77'.repeat(32)}`,
+          registrationConfirmed: false,
+          registrationTxHash: null,
+          registrationBlockNumber: null,
+        }),
+      ]);
+
+      const result = await service().list(admin('admin-1'));
+
+      expect(result.map((item) => item.registrationState)).toEqual([
+        'registered',
+        'submitted',
+        'draft',
+      ]);
+      // La razón de ser del estado derivado: una lista de veinte expedientes no
+      // puede costar veinte llamadas RPC.
+      expect(chain.getAsset).not.toHaveBeenCalled();
+      expect(chain.getAssetSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('reports an asset with no receivables as an empty, not a missing, total', async () => {
+      getRawMany.mockResolvedValue([row({ receivableCount: '0', totalAmountMinor: '0' })]);
+
+      const result = await service().list(pyme('user-1'));
+
+      expect(result[0]).toMatchObject({ receivableCount: 0, totalAmountMinor: '0' });
+    });
+
+    it('never leaks the private columns of the draft', async () => {
+      getRawMany.mockResolvedValue([row()]);
+
+      const result = await service().list(admin('admin-1'));
+
+      expect(JSON.stringify(result)).not.toMatch(/debtorSalt|creationKey|createdById|ownerIdHash/);
+    });
+  });
+
   it('scopes reads to the authenticated owner', async () => {
     await expect(
       new AssetsService(
@@ -204,7 +354,7 @@ describe('AssetsService', () => {
         evidenceRepository,
         chain,
         intents,
-      ).get('other-user', `0x${'55'.repeat(32)}`),
+      ).get(pyme('other-user'), `0x${'55'.repeat(32)}`),
     ).rejects.toThrow('was not found');
     expect(assetRepository.findOne).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -239,7 +389,7 @@ describe('AssetsService', () => {
   it('builds registration calldata only from the owner-scoped persisted draft', async () => {
     assetRepository.findOne.mockResolvedValue(draft());
 
-    await service().registrationIntent('user-1', ASSET_ID);
+    await service().registrationIntent(pyme('user-1'), ASSET_ID);
 
     expect(intents.build).toHaveBeenCalledWith('register', 'user-1', {
       assetId: ASSET_ID,
@@ -259,10 +409,10 @@ describe('AssetsService', () => {
       attestations: [],
     });
 
-    await expect(service().confirmRegistration('user-1', ASSET_ID)).rejects.toBeInstanceOf(
+    await expect(service().confirmRegistration(pyme('user-1'), ASSET_ID)).rejects.toBeInstanceOf(
       NotFoundException,
     );
-    await expect(service().confirmRegistration('user-1', ASSET_ID)).rejects.toBeInstanceOf(
+    await expect(service().confirmRegistration(pyme('user-1'), ASSET_ID)).rejects.toBeInstanceOf(
       ConflictException,
     );
     expect(assetRepository.update).not.toHaveBeenCalled();
@@ -281,10 +431,10 @@ describe('AssetsService', () => {
       attestations: [],
     });
 
-    await expect(service().confirmRegistration('user-1', ASSET_ID)).resolves.toMatchObject({
+    await expect(service().confirmRegistration(pyme('user-1'), ASSET_ID)).resolves.toMatchObject({
       registrationConfirmed: true,
     });
-    await service().confirmRegistration('user-1', ASSET_ID);
+    await service().confirmRegistration(pyme('user-1'), ASSET_ID);
 
     expect(assetRepository.update).toHaveBeenCalledTimes(1);
     expect(chain.getAsset).toHaveBeenCalledTimes(1);
@@ -293,16 +443,16 @@ describe('AssetsService', () => {
   it('does not inspect chain state for another owner draft', async () => {
     assetRepository.findOne.mockResolvedValue(null);
 
-    await expect(service().confirmRegistration('other-user', ASSET_ID)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service().confirmRegistration(pyme('other-user'), ASSET_ID),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(chain.getAsset).not.toHaveBeenCalled();
   });
 
   it('loads the owned draft before reading a chain snapshot', async () => {
     assetRepository.findOne.mockResolvedValue(null);
 
-    await expect(service().chainSnapshot('other-user', ASSET_ID)).rejects.toBeInstanceOf(
+    await expect(service().chainSnapshot(pyme('other-user'), ASSET_ID)).rejects.toBeInstanceOf(
       NotFoundException,
     );
     expect(chain.getAssetSnapshot).not.toHaveBeenCalled();
@@ -312,7 +462,7 @@ describe('AssetsService', () => {
     assetRepository.findOne.mockResolvedValue(draft());
     chain.getAssetSnapshot.mockResolvedValue(null);
 
-    await expect(service().chainSnapshot('user-1', ASSET_ID)).rejects.toBeInstanceOf(
+    await expect(service().chainSnapshot(pyme('user-1'), ASSET_ID)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
@@ -353,7 +503,7 @@ describe('AssetsService', () => {
       },
     });
 
-    const result = await service().chainSnapshot('user-1', ASSET_ID);
+    const result = await service().chainSnapshot(pyme('user-1'), ASSET_ID);
 
     expect(result.blockNumber).toBe('999');
     expect(result.certificate).toMatchObject({ issuanceCount: '2' });

@@ -8,6 +8,7 @@ import {
   sanitizeSelection,
   sumNominalMinor,
 } from '@/domain/disclosure-selection';
+import { resolveDossierAssetId } from '@/domain/dossier-view';
 import { useAssetPortfolio, useDisclosurePreview } from '@/hooks/use-disclosure';
 import {
   DisclosureSelectionContext,
@@ -56,10 +57,17 @@ export function DisclosureSelectionProvider({
   const storageKeys = useMemo(() => operationalStorageKeys(userId), [userId]);
   const location = useLocation();
   const requestedAssetId = new URLSearchParams(location.search).get('assetId');
-  const [rememberedAssetId, setRememberedAssetId] = useState(() =>
-    window.sessionStorage.getItem(storageKeys.asset),
-  );
-  const assetId = requestedAssetId ?? rememberedAssetId;
+  const [rememberedAssetId, setRememberedAssetId] = useState(() => {
+    try {
+      return window.sessionStorage.getItem(storageKeys.asset);
+    } catch {
+      return null;
+    }
+  });
+  // `?assetId=` manda sobre lo recordado: un enlace compartido abre ese
+  // expediente aunque la sesión venga de otro. La regla vive en el dominio y
+  // está probada allí, no reescrita aquí.
+  const assetId = resolveDossierAssetId(location.search, rememberedAssetId);
   const previousAssetId = useRef(assetId);
   const { data: portfolio, isPending, isError, error } = useAssetPortfolio(assetId);
   const preview = useDisclosurePreview();
@@ -75,11 +83,31 @@ export function DisclosureSelectionProvider({
   const receivables = useMemo(() => portfolio?.receivables ?? [], [portfolio]);
   const salt: Hex | null = null;
 
+  /**
+   * Memoria de la última selección, no fuente de verdad.
+   *
+   * **La fuente de verdad de qué expedientes existen es `GET /assets`.** Esto
+   * solo evita que un refresco a mitad de demo obligue a volver a elegir. Si lo
+   * guardado ya no aparece en el listado, manda el listado: por eso la pantalla
+   * puede decir «no está entre los N que ves» en vez de suponer que existe.
+   */
+  const selectAsset = useCallback(
+    (next: string | null) => {
+      setRememberedAssetId(next);
+      try {
+        if (next === null) window.sessionStorage.removeItem(storageKeys.asset);
+        else window.sessionStorage.setItem(storageKeys.asset, next);
+      } catch {
+        // Ver `readStoredSelection`: sin almacenamiento la demo sigue en pie.
+      }
+    },
+    [storageKeys.asset],
+  );
+
   useEffect(() => {
     if (!requestedAssetId) return;
-    setRememberedAssetId(requestedAssetId);
-    window.sessionStorage.setItem(storageKeys.asset, requestedAssetId);
-  }, [requestedAssetId, storageKeys.asset]);
+    selectAsset(requestedAssetId);
+  }, [requestedAssetId, selectAsset]);
 
   useEffect(() => {
     const reset = resetProgressForAssetChange(previousAssetId.current, assetId);
@@ -188,6 +216,7 @@ export function DisclosureSelectionProvider({
   const value: DisclosureSelectionValue = useMemo(
     () => ({
       assetId,
+      selectAsset,
       registrationConfirmed: portfolio?.registrationConfirmed === true,
       isPending,
       isError,
@@ -219,6 +248,7 @@ export function DisclosureSelectionProvider({
     }),
     [
       assetId,
+      selectAsset,
       portfolio?.registrationConfirmed,
       isPending,
       isError,

@@ -8,7 +8,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
+  assetListSchema,
   chainAssetSnapshotSchema,
+  UserRole,
+  type AssetListItemResponse,
+  type AssetListResponse,
+  type AssetRegistrationState,
   type AssetResponse,
   type ChainAssetSnapshotResponse,
   type CreateAssetInput,
@@ -21,6 +26,65 @@ import { ownerIdHash } from '../chain/owner-id';
 import { Evidence } from '../evidence/evidence.entity';
 import { Asset } from './asset.entity';
 import { Receivable } from './receivable.entity';
+
+/**
+ * Lo mínimo que el dominio necesita saber de quien pide: identidad y rol.
+ *
+ * No se recibe la entidad `User` entera para que el servicio no pueda leer nada
+ * que no sea la decisión de autorización. `User` la satisface estructuralmente.
+ */
+export interface AssetRequester {
+  id: string;
+  role: UserRole;
+}
+
+/** Fila cruda del listado. Postgres devuelve numeric y bigint como string. */
+interface AssetListRow {
+  id: string;
+  createdById: string;
+  createdAt: Date | string;
+  merkleRoot: string;
+  controller: string;
+  registrationConfirmed: boolean;
+  registrationTxHash: string | null;
+  registrationBlockNumber: string | null;
+  receivableCount: string | number;
+  totalAmountMinor: string | number;
+}
+
+/**
+ * Estado de registro que la base puede afirmar sin preguntarle a la cadena.
+ *
+ * `submitted` no promete que la transacción se haya minado: promete que se
+ * emitió. La confirmación real la sigue dando `GET /assets/:id/chain`.
+ */
+export function assetRegistrationState(row: {
+  registrationConfirmed: boolean;
+  registrationTxHash: string | null;
+}): AssetRegistrationState {
+  if (row.registrationConfirmed) return 'registered';
+  return row.registrationTxHash === null ? 'draft' : 'submitted';
+}
+
+function toListItem(row: AssetListRow, requesterId: string): AssetListItemResponse {
+  return {
+    id: row.id,
+    createdAt: (row.createdAt instanceof Date
+      ? row.createdAt
+      : new Date(row.createdAt)
+    ).toISOString(),
+    merkleRoot: row.merkleRoot,
+    controller: row.controller,
+    registrationConfirmed: row.registrationConfirmed,
+    registrationTxHash: row.registrationTxHash,
+    registrationBlockNumber:
+      row.registrationBlockNumber === null ? null : Number(row.registrationBlockNumber),
+    registrationState: assetRegistrationState(row),
+    receivableCount: Number(row.receivableCount),
+    totalAmountMinor: String(row.totalAmountMinor),
+    ownedByRequester: row.createdById === requesterId,
+  };
+}
 
 @Injectable()
 export class AssetsService {
@@ -126,23 +190,62 @@ export class AssetsService {
     return this.toResponse(await this.assets.save(asset));
   }
 
-  async registrationIntent(createdById: string, id: string): Promise<SerializedIntent> {
-    const asset = await this.findOwned(createdById, id);
-    return this.intents.build('register', createdById, {
+  /**
+   * Listado de expedientes en **una sola sentencia SQL**.
+   *
+   * Se arma con el query builder y no con `find({ relations })` a propósito:
+   * traer las cuotas enteras para contarlas y sumarlas mueve toda la cartera
+   * por la red para pintar dos números. El agregado lo hace Postgres.
+   */
+  async list(requester: AssetRequester): Promise<AssetListResponse> {
+    const query = this.assets
+      .createQueryBuilder('asset')
+      .leftJoin('asset.receivables', 'receivable')
+      .select('asset.id', 'id')
+      .addSelect('asset.createdById', 'createdById')
+      .addSelect('asset.createdAt', 'createdAt')
+      .addSelect('asset.merkleRoot', 'merkleRoot')
+      .addSelect('asset.controller', 'controller')
+      .addSelect('asset.registrationConfirmed', 'registrationConfirmed')
+      .addSelect('asset.registrationTxHash', 'registrationTxHash')
+      .addSelect('asset.registrationBlockNumber', 'registrationBlockNumber')
+      .addSelect('COUNT(receivable.id)', 'receivableCount')
+      // COALESCE porque un expediente sin cuotas debe reportar 0, no null: la
+      // pantalla tiene que poder distinguir «vacío» de «no lo sé».
+      .addSelect('COALESCE(SUM(receivable."amountMinor"), 0)', 'totalAmountMinor')
+      .groupBy('asset.id')
+      .orderBy('asset.createdAt', 'DESC');
+
+    // El ADMIN opera el recorrido completo, así que ve todo. Cualquier otro rol
+    // sigue viendo solo lo suyo, exactamente igual que antes de este listado.
+    if (requester.role !== UserRole.ADMIN) {
+      query.where('asset.createdById = :createdById', { createdById: requester.id });
+    }
+
+    const rows = await query.getRawMany<AssetListRow>();
+    return assetListSchema.parse(rows.map((row) => toListItem(row, requester.id)));
+  }
+
+  async registrationIntent(requester: AssetRequester, id: string): Promise<SerializedIntent> {
+    const asset = await this.findOwned(requester, id);
+    // La identidad que va a la cadena es la del creador, no la de quien pide.
+    // Un ADMIN que prepara la intención de un expediente ajeno no puede
+    // reescribir su `ownerIdHash`: rompería la correspondencia con el registro.
+    return this.intents.build('register', asset.createdById, {
       assetId: asset.id,
       merkleRoot: asset.merkleRoot,
     });
   }
 
-  async confirmRegistration(createdById: string, id: string): Promise<AssetResponse> {
-    const asset = await this.findOwned(createdById, id);
+  async confirmRegistration(requester: AssetRequester, id: string): Promise<AssetResponse> {
+    const asset = await this.findOwned(requester, id);
     if (asset.registrationConfirmed) return this.toResponse(asset);
     const registered = await this.chain.getAsset(id as Hex);
     if (!registered) throw new NotFoundException(`Asset ${id} is not registered on-chain.`);
     const expected = {
       assetId: asset.id,
       merkleRoot: asset.merkleRoot,
-      ownerIdHash: ownerIdHash(createdById),
+      ownerIdHash: ownerIdHash(asset.createdById),
       controller: asset.controller,
     };
     for (const field of Object.keys(expected) as Array<keyof typeof expected>) {
@@ -151,19 +254,19 @@ export class AssetsService {
       }
     }
     await this.assets.update(
-      { id, createdById, registrationConfirmed: false },
+      { id, createdById: asset.createdById, registrationConfirmed: false },
       { registrationConfirmed: true },
     );
     asset.registrationConfirmed = true;
     return this.toResponse(asset);
   }
 
-  async get(createdById: string, id: string): Promise<AssetResponse> {
-    return this.toResponse(await this.findOwned(createdById, id));
+  async get(requester: AssetRequester, id: string): Promise<AssetResponse> {
+    return this.toResponse(await this.findOwned(requester, id));
   }
 
-  async chainSnapshot(createdById: string, id: string): Promise<ChainAssetSnapshotResponse> {
-    await this.findOwned(createdById, id);
+  async chainSnapshot(requester: AssetRequester, id: string): Promise<ChainAssetSnapshotResponse> {
+    await this.findOwned(requester, id);
     return this.readChainSnapshot(id);
   }
 
@@ -211,12 +314,18 @@ export class AssetsService {
     });
   }
 
-  private async findOwned(createdById: string, id: string): Promise<Asset> {
+  private async findOwned(requester: AssetRequester, id: string): Promise<Asset> {
+    // El ADMIN conduce el recorrido completo y necesita abrir expedientes que no
+    // creó. Es la única excepción: el resto de roles sigue acotado al creador,
+    // así que una PYME nunca ve el expediente de otra.
+    const where = requester.role === UserRole.ADMIN ? { id } : { id, createdById: requester.id };
     const asset = await this.assets.findOne({
-      where: { id, createdById },
+      where,
       relations: { receivables: true },
       order: { receivables: { position: 'ASC' } },
     });
+    // 404 y no 403 a propósito: un 403 confirmaría que el expediente existe, y
+    // los identificadores son adivinables por quien ya vio uno.
     if (!asset) throw new NotFoundException(`Asset ${id} was not found.`);
     return asset;
   }
