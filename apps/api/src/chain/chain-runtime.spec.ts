@@ -51,6 +51,7 @@ const event = (
 const reader = (overrides: Record<string, unknown> = {}) => ({
   getChainId: jest.fn().mockResolvedValue(421614),
   getBlock: jest.fn().mockResolvedValue({ number: 999n }),
+  getBytecode: jest.fn().mockResolvedValue('0x6000'),
   readContract: jest.fn(({ functionName }: { functionName: string }) =>
     Promise.resolve(functionName === 'exists' ? true : chainAsset),
   ),
@@ -61,6 +62,46 @@ const adapter = (rpc: ReturnType<typeof reader>) =>
   new ArbitrumChainAdapter('https://rpc.example', deployment, 100n, rpc as never);
 
 describe('chain runtime boundary', () => {
+  it('reports six deployed contracts only after checking bytecode at one safe block', async () => {
+    const rpc = reader();
+    const status = await adapter(rpc).getStatus();
+
+    expect(status).toMatchObject({ reachable: true, deployed: true, contractCount: 6 });
+    expect(rpc.getBytecode).toHaveBeenCalledTimes(6);
+    expect(rpc.getBytecode.mock.calls.every(([call]) => call.blockNumber === 999n)).toBe(true);
+  });
+
+  it('reports missing bytecode without claiming a complete deployment', async () => {
+    const getBytecode = jest
+      .fn()
+      .mockResolvedValueOnce('0x6000')
+      .mockResolvedValueOnce('0x')
+      .mockResolvedValue('0x6000');
+
+    await expect(adapter(reader({ getBytecode })).getStatus()).resolves.toMatchObject({
+      reachable: true,
+      deployed: false,
+      contractCount: 5,
+      reason: 'CONTRACT_CODE_MISSING',
+    });
+  });
+
+  it('sanitizes provider failures and wrong-chain details', async () => {
+    const unavailable = await adapter(
+      reader({ getChainId: jest.fn().mockRejectedValue(new Error('secret RPC URL and token')) }),
+    ).getStatus();
+    expect(unavailable).toMatchObject({ reachable: false, reason: 'RPC_UNAVAILABLE' });
+    expect(JSON.stringify(unavailable)).not.toContain('secret');
+
+    await expect(
+      adapter(reader({ getChainId: jest.fn().mockResolvedValue(1) })).getStatus(),
+    ).resolves.toMatchObject({
+      reachable: false,
+      reason: 'WRONG_CHAIN',
+      expectedChainId: 421614,
+      observedChainId: 1,
+    });
+  });
   it('accepts an empty optional RPC URL for the in-memory example', () => {
     expect(
       validateEnv({

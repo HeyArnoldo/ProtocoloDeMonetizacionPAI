@@ -34,6 +34,7 @@ describe('AssetsService', () => {
     findBy: jest.fn(),
   } as unknown as jest.Mocked<Repository<Evidence>>;
   const chain: jest.Mocked<ChainPort> = {
+    getStatus: jest.fn(),
     registerAsset: jest.fn(
       async (_input: RegisterAssetInput): Promise<TxRef> => ({
         hash: `0x${'33'.repeat(32)}`,

@@ -1,31 +1,41 @@
-/**
- * Estado de la conexión con la cadena, al pie del sidebar.
- *
- * La maqueta muestra un punto latiendo, `block #92,501,903` subiendo de uno en
- * uno cada 2.4s y `gas 0.01 gwei`. Nada de eso existe todavía: `apps/web` no
- * tiene cliente RPC y `chain/` no tiene ningún contrato desplegado. Un
- * contador que sube solo es la peor clase de dato falso, porque parece vivo.
- *
- * Así que la tarjeta declara lo que hay. La forma —punto de estado, red,
- * dos líneas de métrica— queda lista para que la integración con la cadena
- * sustituya el texto por `chainId`, número de bloque y gas reales, y encienda
- * el punto con `animate-blink` cuando la suscripción esté viva.
- */
+import { useChainStatus } from '@/hooks/use-chain-status';
+import { networkStatusView, type NetworkStatusState } from '@/domain/network-status';
+import { cn } from '@/lib/utils';
+
 export function NetworkStatus() {
+  const query = useChainStatus();
+  const state: NetworkStatusState = query.isPending
+    ? { state: 'loading' }
+    : query.data
+      ? { state: 'ready', data: query.data }
+      : { state: 'error' };
+
+  return <NetworkStatusContent state={state} />;
+}
+
+export function NetworkStatusContent({ state }: { state: NetworkStatusState }) {
+  const view = networkStatusView(state);
+
   return (
-    <div className="bg-card flex flex-col gap-1.5 rounded-md p-2.5">
-      <div className="text-ink-400 flex items-center gap-1.5 text-[11px]">
-        {/* Punto apagado: `ink-700` y sin latido. El latido significa
-            suscripción viva y hoy no hay ninguna. */}
-        <span className="bg-ink-700 size-1.5 rounded-full" aria-hidden="true" />
-        Arbitrum Sepolia
+    <div role="status" className="bg-card flex flex-col gap-1.5 rounded-md p-2.5">
+      <div className="text-ink-300 flex items-center gap-1.5 text-[11px] font-medium">
+        <span
+          className={cn(
+            'size-1.5 rounded-full',
+            view.tone === 'loading'
+              ? 'bg-ink-600 animate-pulse'
+              : view.tone === 'live'
+                ? 'bg-emerald-400 animate-pulse'
+                : view.tone === 'warning'
+                  ? 'bg-amber-400'
+                  : 'bg-ink-600',
+          )}
+          aria-hidden="true"
+        />
+        {view.label}
       </div>
-      <p className="text-muted-foreground text-[10px] leading-snug">
-        Sin RPC configurado: el panel no lee la cadena todavía.
-      </p>
-      <p className="text-muted-foreground text-[10px] leading-snug">
-        Sin contratos desplegados en la red.
-      </p>
+      <p className="text-muted-foreground text-[10px] leading-snug">{view.detail}</p>
+      <p className="text-ink-400 text-[10px] leading-snug">{view.metric}</p>
     </div>
   );
 }

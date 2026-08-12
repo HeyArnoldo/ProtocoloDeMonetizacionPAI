@@ -18,6 +18,7 @@ import {
   type BorrowingBaseResult,
   type ChainAssetSnapshot,
   type ChainPort,
+  type ChainStatus,
   type OnChainAsset,
   type RegisterAssetInput,
   type RevokeAttestationInput,
@@ -27,6 +28,7 @@ import {
 interface Reader {
   getChainId(): Promise<number>;
   getBlock(parameters: object): Promise<{ number: bigint }>;
+  getBytecode(parameters: object): Promise<Hex | undefined>;
   readContract(parameters: object): Promise<unknown>;
   getContractEvents(parameters: object): Promise<AttestationLog[]>;
 }
@@ -124,6 +126,55 @@ export class ArbitrumChainAdapter implements ChainPort {
     reader?: Reader,
   ) {
     this.reader = reader ?? (createPublicClient({ transport: http(rpcUrl) }) as unknown as Reader);
+  }
+
+  async getStatus(): Promise<ChainStatus> {
+    const base: ChainStatus = {
+      network: 'arbitrum-sepolia',
+      reachable: false,
+      configured: true,
+      deployed: false,
+      expectedChainId: this.deployment.chainId,
+      observedChainId: null,
+      blockNumber: null,
+      contractCount: 0,
+      expectedContractCount: 6,
+      contracts: Object.entries(this.deployment.addresses).map(([name]) => ({
+        name: name as ChainStatus['contracts'][number]['name'],
+        configured: true,
+        deployed: false,
+      })),
+    };
+
+    try {
+      const chainId = await this.reader.getChainId();
+      if (chainId !== this.deployment.chainId) {
+        return { ...base, observedChainId: chainId, reason: 'WRONG_CHAIN' };
+      }
+      const blockNumber = (await this.reader.getBlock({ blockTag: 'safe' })).number;
+      const bytecodes = await Promise.all(
+        Object.values(this.deployment.addresses).map((address) =>
+          this.reader.getBytecode({ address, blockNumber }),
+        ),
+      );
+      const contracts = base.contracts.map((contract, index) => ({
+        ...contract,
+        deployed: Boolean(bytecodes[index] && bytecodes[index] !== '0x'),
+      }));
+      const contractCount = contracts.filter((contract) => contract.deployed).length;
+      return {
+        ...base,
+        reachable: true,
+        observedChainId: chainId,
+        deployed: contractCount === base.expectedContractCount,
+        blockNumber,
+        contractCount,
+        contracts,
+        reason: contractCount === base.expectedContractCount ? undefined : 'CONTRACT_CODE_MISSING',
+      };
+    } catch {
+      return { ...base, reason: 'RPC_UNAVAILABLE' };
+    }
   }
 
   registerAsset(_input: RegisterAssetInput): Promise<TxRef> {

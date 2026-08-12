@@ -227,6 +227,10 @@ MOCK_USDC_ADDRESS=
 
 Con `CHAIN_ADAPTER=in-memory` (el default) todas son opcionales y la API funciona entera sin cadena: dev, tests y la mitad Web2 de la demo.
 
+`docker-compose.prod.yml` fija `CHAIN_ADAPTER=arbitrum` para verificar el stack live y exige bloque, seis direcciones y credenciales de storage mediante placeholders. No contiene valores privados ni demuestra qué variables están configuradas fuera del repositorio.
+
+La imagen Web recibe `VITE_API_URL` como argumento de build. En producción debe ser la URL pública absoluta de la API, por ejemplo `https://api.example.com`; con esa URL correcta el navegador llama directamente a la API y no necesita un proxy de nginx.
+
 ### Roles de la demo
 
 Deciden quién ve la cola de atestaciones y quién ve el fondeo. **Sin ellas todos entran como PYME** y la demo de tres certificadores no funciona:

@@ -6,6 +6,8 @@ import { ArbitrumChainAdapter } from './adapters/arbitrum.adapter';
 import { InMemoryChainAdapter } from './adapters/in-memory.adapter';
 import { ChainIntentController } from './chain-intent.controller';
 import { ChainIntentService } from './chain-intent.service';
+import { ChainStatusController } from './chain-status.controller';
+import { ChainStatusService } from './chain-status.service';
 import { CHAIN_RUNTIME_CONFIG, chainRuntimeConfig, type ChainRuntimeConfig } from './chain.config';
 
 /**
@@ -16,7 +18,7 @@ import { CHAIN_RUNTIME_CONFIG, chainRuntimeConfig, type ChainRuntimeConfig } fro
  */
 @Global()
 @Module({
-  controllers: [ChainIntentController],
+  controllers: [ChainIntentController, ChainStatusController],
   providers: [
     {
       provide: CHAIN_RUNTIME_CONFIG,
@@ -50,6 +52,7 @@ import { CHAIN_RUNTIME_CONFIG, chainRuntimeConfig, type ChainRuntimeConfig } fro
       },
     },
     ChainIntentService,
+    ChainStatusService,
   ],
   exports: [CHAIN_PORT, CHAIN_RUNTIME_CONFIG, ChainIntentService],
 })

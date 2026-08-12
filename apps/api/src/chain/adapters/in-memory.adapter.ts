@@ -9,6 +9,7 @@ import {
   type BorrowingBaseInput,
   type BorrowingBaseResult,
   type ChainPort,
+  type ChainStatus,
   type ChainAssetSnapshot,
   type OnChainAsset,
   type RegisterAssetInput,
@@ -32,6 +33,29 @@ import {
 export class InMemoryChainAdapter implements ChainPort {
   private readonly assets = new Map<AssetId, OnChainAsset>();
   private txCounter = 0;
+
+  async getStatus(): Promise<ChainStatus> {
+    return {
+      network: 'in-memory',
+      reachable: false,
+      configured: false,
+      deployed: false,
+      expectedChainId: null,
+      observedChainId: null,
+      blockNumber: null,
+      contractCount: 0,
+      expectedContractCount: 6,
+      contracts: [
+        'assetRegistry',
+        'certificationAttestor',
+        'paiCertificate',
+        'borrowingBaseEngine',
+        'collateralVault',
+        'mockUsdc',
+      ].map((name) => ({ name, configured: false, deployed: false })) as ChainStatus['contracts'],
+      reason: 'DEMO_MODE',
+    };
+  }
 
   async registerAsset(input: RegisterAssetInput): Promise<TxRef> {
     if (this.assets.has(input.assetId)) {

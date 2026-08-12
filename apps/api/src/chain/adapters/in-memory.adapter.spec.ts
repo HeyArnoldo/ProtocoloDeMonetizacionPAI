@@ -35,6 +35,17 @@ describe('InMemoryChainAdapter', () => {
     chain = new InMemoryChainAdapter();
   });
 
+  it('declares demo mode without claiming a live deployment', async () => {
+    await expect(chain.getStatus()).resolves.toMatchObject({
+      network: 'in-memory',
+      reachable: false,
+      configured: false,
+      deployed: false,
+      contractCount: 0,
+      reason: 'DEMO_MODE',
+    });
+  });
+
   describe('registerAsset', () => {
     it('deja el expediente en Registered', async () => {
       await chain.registerAsset(registration());

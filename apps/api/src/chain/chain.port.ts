@@ -167,6 +167,34 @@ export interface BorrowingBaseResult {
   breakdown: Array<{ concept: string; amountMinor: string }>;
 }
 
+export type ChainContractName =
+  | 'assetRegistry'
+  | 'certificationAttestor'
+  | 'paiCertificate'
+  | 'borrowingBaseEngine'
+  | 'collateralVault'
+  | 'mockUsdc';
+
+export interface ChainStatus {
+  network: 'arbitrum-sepolia' | 'in-memory';
+  reachable: boolean;
+  configured: boolean;
+  deployed: boolean;
+  expectedChainId: number | null;
+  observedChainId: number | null;
+  blockNumber: bigint | null;
+  contractCount: number;
+  expectedContractCount: 6;
+  contracts: Array<{
+    name: ChainContractName;
+    configured: boolean;
+    deployed: boolean;
+    explorerUrl?: string;
+  }>;
+  explorerUrl?: string;
+  reason?: 'DEMO_MODE' | 'RPC_UNAVAILABLE' | 'WRONG_CHAIN' | 'CONTRACT_CODE_MISSING';
+}
+
 /** Error de dominio: la transición pedida no existe en la máquina de estados. */
 export class InvalidChainTransitionError extends Error {}
 
@@ -174,6 +202,7 @@ export class InvalidChainTransitionError extends Error {}
 export class AssetNotFoundError extends Error {}
 
 export interface ChainPort {
+  getStatus(): Promise<ChainStatus>;
   registerAsset(input: RegisterAssetInput): Promise<TxRef>;
   attest(input: AttestInput): Promise<TxRef>;
   revokeAttestation(input: RevokeAttestationInput): Promise<TxRef>;
