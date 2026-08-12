@@ -227,6 +227,32 @@ MOCK_USDC_ADDRESS=
 
 Con `CHAIN_ADAPTER=in-memory` (el default) todas son opcionales y la API funciona entera sin cadena: dev, tests y la mitad Web2 de la demo.
 
+Para comprobar que la API está leyendo la cadena de verdad, sin sesión:
+
+```bash
+curl -s https://tu-api/api/chain/status | jq
+# status: "live"       → hubo lectura real del RPC; trae safeBlock y headBlock
+# status: "unreachable" → configurada contra Arbitrum, pero el RPC no responde
+# status: "offline"     → CHAIN_ADAPTER=in-memory: nada llega a la cadena
+```
+
+### Los dos `.env` son distintos y no se mezclan
+
+Es el error más fácil de cometer al desplegar, porque los dos hablan de Arbitrum:
+
+|                 | `chain/.env` (despliegue)                                        | `.env` de la app (runtime)                                         |
+| --------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Quién lo usa    | Foundry, una sola vez, desde tu máquina                          | API y Web, en cada arranque                                        |
+| Qué contiene    | `DEPLOYER_PRIVATE_KEY`, `*_ADDRESS` de rol, `DEMO_ROLE_MNEMONIC` | `CHAIN_ADAPTER`, `CHAIN_RPC_URL`, las seis direcciones de contrato |
+| Claves privadas | Sí                                                               | **Nunca**                                                          |
+| Dónde vive      | Solo local, nunca versionado ni en Docker                        | Variables de entorno de Coolify                                    |
+
+**`DEPLOYER_PRIVATE_KEY` no va en el `.env` de la aplicación.** La API no firma transacciones de valor: si esa clave llega al contenedor, deja de ser cierto que solo el usuario puede mover su dinero, que es el argumento del proyecto. El deployer paga el gas del despliegue y nada más.
+
+Lo que sí cruza del despliegue al runtime son **solo las seis direcciones y el bloque**, y su fuente única es `chain/deployments/421614.json` — no se copian a mano de la salida de Foundry.
+
+> **El deployer no es el admin.** En el despliegue canónico el deployer es `0xC05b…890B` y quien tiene `DEFAULT_ADMIN_ROLE` es `0xF3D0…4443` (`roles.admin` del artefacto). El script concede los roles a las direcciones de `chain/deploy-config/421614.json` y el deployer no se queda con ninguno. Tampoco todas las direcciones de rol derivan de `DEMO_ROLE_MNEMONIC`: solo `admin` es su índice 0. Verifícalo contra el artefacto, no por derivación.
+
 ### Roles de la demo
 
 Deciden quién ve la cola de atestaciones y quién ve el fondeo. **Sin ellas todos entran como PYME** y la demo de tres certificadores no funciona:
