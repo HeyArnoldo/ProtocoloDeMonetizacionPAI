@@ -298,6 +298,7 @@ ADMIN_NAME=Admin
 # true para MinIO (path-style), false para S3 real.
 STORAGE_FORCE_PATH_STYLE=false
 # Opcional: solo para MinIO. AWS S3 y R2 lo resuelven por región.
+# Declararla vacía es válido: el schema trata `''` como "sin configurar".
 STORAGE_ENDPOINT=
 ```
 
@@ -458,6 +459,10 @@ docker compose -f docker-compose.prod.yml up -d --build
 # api → http://localhost:3000/health · web → http://localhost:8090
 docker compose -f docker-compose.prod.yml down
 ```
+
+Ese compose le pasa a la API las mismas variables de cadena y storage que Coolify, tomadas del `.env` de la raíz. Las que no admiten un default razonable —`STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `CHAIN_DEPLOYMENT_BLOCK` y las seis `*_ADDRESS`— están declaradas con `${VAR:?...}`: si falta una, `up` corta nombrándola. Es a propósito. Un default silencioso ahí devolvería lo que este stack no puede permitirse: una API arrancada contra el adapter en memoria, con `/api/chain/status` en `offline` y hashes sintéticos que parecen buenos.
+
+Las seis direcciones no se hornean en el compose: salen del `.env`, y su fuente única sigue siendo `chain/deployments/421614.json`. Copiarlas al YAML las dejaría obsoletas en el siguiente redespliegue.
 
 ---
 
