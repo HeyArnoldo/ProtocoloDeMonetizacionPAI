@@ -29,3 +29,29 @@ api.interceptors.response.use((response) => {
   }
   return response;
 });
+
+/**
+ * Motivo legible de un fallo de la API.
+ *
+ * Axios rotula todo con «Request failed with status code N», que no le dice
+ * nada a quien está en la pantalla. NestJS responde `{ message }` —string o
+ * array cuando la validación acumula varios— y ese es el texto que importa.
+ */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  const data = (error as { response?: { data?: unknown } } | null)?.response?.data;
+  const message = (data as { message?: unknown } | null)?.message;
+
+  if (typeof message === 'string' && message.trim()) return message;
+  if (Array.isArray(message)) {
+    const joined = message.filter((item) => typeof item === 'string' && item.trim()).join(' · ');
+    if (joined) return joined;
+  }
+  return fallback;
+}
+
+// Se aplica a todas las pantallas de una vez: cualquier `error.message` que
+// llegue a la UI ya trae el motivo de la API en vez del rótulo de Axios.
+api.interceptors.response.use(undefined, (error: unknown) => {
+  if (error instanceof Error) error.message = apiErrorMessage(error, error.message);
+  throw error;
+});

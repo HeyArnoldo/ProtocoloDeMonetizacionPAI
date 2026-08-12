@@ -63,11 +63,12 @@ export const VERIFY_ASSET_ID = `0x${'ab'.repeat(32)}` as const;
 export const DEMO_ASSET_ID = `0x${'1d'.repeat(32)}` as const;
 
 export const MOCK_WALLET_ACCOUNT = `0x${'42'.repeat(20)}`;
+export const MOCK_TX_HASH = `0x${'ee'.repeat(32)}`;
 
 /** Proveedor EIP-1193 mínimo para ejercitar la conexión sin una extensión real. */
 export async function mockInjectedWallet(page: Page): Promise<void> {
   await page.addInitScript(
-    ({ account }) => {
+    ({ account, MOCK_TX_HASH }) => {
       const listeners = new Map<string, Set<(value?: unknown) => void>>();
       let accounts: string[] = [];
       let chainId = '0x1';
@@ -94,6 +95,9 @@ export async function mockInjectedWallet(page: Page): Promise<void> {
               emit('chainChanged', chainId);
               return null;
             }
+            // Firmar es parte del recorrido de registro y de préstamo: sin esto
+            // el proveedor simulado corta justo donde empieza lo interesante.
+            if (method === 'eth_sendTransaction') return MOCK_TX_HASH;
             throw new Error(`Unexpected wallet method: ${method}`);
           },
           on(event: string, listener: (value?: unknown) => void) {
@@ -108,7 +112,7 @@ export async function mockInjectedWallet(page: Page): Promise<void> {
       });
       Object.defineProperty(window, '__walletCalls', { value: calls });
     },
-    { account: MOCK_WALLET_ACCOUNT },
+    { account: MOCK_WALLET_ACCOUNT, MOCK_TX_HASH },
   );
 }
 
@@ -348,6 +352,26 @@ export interface ApiMockOptions {
   assetErrorStatus?: 403 | 404;
   /** Estado de `GET /api/chain/status`. Por defecto, la cadena responde viva. */
   chainStatus?: ChainStatusResponse;
+  /** Expediente que devuelve `POST /api/assets`. */
+  createdAsset?: AssetResponse;
+  createAssetError?: string;
+  confirmRegistrationError?: string;
+}
+
+/** Expediente recién creado: sin confirmar, que es como nace. */
+export function buildCreatedAsset(overrides: Partial<AssetResponse> = {}): AssetResponse {
+  return {
+    id: DEMO_ASSET_ID,
+    ownerIdHash: `0x${'ef'.repeat(32)}`,
+    controller: MOCK_WALLET_ACCOUNT.toLowerCase(),
+    merkleRoot: `0x${'cd'.repeat(32)}`,
+    registrationTxHash: null,
+    registrationConfirmed: false,
+    registrationBlockNumber: null,
+    receivables: [],
+    createdAt: '2026-08-12T00:00:00.000Z',
+    ...overrides,
+  };
 }
 
 function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
@@ -368,6 +392,31 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
   const user = options.user ?? null;
   const evidence = [...(options.evidence ?? [])];
   const asset = options.asset ?? buildAssetResponse(buildAssetReceivables(options.portfolio));
+
+  // Recorrido de creación del expediente: crear -> intent -> confirmar.
+  // Se sirven antes que `**/api/assets/*` para que la ruta comodín no se los
+  // trague: Playwright resuelve por orden de registro.
+  const createdAsset = options.createdAsset ?? buildCreatedAsset();
+  await page.route('**/api/assets/*/registration-intent', (route) =>
+    fulfillJson(route, {
+      chainId: 421614,
+      to: `0x${'11'.repeat(20)}`,
+      data: `0x${'ab'.repeat(4)}`,
+      value: '0',
+    }),
+  );
+  await page.route('**/api/assets/*/confirm-registration', (route) =>
+    options.confirmRegistrationError
+      ? fulfillJson(route, { statusCode: 409, message: options.confirmRegistrationError }, 409)
+      : fulfillJson(route, { ...createdAsset, registrationConfirmed: true }),
+  );
+  await page.route('**/api/assets', (route) =>
+    route.request().method() === 'POST'
+      ? options.createAssetError
+        ? fulfillJson(route, { statusCode: 400, message: options.createAssetError }, 400)
+        : fulfillJson(route, createdAsset, 201)
+      : fulfillJson(route, createdAsset),
+  );
 
   await page.route('**/api/chain/status', (route) =>
     fulfillJson(route, options.chainStatus ?? buildChainStatus()),

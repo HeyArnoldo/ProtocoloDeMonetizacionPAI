@@ -85,15 +85,15 @@ curl -s https://api-pai.cloud.groowtech.com/api/chain/status | jq '{status, chai
 
 ## 6. Guion de demo — 4 minutos
 
-| Min  | Pantalla                                        | Frase clave                                                      |
-| ---- | ----------------------------------------------- | ---------------------------------------------------------------- |
-| 0:00 | Login y panel. El punto late con el bloque real | «El panel no dice que está conectado: muestra a qué altura leyó» |
-| 0:30 | Evidencias → árbol de Merkle → tx en Arbiscan   | «Del expediente entero, on-chain viajan 32 bytes»                |
-| 1:15 | Certificación desde tres wallets distintas      | «Ninguno ve todo. Cada firma es acotada y revocable»             |
-| 2:00 | **Divulgación selectiva: 12 de 16**             | «Prueba sin revelar. Sin ZK, solo Merkle»                        |
-| 2:30 | **Desglose del monto prestable**                | «Este número no le pedimos que lo crea. Que lo recompute»        |
-| 3:15 | Originación y fondeo → mUSDC llega a la PYME    | «El dinero nunca tocó nuestro servidor»                          |
-| 3:45 | Verificación pública sin sesión                 | «Ábrala usted, sin credenciales nuestras»                        |
+| Min  | Pantalla                                          | Frase clave                                                      |
+| ---- | ------------------------------------------------- | ---------------------------------------------------------------- |
+| 0:00 | Login y panel. El punto late con el bloque real   | «El panel no dice que está conectado: muestra a qué altura leyó» |
+| 0:30 | Evidencias → `/expediente/nuevo` → tx en Arbiscan | «Del expediente entero, on-chain viajan 32 bytes»                |
+| 1:15 | Certificación desde tres wallets distintas        | «Ninguno ve todo. Cada firma es acotada y revocable»             |
+| 2:00 | **Divulgación selectiva: 12 de 16**               | «Prueba sin revelar. Sin ZK, solo Merkle»                        |
+| 2:30 | **Desglose del monto prestable**                  | «Este número no le pedimos que lo crea. Que lo recompute»        |
+| 3:15 | Originación y fondeo → mUSDC llega a la PYME      | «El dinero nunca tocó nuestro servidor»                          |
+| 3:45 | Verificación pública sin sesión                   | «Ábrala usted, sin credenciales nuestras»                        |
 
 **Cierre sugerido:** abrir `/verify` en el navegador del jurado. Es la única pantalla que no requiere confiar en nadie del equipo.
 
@@ -120,7 +120,7 @@ Son ilustrativos, aritméticamente consistentes y representativos del mercado Sa
 
 El detalle que hunde demos: llegar a la pantalla del préstamo con las wallets sin fondear.
 
-- [ ] Un expediente **ya registrado y certificado** en testnet, con su `assetId` anotado. La demo se abre sobre él; no se crea uno en vivo.
+- [ ] Un expediente **ya registrado y certificado** en testnet, con su `assetId` anotado, creado desde `/expediente/nuevo`. La demo se abre sobre él; crear uno en vivo depende de faucets y de la latencia de la red.
 - [ ] Las seis wallets con `0.001–0.002 ETH` de Arbitrum Sepolia.
 - [ ] La wallet del fondo con saldo de `MockUSDC` suficiente para el principal del guion.
 - [ ] Roles on-chain concedidos desde la wallet Admin — son un sistema distinto de los roles de la aplicación.

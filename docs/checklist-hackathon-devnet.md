@@ -42,24 +42,25 @@ Lo verde está verificado contra la red o contra el servicio en producción, no 
 
 ---
 
-## 🔴 Ruta crítica — sin esto no hay demo end-to-end
+### Recorrido de creación del expediente
 
-### 1. Flujo de creación del activo en Web ← **el bloqueante**
+- [x] `/expediente/nuevo` crea el expediente, pide el intent **sobre el expediente persistido** —así el `merkleRoot` firmado no puede diferir del guardado—, lo firma la wallet y confirma contra la cadena. El `assetId` sobrevive a una firma rechazada para poder reintentar sin duplicar el expediente, y se muestra rotulado para no confundirlo con el SHA-256 de una evidencia.
 
-Hoy no existe: `apps/web/src` no tiene una sola llamada a `/assets`. Se suben evidencias, pero **nunca se crea un activo**, así que no hay `assetId` que registrar, certificar, divulgar ni financiar. `/expediente` solo sabe leer uno si se le pasa `?assetId=0x…`.
+Cubierto por 20 tests de dominio y 4 e2e, incluido el recorrido completo con la wallet simulada.
 
-- [ ] Pantalla de creación: seleccionar evidencias, cargar cuentas por cobrar y definir la wallet controladora.
-- [ ] Conectar creación → intent de registro → firma en MetaMask → confirmación on-chain.
-- [ ] Mostrar el `assetId` resultante de forma copiable, y distinguirlo visualmente del SHA-256 de una evidencia: los dos son `0x` + 64 hex y confundirlos ya costó una sesión de depuración.
-- [ ] Pruebas de comportamiento y E2E del recorrido.
+### Producción alineada con el despliegue
 
-> La API ya expone creación, intent y confirmación en `AssetsController`. Falta únicamente el recorrido de producto en Web.
+- [x] Las seis `*_ADDRESS` y `CHAIN_DEPLOYMENT_BLOCK` actualizadas en Coolify —en los pares de producción **y** de preview, para no dejar un duplicado obsoleto— y la API redesplegada. `GET /api/chain/status` responde `"live"` con `deploymentBlock` 297286907 y las seis direcciones canónicas.
 
-### 2. ~~Apuntar la aplicación al despliegue nuevo~~ ✅
+### Errores de la API legibles en pantalla
 
-Hecho. Las seis `*_ADDRESS` y `CHAIN_DEPLOYMENT_BLOCK` se actualizaron en Coolify —en los pares de producción **y** de preview, para no dejar un duplicado obsoleto— y la API se redesplegó. `GET /api/chain/status` responde `"live"` con `deploymentBlock` 297286907 y las seis direcciones canónicas.
+- [x] El panel mostraba «Request failed with status code 409» y descartaba el motivo que manda la API. Ahora el interceptor extrae `message` del cuerpo, así que cualquier pantalla dice qué falló de verdad.
 
-### 3. Provisionar actores y wallets
+---
+
+## 🔴 Ruta crítica — lo que queda para la demo
+
+### 1. Provisionar actores y wallets
 
 - [ ] Definir los correos de Admin, PYME, Fondo y los tres Certificadores en la configuración de autenticación.
 - [ ] Una wallet testnet independiente por persona; compartir solo direcciones públicas.
@@ -70,12 +71,12 @@ Hecho. Las seis `*_ADDRESS` y `CHAIN_DEPLOYMENT_BLOCK` se actualizaron en Coolif
 
 > Los roles de la aplicación y los del contrato son **sistemas distintos**. Asignar uno no configura el otro.
 
-### 4. Superficie de administración
+### 2. Superficie de administración
 
 - [ ] Provisionar roles de aplicación sin editar archivos durante la demo.
 - [ ] Preparar las concesiones de rol on-chain mediante MetaMask.
 
-### 5. Recorrido completo en testnet, una vez de principio a fin
+### 3. Recorrido completo en testnet, una vez de principio a fin
 
 - [ ] Registrar un activo real del demo.
 - [ ] Emitir las tres certificaciones desde wallets distintas.

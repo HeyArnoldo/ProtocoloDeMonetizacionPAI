@@ -9,6 +9,7 @@ const LandingPage = lazy(() => import('@/pages/landing'));
 const LoginPage = lazy(() => import('@/pages/login'));
 const RegisterPage = lazy(() => import('@/pages/register'));
 const OverviewPage = lazy(() => import('@/pages/overview'));
+const AssetNewPage = lazy(() => import('@/pages/asset-new'));
 const DossierPage = lazy(() => import('@/pages/dossier'));
 const EvidencePage = lazy(() => import('@/pages/evidence'));
 const DisclosurePage = lazy(() => import('@/pages/disclosure'));
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { path: '/panel', element: <OverviewPage /> },
+          { path: '/expediente/nuevo', element: <AssetNewPage /> },
           { path: '/expediente', element: <DossierPage /> },
           { path: '/evidencias', element: <EvidencePage /> },
           { path: '/divulgacion', element: <DisclosurePage /> },

@@ -44,6 +44,13 @@ export const NAV_GROUPS: NavGroup[] = [
         roles: [UserRole.PYME, UserRole.FUND, UserRole.ADMIN],
       },
       {
+        path: '/expediente/nuevo',
+        label: 'Nuevo expediente',
+        title: 'Crear el expediente',
+        subtitle: 'De las evidencias cargadas al AssetRegistry, firmado por tu wallet',
+        roles: [UserRole.PYME, UserRole.ADMIN],
+      },
+      {
         path: '/expediente',
         label: 'Expediente',
         title: 'Expediente y árbol de Merkle',
