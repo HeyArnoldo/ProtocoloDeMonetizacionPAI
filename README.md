@@ -460,7 +460,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml down
 ```
 
-Ese compose le pasa a la API las mismas variables de cadena y storage que Coolify, tomadas del `.env` de la raíz. Las que no admiten un default razonable —`STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `CHAIN_DEPLOYMENT_BLOCK` y las seis `*_ADDRESS`— están declaradas con `${VAR:?...}`: si falta una, `up` corta nombrándola. Es a propósito. Un default silencioso ahí devolvería lo que este stack no puede permitirse: una API arrancada contra el adapter en memoria, con `/api/chain/status` en `offline` y hashes sintéticos que parecen buenos.
+Ese compose le pasa a la API **todas** las variables que declara `env.validation.ts` —cadena, storage, allowlists de rol, cookie y OAuth—, tomadas del `.env` de la raíz. Si añades una al schema, añádela también ahí: lo que el compose no pasa, la API no lo ve, y con `CERTIFIER_EMAILS` ausente todo el mundo entra como PYME sin que nada falle. Las que no admiten un default razonable —`STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `CHAIN_DEPLOYMENT_BLOCK` y las seis `*_ADDRESS`— están declaradas con `${VAR:?...}`: si falta una, `up` corta nombrándola. Es a propósito. Un default silencioso ahí devolvería lo que este stack no puede permitirse: una API arrancada contra el adapter en memoria, con `/api/chain/status` en `offline` y hashes sintéticos que parecen buenos.
 
 Las seis direcciones no se hornean en el compose: salen del `.env`, y su fuente única sigue siendo `chain/deployments/421614.json`. Copiarlas al YAML las dejaría obsoletas en el siguiente redespliegue.
 
