@@ -15,7 +15,7 @@ export interface PendingDataProps {
  *
  * Regla del panel: **vacío con explicación es mejor que falso**. Las pantallas
  * de la maqueta muestran números del caso de referencia —nominal, hojas,
- * hashes, txs— que hoy no tienen ninguna fuente: no hay contratos desplegados
+ * hashes, txs— que hoy no tienen ninguna fuente: no hay expediente registrado
  * ni RPC configurado. Portarlos como si fueran estado de la aplicación
  * convertiría una demo en una mentira, así que en su lugar va este bloque, que
  * dice qué falta, por qué, y qué lo desbloquea.

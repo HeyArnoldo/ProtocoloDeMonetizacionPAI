@@ -6,8 +6,8 @@ import { PendingData } from '@/components/panel/pending-data';
  *
  * Los cuatro KPIs de la maqueta (nominal certificado, base prestable, monto
  * solicitado, días hasta el desembolso) describen un expediente concreto que
- * todavía no existe en ninguna parte: no hay `AssetRegistry` desplegado, ni
- * préstamo, ni motor de riesgo. En su lugar va la explicación de qué mide cada
+ * todavía no existe en ninguna parte: los contratos están desplegados en Arbitrum
+ * Sepolia, pero no hay expediente registrado, ni préstamo, ni valorización. En su lugar va la explicación de qué mide cada
  * uno y qué falta para poder medirlo.
  */
 
@@ -55,12 +55,13 @@ const KPIS = [
     title: 'Base prestable',
     reason:
       'Monto máximo financiable. Lo produce el motor de riesgo sobre las hojas divulgadas, no el backend.',
-    unblockedBy: 'BorrowingBaseEngine desplegado en Arbitrum Sepolia',
+    unblockedBy:
+      'el panel llamando al BorrowingBaseEngine ya desplegado sobre las hojas divulgadas',
   },
   {
     title: 'Solicitado',
     reason: 'Principal en USDC pedido por la PYME contra esa base.',
-    unblockedBy: 'CollateralVault desplegado y una solicitud de préstamo',
+    unblockedBy: 'una solicitud de préstamo contra el CollateralVault ya desplegado',
   },
   {
     title: 'Días hasta el desembolso',
@@ -106,7 +107,8 @@ export default function OverviewPage() {
         <p className="text-muted-foreground text-[12px]">
           Ocho estados con transiciones aplicadas por <span className="mono">require()</span>. Nadie
           —tampoco el backend— puede saltarse el orden. Ninguno aparece marcado como actual porque
-          el estado se lee del contrato y todavía no hay contrato desplegado.
+          el estado se lee de <span className="mono">AssetRegistry</span>, ya desplegado en Arbitrum
+          Sepolia, y todavía no hay ningún expediente registrado en él.
         </p>
       </section>
 
@@ -134,7 +136,7 @@ export default function OverviewPage() {
         <PendingData
           title="Últimos eventos indexados"
           reason="La lista de AssetRegistered, AttestationCreated, CertificateMinted y AssetPledged en orden cronológico, tal como los recibe el Worker."
-          unblockedBy="los contratos desplegados y el Worker suscrito a sus eventos"
+          unblockedBy="el Worker suscrito a los eventos de los contratos ya desplegados"
         />
       </div>
     </div>

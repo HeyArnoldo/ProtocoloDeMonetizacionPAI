@@ -11,7 +11,7 @@ export interface HashValueProps {
   /**
    * Enlace al explorador de bloques.
    *
-   * Todavía sin uso: no hay contratos desplegados ni red configurada, así que
+   * Todavía sin uso: no hay expediente registrado on-chain, así que
    * ninguna pantalla puede construir una URL de Arbiscan que resuelva. La
    * prop existe para que la fase de integración con la cadena solo tenga que
    * pasarla.
