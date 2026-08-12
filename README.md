@@ -36,7 +36,7 @@ Esta tabla es deliberadamente honesta. Un jurado que descubre solo que una demo 
 | **`packages/evm`**              | ✅ Funciona             | ABIs y tipos generados desde `chain/`, 88 tests                                                                    |
 | **Adaptador de Arbitrum**       | ✅ Implementado         | `ArbitrumChainAdapter` lee la cadena con viem. Ya no es un stub                                                    |
 | **Firma desde wallet**          | ✅ Funciona             | La API prepara el _intent_ y el navegador lo firma por EIP-1193. **El backend no guarda claves**                   |
-| **Despliegue en Sepolia**       | ✅ Desplegado           | Seis contratos en Arbitrum Sepolia desde el bloque 296546459. Direcciones en `chain/deployments/421614.json`       |
+| **Despliegue en Sepolia**       | ✅ Desplegado           | Seis contratos en Arbitrum Sepolia desde el bloque 297286907. Direcciones en `chain/deployments/421614.json`       |
 | **Lectura en vivo de la red**   | ✅ Funciona             | `GET /api/chain/status` publica `chainId`, bloque seguro y cabeza; el panel enciende el punto solo con esa lectura |
 | **Motor en Stylus (Rust)**      | 🔴 No existe            | `chain/stylus/` está vacío. `BorrowingBaseEngine` hoy es **Solidity**, no Rust                                     |
 | **Cuenta inteligente ERC-4337** | 🔴 No existe            | Login con Google sí funciona; la smart account en segundo plano, no                                                |

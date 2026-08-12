@@ -17,7 +17,7 @@ Lo verde está verificado contra la red o contra el servicio en producción, no 
 
 ### Cadena
 
-- [x] Seis contratos desplegados en Arbitrum Sepolia desde el bloque `296546459`. Verificado con `eth_getCode` sobre las seis direcciones.
+- [x] Seis contratos desplegados en Arbitrum Sepolia desde el bloque `297286907`. Verificado con `eth_getCode` sobre las seis direcciones.
 - [x] `chain/deployments/421614.json` es la fuente única de direcciones y hashes.
 - [x] API configurada con `CHAIN_ADAPTER=arbitrum`, chain ID `421614`, bloque de deployment y las seis direcciones canónicas.
 - [x] `DEFAULT_ADMIN_ROLE` en la wallet Admin, no en el deployer. Verificado con `hasRole`.
@@ -34,7 +34,10 @@ Lo verde está verificado contra la red o contra el servicio en producción, no 
 
 ### Correcciones de fondo
 
-- [x] **Choque de decimales en `CollateralVault`** corregido en código: el principal se denomina en unidades del token y la base prestable se escala desde centavos con `principalScale`, derivado de `decimals()` del propio token. 69 tests de Foundry en verde.
+- [x] **Choque de decimales en `CollateralVault`** corregido y **desplegado**: el principal se denomina en unidades del token y la base prestable se escala desde centavos con `principalScale`, derivado de `decimals()` del propio token. 69 tests de Foundry en verde.
+- [x] Redespliegue guardado en el bloque `297286907`: 20 transacciones con recibo exitoso, los seis `CREATE` esperados, metadatos escritos por el finalizador sobre recibos reales y `smoke:preflight` confirmando wiring y roles.
+- [x] Dos bloqueos del `deployment:guard` que impedían redesplegar fuera de una máquina con uid 1000 (permisos del snapshot congelado y `HOME` no escribible dentro del contenedor).
+- [x] `identities:regenerate`: el guard exigía versionar las identidades esperadas antes de un redeploy y no había forma de producirlas.
 - [x] El campo del principal en `/prestamo` declara la escala y muestra la equivalencia en dólares mientras se escribe.
 
 ---
@@ -52,16 +55,13 @@ Hoy no existe: `apps/web/src` no tiene una sola llamada a `/assets`. Se suben ev
 
 > La API ya expone creación, intent y confirmación en `AssetsController`. Falta únicamente el recorrido de producto en Web.
 
-### 2. Redespliegue con el arreglo de decimales
+### 2. Apuntar la aplicación al despliegue nuevo ← **producción está desalineada**
 
-El código está corregido y probado, pero los contratos en la red siguen siendo los anteriores. El bytecode cambió, así que las direcciones cambian.
+El redespliegue ya ocurrió (bloque `297286907`), así que **las direcciones del `.env` en Coolify son las viejas**. Hasta actualizarlas, la API lee contratos que ya no son los canónicos.
 
-- [ ] `pnpm --filter @app/evm deployment:guard -- prepare` e `inspect` sobre el digest del candidato.
-- [ ] Autorización humana explícita del digest inspeccionado, y recién entonces `authorize` + `broadcast`.
-- [ ] `deployment:finalize` para regenerar `chain/deployments/421614.json` desde los recibos reales.
-- [ ] Actualizar las seis direcciones y `CHAIN_DEPLOYMENT_BLOCK` en el `.env` de la aplicación.
-- [ ] Volver a conceder los roles on-chain sobre los contratos nuevos.
-- [ ] Confirmar que `GET /api/chain/status` vuelve a `"live"` con el bloque nuevo.
+- [ ] Reemplazar las seis `*_ADDRESS` y `CHAIN_DEPLOYMENT_BLOCK` en las variables de entorno de la API en Coolify, copiándolas de `chain/deployments/421614.json`.
+- [ ] Redesplegar la API para que tome las variables nuevas.
+- [ ] Confirmar `GET /api/chain/status` en `"live"` con `deploymentBlock` 297286907.
 
 ### 3. Provisionar actores y wallets
 
