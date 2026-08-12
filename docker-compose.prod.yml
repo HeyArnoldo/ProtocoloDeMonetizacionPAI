@@ -29,14 +29,31 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-app}
       DB_NAME: ${DB_NAME:-pai_arbitrum}
       API_PORT: 3000
-      CORS_ORIGIN: http://localhost:8090
-      FRONTEND_URL: http://localhost:8090
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8090}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8090}
       AUTH_LOCAL_ENABLED: ${AUTH_LOCAL_ENABLED:-true}
       JWT_SECRET: ${JWT_SECRET:-cambiame_por_un_secreto_largo}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
       ADMIN_NAME: ${ADMIN_NAME:-Admin}
+      # Allowlists de rol. Sin ellas todos entran como PYME: nadie llega a
+      # /certificacion y el fondo no puede operar en /prestamo, o sea que la
+      # demo de tres certificadores no existe. Son opcionales en el schema, así
+      # que el default vacío es legítimo — `role-mapping` descarta los vacíos.
+      CERTIFIER_EMAILS: ${CERTIFIER_EMAILS:-}
+      FUND_EMAILS: ${FUND_EMAILS:-}
+      # Cookie de sesión. Estas dos no admiten '': el schema las valida como
+      # enum y como flag booleano, así que el default va con valor, no vacío.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      # Google OAuth: opcional. Con '' en CLIENT_ID o CLIENT_SECRET el botón no
+      # aparece y las rutas devuelven 404, que es el comportamiento esperado.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
       # Storage de evidencias: el schema de env las exige con cualquier adapter.
       # Sin ellas la API ni siquiera arranca, así que `:?` corta en `up` con el
       # nombre de la variable en vez de dejar el contenedor en crash loop.
