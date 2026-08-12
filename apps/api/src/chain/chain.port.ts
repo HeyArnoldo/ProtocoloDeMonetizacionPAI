@@ -142,6 +142,17 @@ export interface ChainAssetSnapshot {
       };
 }
 
+/**
+ * Liveness of the link between the API and the chain.
+ *
+ * `safeBlock` is the height every read is anchored to; `headBlock` is the tip.
+ * The gap between them is the reorg margin the adapter deliberately keeps, and
+ * showing both is what makes the panel's "connected" claim auditable.
+ */
+export type ChainNetworkStatus =
+  | { network: 'in-memory'; chainId: null; safeBlock: null; headBlock: null }
+  | { network: 'arbitrum'; chainId: number; safeBlock: bigint; headBlock: bigint };
+
 export interface BorrowingBaseInput {
   assetId: AssetId;
   /** Multiproof serializado de las hojas que la empresa decidió divulgar. */
@@ -174,6 +185,11 @@ export class InvalidChainTransitionError extends Error {}
 export class AssetNotFoundError extends Error {}
 
 export interface ChainPort {
+  /**
+   * Liveness probe. Must reject — never degrade silently — when the RPC is
+   * unreachable or answers for a chain other than the deployment's.
+   */
+  getNetworkStatus(): Promise<ChainNetworkStatus>;
   registerAsset(input: RegisterAssetInput): Promise<TxRef>;
   attest(input: AttestInput): Promise<TxRef>;
   revokeAttestation(input: RevokeAttestationInput): Promise<TxRef>;

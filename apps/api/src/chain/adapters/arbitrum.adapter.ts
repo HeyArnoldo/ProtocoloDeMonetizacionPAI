@@ -17,6 +17,7 @@ import {
   type BorrowingBaseInput,
   type BorrowingBaseResult,
   type ChainAssetSnapshot,
+  type ChainNetworkStatus,
   type ChainPort,
   type OnChainAsset,
   type RegisterAssetInput,
@@ -136,6 +137,15 @@ export class ArbitrumChainAdapter implements ChainPort {
     return this.unsignedOnly();
   }
 
+  async getNetworkStatus(): Promise<ChainNetworkStatus> {
+    const chainId = await this.assertChain();
+    const [safe, head] = await Promise.all([
+      this.reader.getBlock({ blockTag: 'safe' }),
+      this.reader.getBlock({ blockTag: 'latest' }),
+    ]);
+    return { network: 'arbitrum', chainId, safeBlock: safe.number, headBlock: head.number };
+  }
+
   async getAsset(assetId: AssetId): Promise<OnChainAsset | null> {
     return this.assetAt(assetId, await this.safeBlock());
   }
@@ -207,13 +217,19 @@ export class ArbitrumChainAdapter implements ChainPort {
     };
   }
 
-  private async safeBlock(): Promise<bigint> {
+  /** Refuses to read from an RPC pointing at a different chain than the deployment. */
+  private async assertChain(): Promise<number> {
     const chainId = await this.reader.getChainId();
     if (chainId !== this.deployment.chainId) {
       throw new Error(
         `RPC chain ${chainId} does not match deployment chain ${this.deployment.chainId}.`,
       );
     }
+    return chainId;
+  }
+
+  private async safeBlock(): Promise<bigint> {
+    await this.assertChain();
     return (await this.reader.getBlock({ blockTag: 'safe' })).number;
   }
 

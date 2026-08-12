@@ -8,6 +8,7 @@ import {
   type AssetId,
   type BorrowingBaseInput,
   type BorrowingBaseResult,
+  type ChainNetworkStatus,
   type ChainPort,
   type ChainAssetSnapshot,
   type OnChainAsset,
@@ -32,6 +33,12 @@ import {
 export class InMemoryChainAdapter implements ChainPort {
   private readonly assets = new Map<AssetId, OnChainAsset>();
   private txCounter = 0;
+
+  async getNetworkStatus(): Promise<ChainNetworkStatus> {
+    // No cadena, no bloques. Devolver un número acá sería exactamente el dato
+    // falso que este adapter se prohíbe inventar.
+    return { network: 'in-memory', chainId: null, safeBlock: null, headBlock: null };
+  }
 
   async registerAsset(input: RegisterAssetInput): Promise<TxRef> {
     if (this.assets.has(input.assetId)) {
