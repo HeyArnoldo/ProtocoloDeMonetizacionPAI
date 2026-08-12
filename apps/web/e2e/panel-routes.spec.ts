@@ -28,6 +28,7 @@ const SCREENSHOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '
 const PANEL_ROUTES: ReadonlyArray<{ path: string; heading: string; role?: UserRole }> = [
   // `/panel` y no `/`: la raiz la ocupa la landing publica.
   { path: '/panel', heading: 'Resumen del expediente' },
+  { path: '/expediente/nuevo', heading: 'Crear el expediente' },
   { path: '/expediente', heading: 'Expediente y árbol de Merkle' },
   { path: '/evidencias', heading: 'Evidencias' },
   { path: '/divulgacion', heading: 'Divulgación selectiva' },

@@ -41,6 +41,8 @@ test('shows an upload API error and keeps the selected file retryable', async ({
   });
   await page.getByRole('button', { name: 'Upload evidence' }).click();
 
-  await expect(page.getByRole('alert')).toContainText('Request failed with status code 503');
+  // El motivo que manda la API, no el rótulo genérico de Axios: «Request failed
+  // with status code 503» no le dice nada a quien está en la pantalla.
+  await expect(page.getByRole('alert')).toContainText('Storage unavailable');
   await expect(page.getByRole('button', { name: 'Upload evidence' })).toBeEnabled();
 });

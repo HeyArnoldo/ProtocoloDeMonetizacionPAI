@@ -9,6 +9,7 @@ describe('role-aware panel navigation', () => {
   it('maps each persona to only its supported panel routes', () => {
     expect(paths(UserRole.PYME)).toEqual([
       '/panel',
+      '/expediente/nuevo',
       '/expediente',
       '/evidencias',
       '/divulgacion',

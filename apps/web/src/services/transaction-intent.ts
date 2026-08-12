@@ -28,7 +28,7 @@ const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const BYTES = /^0x(?:[0-9a-fA-F]{2})*$/;
 const QUANTITY = /^(?:0|[1-9][0-9]*|0x[0-9a-fA-F]+)$/;
 
-function parseIntent(value: unknown): TransactionIntent {
+export function parseIntent(value: unknown): TransactionIntent {
   const item = value as Partial<Record<keyof TransactionIntent, unknown>> | null;
   const rawChainId = item?.chainId;
   const chainId =
