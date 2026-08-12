@@ -26,21 +26,22 @@ Documentos largos: [`docs/referencia-pai-arbitrum.md`](docs/referencia-pai-arbit
 
 Esta tabla es deliberadamente honesta. Un jurado que descubre solo que una demo estaba maquillada deja de creer todo lo demás, incluido lo que sí era cierto.
 
-| Pieza                           | Estado                  | Detalle                                                                                                          |
-| ------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Hoja canónica de Merkle**     | ✅ Funciona             | `packages/merkle` con vectores dorados. Solidity y TypeScript hashean igual, verificado por tests en ambos lados |
-| **Divulgación selectiva**       | ✅ Funciona             | Multiproof real end-to-end. Selección, root, proof, flags, verificación                                          |
-| **Motor de borrowing base**     | ✅ Funciona             | `packages/borrowing-base`, aritmética entera en unidades menores, con vectores dorados                           |
-| **Panel de operación**          | ✅ Funciona             | 10 rutas + landing pública, sistema visual completo, responsive en móvil                                         |
-| **Contratos Solidity**          | ✅ Escritos y testeados | 7 contratos, 67 tests en Foundry, con script de deploy que verifica el cableado                                  |
-| **`packages/evm`**              | ✅ Funciona             | ABIs y tipos generados desde `chain/`, 88 tests                                                                  |
-| **Adaptador de Arbitrum**       | ✅ Implementado         | `ArbitrumChainAdapter` lee la cadena con viem. Ya no es un stub                                                  |
-| **Firma desde wallet**          | ✅ Funciona             | La API prepara el _intent_ y el navegador lo firma por EIP-1193. **El backend no guarda claves**                 |
-| **Despliegue en Sepolia**       | 🟡 Pendiente            | Los contratos existen y el script también; faltan las direcciones en el `.env`                                   |
-| **Motor en Stylus (Rust)**      | 🔴 No existe            | `chain/stylus/` está vacío. `BorrowingBaseEngine` hoy es **Solidity**, no Rust                                   |
-| **Cuenta inteligente ERC-4337** | 🔴 No existe            | Login con Google sí funciona; la smart account en segundo plano, no                                              |
+| Pieza                           | Estado                  | Detalle                                                                                                            |
+| ------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Hoja canónica de Merkle**     | ✅ Funciona             | `packages/merkle` con vectores dorados. Solidity y TypeScript hashean igual, verificado por tests en ambos lados   |
+| **Divulgación selectiva**       | ✅ Funciona             | Multiproof real end-to-end. Selección, root, proof, flags, verificación                                            |
+| **Motor de borrowing base**     | ✅ Funciona             | `packages/borrowing-base`, aritmética entera en unidades menores, con vectores dorados                             |
+| **Panel de operación**          | ✅ Funciona             | 10 rutas + landing pública, sistema visual completo, responsive en móvil                                           |
+| **Contratos Solidity**          | ✅ Escritos y testeados | 7 contratos, 67 tests en Foundry, con script de deploy que verifica el cableado                                    |
+| **`packages/evm`**              | ✅ Funciona             | ABIs y tipos generados desde `chain/`, 88 tests                                                                    |
+| **Adaptador de Arbitrum**       | ✅ Implementado         | `ArbitrumChainAdapter` lee la cadena con viem. Ya no es un stub                                                    |
+| **Firma desde wallet**          | ✅ Funciona             | La API prepara el _intent_ y el navegador lo firma por EIP-1193. **El backend no guarda claves**                   |
+| **Despliegue en Sepolia**       | ✅ Desplegado           | Seis contratos en Arbitrum Sepolia desde el bloque 296546459. Direcciones en `chain/deployments/421614.json`       |
+| **Lectura en vivo de la red**   | ✅ Funciona             | `GET /api/chain/status` publica `chainId`, bloque seguro y cabeza; el panel enciende el punto solo con esa lectura |
+| **Motor en Stylus (Rust)**      | 🔴 No existe            | `chain/stylus/` está vacío. `BorrowingBaseEngine` hoy es **Solidity**, no Rust                                     |
+| **Cuenta inteligente ERC-4337** | 🔴 No existe            | Login con Google sí funciona; la smart account en segundo plano, no                                                |
 
-**Consecuencia visible:** las pantallas están cableadas a endpoints reales, pero mientras no existan las direcciones desplegadas muestran un estado vacío que dice **qué dato falta y qué lo desbloquea**, en lugar de una cifra de relleno. Esa fue una decisión, no una limitación:
+**Consecuencia visible:** las pantallas están cableadas a endpoints reales. Los contratos ya están desplegados y el panel lo demuestra con la altura de bloque que devuelve la API, pero mientras no haya un expediente registrado en ellos las tarjetas muestran un estado vacío que dice **qué dato falta y qué lo desbloquea**, en lugar de una cifra de relleno. Esa fue una decisión, no una limitación:
 
 > _Vacío con explicación es mejor que falso._
 
