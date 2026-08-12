@@ -9,7 +9,7 @@ import { DEMO_ASSET_ID, buildAuthUser, mockApi } from './fixtures/api-mock';
  * El panel a 393px.
  *
  * El spec corre en los dos proyectos —escritorio 1440x900 y Pixel 5 393x851—
- * sobre las mismas diez rutas. La aserción que de verdad prueba que no queda
+ * sobre las mismas once rutas. La aserción que de verdad prueba que no queda
  * nada desbordado es numérica: `scrollWidth` frente a `innerWidth`. Un
  * screenshot documenta, pero no falla, y una captura de un layout roto se ve
  * igual de plausible que la de uno correcto.
@@ -27,7 +27,7 @@ const SCREENSHOT_DIR = path.join(
 const VERIFY_CODE = 'PAI-8F3C-2026';
 
 /**
- * Las diez pantallas. `/verify/:code` es pública y se visita sin sesión.
+ * Las once pantallas. `/verify/:code` es pública y se visita sin sesión.
  *
  * `/expediente` y `/divulgacion` llevan `search` porque exigen el expediente en
  * la query: sin él renderizan un rótulo pidiéndolo y la auditoría de desborde y
@@ -64,6 +64,12 @@ const ROUTES: readonly ResponsiveRoute[] = [
   { path: '/prestamo', heading: 'Originación y fondeo', authenticated: true },
   { path: '/historial', heading: 'Historial crediticio on-chain', authenticated: true },
   { path: '/actividad', heading: 'Actividad on-chain', authenticated: true },
+  {
+    path: '/flujo',
+    search: ASSET_SEARCH,
+    heading: 'Modo presentación',
+    authenticated: true,
+  },
   { path: `/verify/${VERIFY_CODE}`, heading: 'Verificación pública', authenticated: false },
 ];
 

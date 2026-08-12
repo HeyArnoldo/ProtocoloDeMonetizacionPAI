@@ -16,11 +16,18 @@ describe('role-aware panel navigation', () => {
       '/prestamo',
       '/historial',
       '/borrowing-base',
+      '/flujo',
       '/actividad',
       '/verify',
     ]);
-    expect(paths(UserRole.CERTIFIER)).toEqual(['/certificacion', '/verify']);
-    expect(paths(UserRole.FUND)).toEqual(['/panel', '/prestamo', '/actividad', '/verify']);
+    expect(paths(UserRole.CERTIFIER)).toEqual(['/certificacion', '/flujo', '/verify']);
+    expect(paths(UserRole.FUND)).toEqual([
+      '/panel',
+      '/prestamo',
+      '/flujo',
+      '/actividad',
+      '/verify',
+    ]);
   });
 
   it('allows admins everywhere and rejects direct cross-persona access', () => {

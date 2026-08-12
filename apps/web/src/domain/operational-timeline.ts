@@ -20,7 +20,7 @@ export interface TimelineStep {
   href?: string;
 }
 
-interface TimelineEvidence {
+export interface TimelineEvidence {
   pathname: string;
   role: UserRole;
   assetEvidenceCount?: number;
