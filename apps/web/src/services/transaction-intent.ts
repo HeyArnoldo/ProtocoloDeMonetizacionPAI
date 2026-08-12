@@ -73,6 +73,8 @@ export interface TransactionSubmitter {
 
 export interface Eip1193Provider {
   request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
+  on?(event: string, listener: (...args: unknown[]) => void): void;
+  removeListener?(event: string, listener: (...args: unknown[]) => void): void;
 }
 
 function transactionValue(value: string): `0x${string}` {
@@ -80,30 +82,57 @@ function transactionValue(value: string): `0x${string}` {
 }
 
 export class InjectedWalletSubmitter implements TransactionSubmitter {
-  constructor(private readonly provider: Eip1193Provider | null = null) {}
+  constructor(
+    private readonly provider: Eip1193Provider | null = null,
+    private readonly account: string | null = null,
+    private readonly chainId: number | null = null,
+  ) {}
 
   async submit(intent: TransactionIntent): Promise<`0x${string}`> {
     if (!this.provider) throw new Error('No injected wallet provider is available.');
 
-    const targetChain = `0x${intent.chainId.toString(16)}`;
-    const currentChain = await this.provider.request({ method: 'eth_chainId' });
-    if (currentChain !== targetChain) {
-      await this.provider.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: targetChain }],
+    if (!this.account || !ADDRESS.test(this.account)) {
+      throw new Error('Conecta MetaMask antes de enviar una transacción.');
+    }
+    if (this.chainId !== intent.chainId) {
+      throw new Error('Cambia a Arbitrum Sepolia antes de enviar la transacción.');
+    }
+
+    let changed = false;
+    const invalidate = () => {
+      changed = true;
+    };
+    this.provider.on?.('accountsChanged', invalidate);
+    this.provider.on?.('chainChanged', invalidate);
+    this.provider.on?.('disconnect', invalidate);
+
+    let hash: unknown;
+    try {
+      const targetChain = `0x${intent.chainId.toString(16)}`;
+      const currentChain = await this.provider.request({ method: 'eth_chainId' });
+      const accounts = await this.provider.request({ method: 'eth_accounts' });
+      const from = Array.isArray(accounts) ? accounts[0] : undefined;
+      if (changed || currentChain !== targetChain) {
+        throw new Error(
+          'La red de MetaMask cambió durante la operación. Revisa la red y reintenta.',
+        );
+      }
+      if (typeof from !== 'string' || from.toLowerCase() !== this.account.toLowerCase()) {
+        throw new Error(
+          'La cuenta de MetaMask cambió durante la operación. Revisa la cuenta y reintenta.',
+        );
+      }
+
+      // Tras invocar al proveedor ya no se afirma que un evento pueda cancelar el envío.
+      hash = await this.provider.request({
+        method: 'eth_sendTransaction',
+        params: [{ from, to: intent.to, data: intent.data, value: transactionValue(intent.value) }],
       });
+    } finally {
+      this.provider.removeListener?.('accountsChanged', invalidate);
+      this.provider.removeListener?.('chainChanged', invalidate);
+      this.provider.removeListener?.('disconnect', invalidate);
     }
-
-    const accounts = await this.provider.request({ method: 'eth_requestAccounts' });
-    const from = Array.isArray(accounts) ? accounts[0] : undefined;
-    if (typeof from !== 'string' || !ADDRESS.test(from)) {
-      throw new Error('Wallet did not provide a valid account.');
-    }
-
-    const hash = await this.provider.request({
-      method: 'eth_sendTransaction',
-      params: [{ from, to: intent.to, data: intent.data, value: transactionValue(intent.value) }],
-    });
     if (typeof hash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(hash)) {
       throw new Error('Wallet returned an invalid transaction hash.');
     }
