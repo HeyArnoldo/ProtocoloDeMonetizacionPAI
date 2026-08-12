@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { UserRole } from '@app/contracts';
 import {
   buildAuthUser,
+  buildUnreachableChainStatus,
   mockApi,
   mockInjectedWallet,
   mockPublicVerification,
@@ -136,8 +137,37 @@ test.describe('rutas del panel', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Resumen del expediente' }),
     ).toBeVisible();
+    await expect(page.getByText('6 contratos leídos desde el despliegue canónico.')).toBeVisible();
+    const timeline = page.getByRole('navigation', { name: 'Progreso operativo' });
+    await expect(timeline).toBeVisible();
+    await expect(timeline.getByText('Evidencias', { exact: true })).toBeVisible();
+    await expect(timeline.locator('[aria-current="step"]')).toHaveCount(0);
 
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'overview.png'), fullPage: true });
+  });
+
+  test('la etapa actual usa semántica de paso y no acredita etapas previas', async ({ page }) => {
+    await mockApi(page, { user: buildAuthUser() });
+    await page.goto('/prestamo');
+
+    const timeline = page.getByRole('navigation', { name: 'Progreso operativo' });
+    await expect(timeline.getByRole('link', { name: /Préstamo \/ fondeo/ })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    await expect(timeline.getByText('Completado y comprobado')).toHaveCount(0);
+  });
+
+  test('el RPC caído se declara sin afirmar contratos confirmados', async ({ page }) => {
+    await mockApi(page, { user: buildAuthUser(), chainStatus: buildUnreachableChainStatus() });
+    await page.goto('/panel');
+
+    await expect(
+      page.getByText('RPC sin responder: el panel no lee la cadena ahora.'),
+    ).toBeVisible();
+    await expect(
+      page.getByText('6 contratos configurados, sin confirmar contra la red.'),
+    ).toBeVisible();
   });
 });
 

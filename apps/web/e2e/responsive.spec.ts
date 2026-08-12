@@ -312,6 +312,27 @@ test.describe('layout responsive', () => {
 });
 
 test.describe('navegación del shell', () => {
+  test('en móvil el paso actual queda visible dentro del rail', async ({ page }) => {
+    test.skip(!isMobile(), 'El auto-scroll se prueba en el rail horizontal móvil.');
+    await mockApi(page, { user: buildAuthUser() });
+    await page.goto('/historial');
+    const current = page
+      .getByRole('navigation', { name: 'Progreso operativo' })
+      .locator('[aria-current="step"]');
+    await expect(current).toBeVisible();
+    await expect
+      .poll(() =>
+        current.evaluate((element) => {
+          const rail = element.closest('[data-testid="timeline-scroll"]');
+          if (!rail) return false;
+          const item = element.getBoundingClientRect();
+          const viewport = rail.getBoundingClientRect();
+          return item.left >= viewport.left && item.right <= viewport.right;
+        }),
+      )
+      .toBe(true);
+  });
+
   test('en móvil la navegación vive en un cajón que se abre, opera y se cierra', async ({
     page,
   }) => {
@@ -506,5 +527,17 @@ test.describe('evidencia visual y accesibilidad en móvil', () => {
     if (results.violations.length === 0) {
       console.log('[axe:mobile] sin violaciones wcag2a/2aa/21a/21aa en /verify/:code');
     }
+  });
+
+  test('axe sobre timeline autenticada en móvil', async ({ page }) => {
+    test.skip(!isMobile(), 'La auditoría autenticada móvil corre en el proyecto móvil.');
+    await mockApi(page, { user: buildAuthUser() });
+    await page.goto('/prestamo');
+    await page.getByRole('navigation', { name: 'Progreso operativo' }).waitFor();
+    const results = await new AxeBuilder({ page })
+      .include('[data-testid="operational-timeline"]')
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    expect(results.violations).toEqual([]);
   });
 });

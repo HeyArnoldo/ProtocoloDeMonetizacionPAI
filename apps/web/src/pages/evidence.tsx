@@ -124,7 +124,10 @@ export default function EvidencePage() {
         ) : documents.length === 0 ? (
           <CardBody>No evidence has been uploaded for this account.</CardBody>
         ) : (
-          <ul className="grid gap-2 md:grid-cols-2">
+          // La lista lleva nombre accesible para que se pueda referenciar como
+          // contenedor: sin él, afirmar sobre el inventario obliga a buscar
+          // texto suelto en toda la página.
+          <ul aria-label="Persisted evidence" className="grid gap-2 md:grid-cols-2">
             {documents.map((item) => (
               <li key={item.id} className="border-border min-w-0 rounded-md border p-3">
                 <p className="truncate text-sm font-medium" title={item.originalName}>

@@ -3,6 +3,7 @@ import {
   CURRENCY_CODES,
   UserRole,
   authUserSchema,
+  chainAssetSnapshotSchema,
   chainStatusSchema,
   disclosurePreviewResponseSchema,
   persistedDisclosurePreviewRequestSchema,
@@ -12,6 +13,7 @@ import {
   type AssetResponse,
   type AuthConfig,
   type AuthUser,
+  type ChainAssetSnapshotResponse,
   type ChainStatusResponse,
   type DisclosurePreviewRequest,
   type DisclosurePreviewResponse,
@@ -114,6 +116,30 @@ export async function mockInjectedWallet(page: Page): Promise<void> {
     },
     { account: MOCK_WALLET_ACCOUNT, MOCK_TX_HASH },
   );
+}
+
+/**
+ * Instantánea de cadena del expediente, para `/assets/:id/chain` y
+ * `/assets/:id/certification-chain`.
+ *
+ * Es lo que alimenta el timeline operativo: sin `registry` no hay etapa de
+ * registro que pintar, y sin `certificate`/`loan` el timeline se queda a medias.
+ */
+export function buildChainSnapshot(): ChainAssetSnapshotResponse {
+  return chainAssetSnapshotSchema.parse({
+    blockNumber: '296600000',
+    registry: {
+      assetId: DEMO_ASSET_ID,
+      merkleRoot: `0x${'cd'.repeat(32)}`,
+      ownerIdHash: `0x${'ef'.repeat(32)}`,
+      controller: `0x${'12'.repeat(20)}`,
+      registeredAt: '2026-08-08T15:00:00.000Z',
+      status: 'Attested',
+    },
+    attestations: [],
+    certificate: { supported: true, valid: false, owner: null, issuanceCount: '0' },
+    loan: { supported: true, value: null },
+  });
 }
 
 export function buildPublicVerification(): PublicVerificationResponse {
@@ -339,6 +365,26 @@ export function buildChainStatus(
   });
 }
 
+/**
+ * Cadena configurada contra Arbitrum con el RPC caído.
+ *
+ * Es el estado que no puede pintarse como conectado: los contratos siguen
+ * configurados, pero ninguna lectura los confirma contra la red. Se deriva de
+ * `buildChainStatus()` para que ambos estados compartan el mismo despliegue.
+ */
+export function buildUnreachableChainStatus(reason = 'RPC_UNAVAILABLE'): ChainStatusResponse {
+  const live = buildChainStatus();
+  return chainStatusSchema.parse({
+    status: 'unreachable',
+    network: 'arbitrum',
+    chainId: 421614,
+    deploymentBlock: '297286907',
+    contracts: live.status === 'live' ? live.contracts : [],
+    explorerBaseUrl: 'https://sepolia.arbiscan.io',
+    reason,
+  });
+}
+
 export interface ApiMockOptions {
   /** Flags de `GET /api/auth/config`. Por defecto, login local y Google activos. */
   authConfig?: AuthConfig;
@@ -382,6 +428,10 @@ function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
   });
 }
 
+function fulfillChainStatus(route: Route, status: ChainStatusResponse): Promise<void> {
+  return route.fulfill({ status: 200, json: chainStatusSchema.parse(status) });
+}
+
 /**
  * Registra todos los interceptores de la API en la página.
  *
@@ -418,8 +468,16 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
       : fulfillJson(route, createdAsset),
   );
 
+  // La instantánea de cadena del expediente vive en dos sub-recursos y no en la
+  // ruta comodín: `**/api/assets/*` no cruza la barra, así que ampliarla a
+  // `**/api/assets/**` se tragaría los endpoints de creación de arriba.
+  await page.route('**/api/assets/*/chain', (route) => fulfillJson(route, buildChainSnapshot()));
+  await page.route('**/api/assets/*/certification-chain', (route) =>
+    fulfillJson(route, buildChainSnapshot()),
+  );
+
   await page.route('**/api/chain/status', (route) =>
-    fulfillJson(route, options.chainStatus ?? buildChainStatus()),
+    fulfillChainStatus(route, options.chainStatus ?? buildChainStatus()),
   );
 
   await page.route('**/api/auth/config', (route) => fulfillJson(route, authConfig));

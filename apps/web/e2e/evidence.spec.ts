@@ -14,9 +14,16 @@ test('lists persisted evidence and uploads only after explicit submit', async ({
   await mockApi(page, { user: buildAuthUser(), evidence: [existing] });
   await page.goto('/evidencias');
 
+  // El inventario y el contador se afirman dentro de su contenedor. Buscar un
+  // «1» suelto en toda la página cazaba cualquier dígito del shell —el número
+  // de paso del timeline operativo, por ejemplo— en vez del recuento real.
+  const inventory = page.getByRole('list', { name: 'Persisted evidence' });
+  const footprint = page.getByRole('region', { name: 'Evidence footprint' });
+
   await expect(page.getByText('contrato.pdf')).toBeVisible();
   await expect(page.getByText(existing.sha256)).toBeVisible();
-  await expect(page.getByText('1', { exact: true })).toBeVisible();
+  await expect(inventory.getByRole('listitem')).toHaveCount(1);
+  await expect(footprint.getByText('1', { exact: true })).toBeVisible();
 
   await page.getByLabel('Evidence file').setInputFiles({
     name: 'factura.xml',
@@ -28,7 +35,8 @@ test('lists persisted evidence and uploads only after explicit submit', async ({
 
   await expect(page.getByText('Upload completed.')).toBeVisible();
   await expect(page.getByText('factura.xml')).toBeVisible();
-  await expect(page.getByText('2', { exact: true })).toBeVisible();
+  await expect(inventory.getByRole('listitem')).toHaveCount(2);
+  await expect(footprint.getByText('2', { exact: true })).toBeVisible();
 });
 
 test('shows an upload API error and keeps the selected file retryable', async ({ page }) => {
