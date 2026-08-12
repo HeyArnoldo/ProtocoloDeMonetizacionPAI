@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import {
 import { validateDossierAssetId } from '@/domain/dossier-view';
 import { useCertificationSnapshot } from '@/hooks/use-disclosure';
 import { useTransactionIntent } from '@/hooks/use-transaction-intent';
-import { InjectedWalletSubmitter, injectedProvider } from '@/services/transaction-intent';
+import { useWalletSubmitter } from '@/hooks/use-wallet-submitter';
 
 function message(error: unknown): string {
   const status = (error as { response?: { status?: number } })?.response?.status;
@@ -27,7 +27,7 @@ export default function CertificationPage() {
   const [certificateHash, setCertificateHash] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const snapshot = useCertificationSnapshot(assetId);
-  const submitter = useMemo(() => new InjectedWalletSubmitter(injectedProvider()), []);
+  const submitter = useWalletSubmitter();
   const transaction = useTransactionIntent(submitter);
   const busy = transaction.status === 'preparing' || transaction.status === 'submitting';
 
