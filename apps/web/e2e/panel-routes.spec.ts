@@ -12,7 +12,7 @@ import {
 } from './fixtures/api-mock';
 
 /**
- * Recorrido de las diez rutas del panel.
+ * Recorrido de las once rutas del panel.
  *
  * Comprueba dos cosas por pantalla: que existe un `<h1>` con el título del
  * handoff —la maqueta usa un `<span>` y deja el documento sin punto de
@@ -25,7 +25,7 @@ import {
 
 const SCREENSHOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '__screenshots__');
 
-/** Las diez pantallas con el `<h1>` que fija `docs/design/README.md`. */
+/** Las once pantallas con el `<h1>` que fija `docs/design/README.md`. */
 const PANEL_ROUTES: ReadonlyArray<{ path: string; heading: string; role?: UserRole }> = [
   // `/panel` y no `/`: la raiz la ocupa la landing publica.
   { path: '/panel', heading: 'Resumen del expediente' },
@@ -38,6 +38,7 @@ const PANEL_ROUTES: ReadonlyArray<{ path: string; heading: string; role?: UserRo
   { path: '/prestamo', heading: 'Originación y fondeo' },
   { path: '/historial', heading: 'Historial crediticio on-chain' },
   { path: '/actividad', heading: 'Actividad on-chain' },
+  { path: '/flujo', heading: 'Modo presentación' },
 ];
 
 /**

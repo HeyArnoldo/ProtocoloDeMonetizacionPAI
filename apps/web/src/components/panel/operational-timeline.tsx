@@ -2,10 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Check, LockKeyhole } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import type { UserRole } from '@app/contracts';
-import { UserRole as Role } from '@app/contracts';
-import { useCertificationSnapshot, useChainSnapshot } from '@/hooks/use-disclosure';
-import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
-import { buildOperationalTimeline, timelineSnapshotEvidence } from '@/domain/operational-timeline';
+import { useOperationalEvidence } from '@/hooks/use-operational-evidence';
+import { buildOperationalTimeline } from '@/domain/operational-timeline';
 import { cn } from '@/lib/utils';
 
 const statusLabel = {
@@ -18,22 +16,8 @@ const statusLabel = {
 export function OperationalTimeline({ role }: { role: UserRole }) {
   const { pathname } = useLocation();
   const currentRef = useRef<HTMLLIElement>(null);
-  const canReadOwnerData = role === Role.PYME || role === Role.ADMIN;
-  const disclosure = useDisclosureSelection();
-  const ownerSnapshot = useChainSnapshot(canReadOwnerData ? disclosure.assetId : null);
-  const certifierSnapshot = useCertificationSnapshot(
-    role === Role.CERTIFIER || role === Role.ADMIN ? disclosure.assetId : null,
-  );
-  const snapshot = certifierSnapshot.data ?? ownerSnapshot.data;
-  const steps = buildOperationalTimeline({
-    pathname,
-    role,
-    assetEvidenceCount: new Set(disclosure.receivables.map((item) => item.evidenceId)).size,
-    registrationConfirmed: disclosure.registrationConfirmed,
-    disclosureVerified: disclosure.proof?.verified,
-    borrowingBaseComputed: disclosure.borrowingBaseComputed,
-    ...timelineSnapshotEvidence(snapshot),
-  });
+  const { evidence } = useOperationalEvidence(role);
+  const steps = buildOperationalTimeline(evidence);
 
   useEffect(() => {
     currentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });

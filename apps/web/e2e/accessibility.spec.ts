@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { buildAuthUser, mockApi } from './fixtures/api-mock';
+import { DEMO_ASSET_ID, buildAuthUser, mockApi } from './fixtures/api-mock';
 
 /**
  * Auditoría de accesibilidad del login.
@@ -51,6 +51,24 @@ test('accesibilidad de la timeline autenticada en escritorio', async ({ page }) 
   await page.getByRole('navigation', { name: 'Progreso operativo' }).waitFor();
   const results = await new AxeBuilder({ page })
     .include('[data-testid="operational-timeline"]')
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  expect(results.violations).toEqual([]);
+});
+
+/**
+ * El modo presentación sí bloquea, como la timeline.
+ *
+ * Es una lista con tabulación itinerante: si el foco deja de ser visible o las
+ * tarjetas pierden su nombre accesible, quien presenta se queda sin la única
+ * navegación que no depende del mouse.
+ */
+test('accesibilidad del modo presentación en escritorio', async ({ page }) => {
+  await mockApi(page, { user: buildAuthUser() });
+  await page.goto(`/flujo?assetId=${DEMO_ASSET_ID}`);
+  await page.getByRole('list', { name: 'Pasos del guion de demo' }).waitFor();
+  const results = await new AxeBuilder({ page })
+    .include('[data-testid="presentation-flow"]')
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .analyze();
   expect(results.violations).toEqual([]);

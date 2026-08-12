@@ -18,6 +18,7 @@ const CertificationPage = lazy(() => import('@/pages/certification'));
 const LoanPage = lazy(() => import('@/pages/loan'));
 const CreditHistoryPage = lazy(() => import('@/pages/credit-history'));
 const ActivityPage = lazy(() => import('@/pages/activity'));
+const FlowPage = lazy(() => import('@/pages/flow'));
 const VerifyPage = lazy(() => import('@/pages/verify'));
 
 export const router = createBrowserRouter([
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
           { path: '/prestamo', element: <LoanPage /> },
           { path: '/historial', element: <CreditHistoryPage /> },
           { path: '/actividad', element: <ActivityPage /> },
+          { path: '/flujo', element: <FlowPage /> },
 
           // La divulgación selectiva vivía en `/disclosure` antes de que las
           // rutas se fijaran en español. El redirect evita romper los enlaces

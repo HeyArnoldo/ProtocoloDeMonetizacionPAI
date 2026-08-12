@@ -115,6 +115,17 @@ export const NAV_GROUPS: NavGroup[] = [
     heading: 'Operador · público',
     items: [
       {
+        // Las cuatro personas: quien conduce la demo puede haber entrado con
+        // cualquiera de ellas, y la vista ya oculta el botón de cada paso que
+        // el rol no puede abrir. Restringirla a una persona obligaría a cerrar
+        // sesión en medio de la presentación.
+        path: '/flujo',
+        label: 'Modo presentación',
+        title: 'Modo presentación',
+        subtitle: 'El guion de demo de docs/caso-de-uso-hackathon.md §6, paso a paso',
+        roles: [UserRole.PYME, UserRole.CERTIFIER, UserRole.FUND, UserRole.ADMIN],
+      },
+      {
         path: '/actividad',
         label: 'Actividad on-chain',
         title: 'Actividad on-chain',
