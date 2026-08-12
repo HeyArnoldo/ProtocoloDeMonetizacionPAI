@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { UserRole } from '@app/contracts';
 import {
   buildAuthUser,
+  buildChainStatus,
   mockApi,
   mockPublicVerification,
   VERIFY_ASSET_ID,
@@ -110,8 +111,62 @@ test.describe('rutas del panel', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Resumen del expediente' }),
     ).toBeVisible();
+    await expect(page.getByText('6/6 contratos')).toBeVisible();
+    const timeline = page.getByRole('navigation', { name: 'Progreso operativo' });
+    await expect(timeline).toBeVisible();
+    await expect(timeline.getByText('Evidencias', { exact: true })).toBeVisible();
+    await expect(timeline.locator('[aria-current="step"]')).toHaveCount(0);
 
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'overview.png'), fullPage: true });
+  });
+
+  test('la etapa actual usa semántica de paso y no acredita etapas previas', async ({ page }) => {
+    await mockApi(page, { user: buildAuthUser() });
+    await page.goto('/prestamo');
+
+    const timeline = page.getByRole('navigation', { name: 'Progreso operativo' });
+    await expect(timeline.getByRole('link', { name: /Préstamo \/ fondeo/ })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    await expect(timeline.getByText('Completado y comprobado')).toHaveCount(0);
+  });
+
+  test('la red no disponible se declara sin afirmar contratos verificados', async ({ page }) => {
+    await mockApi(page, {
+      user: buildAuthUser(),
+      chainStatus: buildChainStatus({
+        reachable: false,
+        deployed: false,
+        contractCount: 0,
+        blockNumber: null,
+        reason: 'RPC_UNAVAILABLE',
+      }),
+    });
+    await page.goto('/panel');
+
+    await expect(page.getByText('Arbitrum Sepolia no disponible')).toBeVisible();
+    await expect(page.getByText('Estado no comprobado')).toBeVisible();
+    await expect(page.getByText('6/6 contratos')).toHaveCount(0);
+  });
+
+  test('la red incorrecta muestra chain observada y esperada por separado', async ({ page }) => {
+    await mockApi(page, {
+      user: buildAuthUser(),
+      chainStatus: buildChainStatus({
+        reachable: false,
+        deployed: false,
+        contractCount: 0,
+        blockNumber: null,
+        expectedChainId: 421614,
+        observedChainId: 1,
+        reason: 'WRONG_CHAIN',
+      }),
+    });
+    await page.goto('/panel');
+
+    await expect(page.getByText('RPC en la red incorrecta')).toBeVisible();
+    await expect(page.getByText('Conectada a chain 1; se esperaba 421614.')).toBeVisible();
   });
 });
 

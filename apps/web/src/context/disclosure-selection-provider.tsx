@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CURRENCY_CODES } from '@app/contracts';
 import type { Hex, ReceivableLeaf } from '@app/merkle';
@@ -13,6 +13,7 @@ import {
   DisclosureSelectionContext,
   type DisclosureSelectionValue,
 } from './disclosure-selection-context';
+import { operationalStorageKeys, resetProgressForAssetChange } from '@/domain/operational-storage';
 
 /**
  * Selección divulgada compartida entre `/divulgacion` y `/borrowing-base`.
@@ -32,15 +33,12 @@ import {
  * pestaña nueva semanas después sería confuso, no útil.
  */
 
-const STORAGE_KEY = 'pai:disclosure-selection';
-const ASSET_STORAGE_KEY = 'pai:disclosure-asset-id';
-
 /** Cota permisiva al leer: la cartera todavía no ha llegado en el primer render. */
 const UNBOUNDED = Number.MAX_SAFE_INTEGER;
 
-function readStoredSelection(): number[] {
+function readStoredSelection(key: string): number[] {
   try {
-    return parseStoredSelection(window.sessionStorage.getItem(STORAGE_KEY), UNBOUNDED);
+    return parseStoredSelection(window.sessionStorage.getItem(key), UNBOUNDED);
   } catch {
     // Modo privado de Safari y políticas de almacenamiento bloqueado lanzan
     // aquí. La demo funciona igual, solo pierde la persistencia.
@@ -48,17 +46,29 @@ function readStoredSelection(): number[] {
   }
 }
 
-export function DisclosureSelectionProvider({ children }: { children: ReactNode }) {
+export function DisclosureSelectionProvider({
+  userId,
+  children,
+}: {
+  userId: string;
+  children: ReactNode;
+}) {
+  const storageKeys = useMemo(() => operationalStorageKeys(userId), [userId]);
   const location = useLocation();
   const requestedAssetId = new URLSearchParams(location.search).get('assetId');
   const [rememberedAssetId, setRememberedAssetId] = useState(() =>
-    window.sessionStorage.getItem(ASSET_STORAGE_KEY),
+    window.sessionStorage.getItem(storageKeys.asset),
   );
   const assetId = requestedAssetId ?? rememberedAssetId;
+  const previousAssetId = useRef(assetId);
   const { data: portfolio, isPending, isError, error } = useAssetPortfolio(assetId);
   const preview = useDisclosurePreview();
+  const resetPreview = preview.reset;
 
-  const [storedIndices, setStoredIndices] = useState<number[]>(readStoredSelection);
+  const [storedIndices, setStoredIndices] = useState<number[]>(() =>
+    readStoredSelection(storageKeys.selection),
+  );
+  const [computedSelectionKey, setComputedSelectionKey] = useState<string | null>(null);
 
   // Memoizado porque el `?? []` crearía un array nuevo en cada render y
   // recalcularía todos los `useMemo` de abajo sin que nada haya cambiado.
@@ -68,8 +78,17 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
   useEffect(() => {
     if (!requestedAssetId) return;
     setRememberedAssetId(requestedAssetId);
-    window.sessionStorage.setItem(ASSET_STORAGE_KEY, requestedAssetId);
-  }, [requestedAssetId]);
+    window.sessionStorage.setItem(storageKeys.asset, requestedAssetId);
+  }, [requestedAssetId, storageKeys.asset]);
+
+  useEffect(() => {
+    const reset = resetProgressForAssetChange(previousAssetId.current, assetId);
+    previousAssetId.current = assetId;
+    if (!reset) return;
+    if (reset.resetPreview) resetPreview();
+    setStoredIndices(reset.selection);
+    setComputedSelectionKey(reset.computedSelectionKey);
+  }, [assetId, resetPreview]);
 
   /**
    * La selección efectiva se recorta a la cartera realmente cargada. Un índice
@@ -79,14 +98,15 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
     () => sanitizeSelection(storedIndices, receivables.length),
     [storedIndices, receivables.length],
   );
+  const selectionKey = selectedIndices.join(',');
 
   useEffect(() => {
     try {
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(storedIndices));
+      window.sessionStorage.setItem(storageKeys.selection, JSON.stringify(storedIndices));
     } catch {
       // Ver `readStoredSelection`: sin almacenamiento la demo sigue en pie.
     }
-  }, [storedIndices]);
+  }, [storageKeys.selection, storedIndices]);
 
   /**
    * Una prueba construida deja de valer en cuanto cambia la selección: el root
@@ -138,7 +158,7 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
 
   const selectedLeaves = useMemo(
     () =>
-      (preview.data?.disclosedLeaves ?? []).map(
+      (preview.variables?.assetId === assetId ? (preview.data?.disclosedLeaves ?? []) : []).map(
         ({ leafHash, amountMinor, currency, ...leaf }): ReceivableLeaf => {
           void leafHash;
           return {
@@ -150,7 +170,7 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
           };
         },
       ),
-    [preview.data],
+    [assetId, preview.data, preview.variables?.assetId],
   );
 
   const buildProof = useCallback(() => {
@@ -160,10 +180,15 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
       request: { disclosedIndices: selectedIndices },
     });
   }, [assetId, selectedIndices, preview]);
+  const markBorrowingBaseComputed = useCallback(
+    () => setComputedSelectionKey(`${assetId}:${selectionKey}`),
+    [assetId, selectionKey],
+  );
 
   const value: DisclosureSelectionValue = useMemo(
     () => ({
       assetId,
+      registrationConfirmed: portfolio?.registrationConfirmed === true,
       isPending,
       isError,
       error,
@@ -184,13 +209,17 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
       selectedNominalMinor: sumNominalMinor(receivables, selectedIndices),
       currency: receivables[0]?.currency ?? CURRENCY_CODES.USD,
       selectedLeaves,
-      proof: preview.data ?? null,
+      proof: preview.variables?.assetId === assetId ? (preview.data ?? null) : null,
       isBuildingProof: preview.isPending,
       proofError: preview.isError ? (preview.error ?? null) : null,
       buildProof,
+      borrowingBaseComputed:
+        computedSelectionKey === `${assetId}:${selectionKey}` && selectedIndices.length > 0,
+      markBorrowingBaseComputed,
     }),
     [
       assetId,
+      portfolio?.registrationConfirmed,
       isPending,
       isError,
       error,
@@ -203,10 +232,14 @@ export function DisclosureSelectionProvider({ children }: { children: ReactNode 
       clear,
       selectedLeaves,
       preview.data,
+      preview.variables?.assetId,
       preview.isPending,
       preview.isError,
       preview.error,
       buildProof,
+      markBorrowingBaseComputed,
+      computedSelectionKey,
+      selectionKey,
     ],
   );
 

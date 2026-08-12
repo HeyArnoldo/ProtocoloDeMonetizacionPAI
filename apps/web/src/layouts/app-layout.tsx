@@ -11,6 +11,7 @@ import {
   type NavGroup,
 } from '@/config/navigation';
 import { NetworkStatus } from '@/components/panel/network-status';
+import { OperationalTimeline } from '@/components/panel/operational-timeline';
 import { PageHeader } from '@/components/panel/page-header';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -44,7 +45,7 @@ import { cn } from '@/lib/utils';
  */
 export function AppLayout() {
   const { data: user } = useMe();
-  const logout = useLogout();
+  const logout = useLogout(user?.id);
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -77,7 +78,7 @@ export function AppLayout() {
     // El proveedor envuelve el shell entero y no cada página: `/divulgacion` y
     // `/borrowing-base` comparten la misma selección, y montarlo aquí es lo
     // que hace que navegar entre las dos no la borre.
-    <DisclosureSelectionProvider>
+    <DisclosureSelectionProvider key={user?.id ?? 'pending'} userId={user?.id ?? 'pending'}>
       <div className="flex h-dvh overflow-hidden">
         <aside
           data-testid="panel-sidebar"
@@ -210,6 +211,7 @@ export function AppLayout() {
             data-testid="panel-content"
             className="flex-1 overflow-y-auto px-4 pt-4 pb-10 lg:px-[26px] lg:pt-6 lg:pb-[60px]"
           >
+            {user && <OperationalTimeline role={user.role} />}
             {allowed ? (
               <Outlet />
             ) : (

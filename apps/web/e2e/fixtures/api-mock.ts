@@ -3,6 +3,8 @@ import {
   CURRENCY_CODES,
   UserRole,
   authUserSchema,
+  chainAssetSnapshotSchema,
+  chainStatusSchema,
   disclosurePreviewResponseSchema,
   persistedDisclosurePreviewRequestSchema,
   publicVerificationSchema,
@@ -11,6 +13,8 @@ import {
   type AssetResponse,
   type AuthConfig,
   type AuthUser,
+  type ChainAssetSnapshotResponse,
+  type ChainStatusResponse,
   type DisclosurePreviewRequest,
   type DisclosurePreviewResponse,
   type EvidenceResponse,
@@ -59,6 +63,48 @@ export const VERIFY_ASSET_ID = `0x${'ab'.repeat(32)}` as const;
  * que sirve el mock no puedan divergir.
  */
 export const DEMO_ASSET_ID = `0x${'1d'.repeat(32)}` as const;
+
+export function buildChainStatus(
+  overrides: Partial<ChainStatusResponse> = {},
+): ChainStatusResponse {
+  return chainStatusSchema.parse({
+    network: 'arbitrum-sepolia',
+    reachable: true,
+    configured: true,
+    deployed: true,
+    expectedChainId: 421614,
+    observedChainId: 421614,
+    blockNumber: '296600000',
+    contractCount: 6,
+    expectedContractCount: 6,
+    contracts: [
+      'assetRegistry',
+      'certificationAttestor',
+      'paiCertificate',
+      'borrowingBaseEngine',
+      'collateralVault',
+      'mockUsdc',
+    ].map((name) => ({ name, configured: true, deployed: true })),
+    ...overrides,
+  });
+}
+
+export function buildChainSnapshot(): ChainAssetSnapshotResponse {
+  return chainAssetSnapshotSchema.parse({
+    blockNumber: '296600000',
+    registry: {
+      assetId: DEMO_ASSET_ID,
+      merkleRoot: `0x${'cd'.repeat(32)}`,
+      ownerIdHash: `0x${'ef'.repeat(32)}`,
+      controller: `0x${'12'.repeat(20)}`,
+      registeredAt: '2026-08-08T15:00:00.000Z',
+      status: 'Attested',
+    },
+    attestations: [],
+    certificate: { supported: true, valid: false, owner: null, issuanceCount: '0' },
+    loan: { supported: true, value: null },
+  });
+}
 
 export function buildPublicVerification(): PublicVerificationResponse {
   return publicVerificationSchema.parse({
@@ -259,6 +305,7 @@ export interface ApiMockOptions {
   evidenceUploadError?: string;
   asset?: AssetResponse;
   assetErrorStatus?: 403 | 404;
+  chainStatus?: ChainStatusResponse;
 }
 
 function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
@@ -267,6 +314,10 @@ function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
     contentType: 'application/json',
     body: JSON.stringify(body),
   });
+}
+
+function fulfillChainStatus(route: Route, status: ChainStatusResponse): Promise<void> {
+  return route.fulfill({ status: 200, json: chainStatusSchema.parse(status) });
 }
 
 /**
@@ -279,6 +330,10 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
   const user = options.user ?? null;
   const evidence = [...(options.evidence ?? [])];
   const asset = options.asset ?? buildAssetResponse(buildAssetReceivables(options.portfolio));
+
+  await page.route('**/api/chain/status', (route) =>
+    fulfillChainStatus(route, options.chainStatus ?? buildChainStatus()),
+  );
 
   await page.route('**/api/auth/config', (route) => fulfillJson(route, authConfig));
 
@@ -309,11 +364,14 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
     return fulfillJson(route, uploaded, 201);
   });
 
-  await page.route('**/api/assets/*', (route) =>
-    options.assetErrorStatus
+  await page.route('**/api/assets/**', (route) => {
+    if (/\/(?:chain|certification-chain)$/.test(route.request().url())) {
+      return fulfillJson(route, buildChainSnapshot());
+    }
+    return options.assetErrorStatus
       ? fulfillJson(route, { statusCode: options.assetErrorStatus }, options.assetErrorStatus)
-      : fulfillJson(route, asset),
-  );
+      : fulfillJson(route, asset);
+  });
 
   // `GET /api/disclosure/sample` ya no existe: la cartera de muestra fija
   // desapareció y toda pantalla trabaja sobre el expediente persistido.

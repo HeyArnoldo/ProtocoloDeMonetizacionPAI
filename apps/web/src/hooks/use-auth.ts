@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/services/auth.api';
+import { clearOperationalStorage } from '@/domain/operational-storage';
 
 const ME_KEY = ['auth', 'me'] as const;
 
@@ -36,10 +37,13 @@ export function useRegister() {
   });
 }
 
-export function useLogout() {
+export function useLogout(userId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: authApi.logout,
-    onSuccess: () => qc.clear(),
+    onSuccess: () => {
+      if (userId) clearOperationalStorage(window.sessionStorage, userId);
+      qc.clear();
+    },
   });
 }

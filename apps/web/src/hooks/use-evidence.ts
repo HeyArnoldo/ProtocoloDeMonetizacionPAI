@@ -3,8 +3,8 @@ import { fetchEvidence, uploadEvidence } from '@/services/evidence.api';
 
 export const evidenceQueryKey = ['evidence'] as const;
 
-export function useEvidence() {
-  return useQuery({ queryKey: evidenceQueryKey, queryFn: fetchEvidence });
+export function useEvidence(enabled = true) {
+  return useQuery({ queryKey: evidenceQueryKey, queryFn: fetchEvidence, enabled });
 }
 
 export function useUploadEvidence() {

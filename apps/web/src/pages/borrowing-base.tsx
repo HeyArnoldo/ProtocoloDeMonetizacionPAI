@@ -16,6 +16,7 @@ import {
 } from '@/domain/borrowing-base';
 import { formatBps, formatDueDate, formatMinorUnits } from '@/domain/money';
 import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
+import { shouldCompleteBorrowingBase } from '@/domain/operational-storage';
 import { cn } from '@/lib/utils';
 
 /**
@@ -69,8 +70,15 @@ interface RunState {
 }
 
 export default function BorrowingBasePage() {
-  const { selectedIndices, selectedLeaves, disclosedCount, currency, treeRoot, proof } =
-    useDisclosureSelection();
+  const {
+    selectedIndices,
+    selectedLeaves,
+    disclosedCount,
+    currency,
+    treeRoot,
+    proof,
+    markBorrowingBaseComputed,
+  } = useDisclosureSelection();
 
   const reducedMotion = usePrefersReducedMotion();
 
@@ -106,6 +114,10 @@ export default function BorrowingBasePage() {
 
     return () => window.clearTimeout(timer);
   }, [run, rows.length]);
+
+  useEffect(() => {
+    if (shouldCompleteBorrowingBase(rows.length, run.revealed)) markBorrowingBaseComputed();
+  }, [markBorrowingBaseComputed, rows.length, run.revealed]);
 
   function execute() {
     if (rows.length === 0) return;
