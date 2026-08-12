@@ -20,6 +20,11 @@ export async function fetchCertificationSnapshot(
   return data;
 }
 
+export async function fetchChainSnapshot(assetId: string): Promise<ChainAssetSnapshotResponse> {
+  const { data } = await api.get<ChainAssetSnapshotResponse>(`/assets/${assetId}/chain`);
+  return data;
+}
+
 export async function previewDisclosure(
   assetId: string,
   request: PersistedDisclosurePreviewRequest,

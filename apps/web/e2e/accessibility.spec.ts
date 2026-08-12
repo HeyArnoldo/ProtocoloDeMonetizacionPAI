@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test } from '@playwright/test';
-import { mockApi } from './fixtures/api-mock';
+import { expect, test } from '@playwright/test';
+import { buildAuthUser, mockApi } from './fixtures/api-mock';
 
 /**
  * Auditoría de accesibilidad del login.
@@ -43,4 +43,15 @@ test('accesibilidad del login (informe, todavía no bloquea)', async ({ page }, 
   if (results.violations.length === 0) {
     console.log('[axe] sin violaciones wcag2a/2aa/21a/21aa en /login');
   }
+});
+
+test('accesibilidad de la timeline autenticada en escritorio', async ({ page }) => {
+  await mockApi(page, { user: buildAuthUser() });
+  await page.goto('/prestamo');
+  await page.getByRole('navigation', { name: 'Progreso operativo' }).waitFor();
+  const results = await new AxeBuilder({ page })
+    .include('[data-testid="operational-timeline"]')
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  expect(results.violations).toEqual([]);
 });

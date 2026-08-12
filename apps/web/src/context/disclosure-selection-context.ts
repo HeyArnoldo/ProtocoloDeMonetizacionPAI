@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { DisclosurePreviewResponse, Receivable } from '@app/contracts';
+import type { AssetReceivableResponse, DisclosurePreviewResponse } from '@app/contracts';
 import type { Hex, ReceivableLeaf } from '@app/merkle';
 
 /**
@@ -13,6 +13,7 @@ import type { Hex, ReceivableLeaf } from '@app/merkle';
 export interface DisclosureSelectionValue {
   /** Activo efectivo de la sesión, tomado del query o recuperado de sessionStorage. */
   assetId: string | null;
+  registrationConfirmed: boolean;
 
   /** Estado de `GET /api/disclosure/sample`. */
   isPending: boolean;
@@ -21,7 +22,7 @@ export interface DisclosureSelectionValue {
 
   /** Salt del expediente. Fijo por sesión: si cambiara, cambiaría el root. */
   salt: Hex | null;
-  receivables: Receivable[];
+  receivables: AssetReceivableResponse[];
 
   /**
    * Root del expediente completo, recomputado en el navegador con
@@ -52,6 +53,8 @@ export interface DisclosureSelectionValue {
   isBuildingProof: boolean;
   proofError: unknown;
   buildProof: () => void;
+  borrowingBaseComputed: boolean;
+  markBorrowingBaseComputed: () => void;
 }
 
 export const DisclosureSelectionContext = createContext<DisclosureSelectionValue | null>(null);
