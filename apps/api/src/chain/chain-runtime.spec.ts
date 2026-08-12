@@ -152,6 +152,32 @@ describe('chain runtime boundary', () => {
     expect(rpc.readContract).not.toHaveBeenCalled();
   });
 
+  it('reports safe and head heights as the liveness probe of the deployment chain', async () => {
+    const rpc = reader({
+      getBlock: jest.fn(({ blockTag }: { blockTag: string }) =>
+        Promise.resolve({ number: blockTag === 'safe' ? 900n : 999n }),
+      ),
+    });
+
+    await expect(adapter(rpc).getNetworkStatus()).resolves.toEqual({
+      network: 'arbitrum',
+      chainId: 421614,
+      safeBlock: 900n,
+      headBlock: 999n,
+    });
+  });
+
+  it('never reports a live network when the RPC is on another chain or is down', async () => {
+    await expect(
+      adapter(reader({ getChainId: jest.fn().mockResolvedValue(1) })).getNetworkStatus(),
+    ).rejects.toThrow(/does not match/);
+    await expect(
+      adapter(
+        reader({ getBlock: jest.fn().mockRejectedValue(new Error('fetch failed')) }),
+      ).getNetworkStatus(),
+    ).rejects.toThrow('fetch failed');
+  });
+
   it('returns null for a missing asset and rejects unknown registry status', async () => {
     await expect(
       adapter(reader({ readContract: jest.fn().mockResolvedValue(false) })).getAsset(bytes32('a')),

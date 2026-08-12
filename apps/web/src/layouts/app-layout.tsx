@@ -10,10 +10,10 @@ import {
   roleLandingPath,
   type NavGroup,
 } from '@/config/navigation';
+import { ChainBadge } from '@/components/panel/chain-badge';
 import { NetworkStatus } from '@/components/panel/network-status';
 import { PageHeader } from '@/components/panel/page-header';
 import { WalletControl } from '@/components/panel/wallet-control';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -151,16 +151,11 @@ export function AppLayout() {
                 // en la etiqueta del ítem de navegación activo.
                 subtitleClassName="hidden sm:block"
               >
-                {/* La maqueta muestra aquí `PLEDGED` / `FUNDED`. El estado del
-                  activo vive en `AssetRegistry`, que no está desplegado: no hay
-                  de dónde leerlo, así que se declara en vez de inventarse.
+                {/* La maqueta muestra aquí `PLEDGED` / `FUNDED`: eso es estado
+                  de un activo concreto y esta cabecera es global. Lo que sí
+                  aplica a toda pantalla es si la API está leyendo la cadena.
                   En móvil se retira: es contexto, no acción. */}
-                <Badge
-                  variant="outline"
-                  className="mono hidden text-[10px] font-normal lg:inline-flex"
-                >
-                  sin estado on-chain
-                </Badge>
+                <ChainBadge />
 
                 <WalletControl />
 

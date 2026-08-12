@@ -3,6 +3,7 @@ import {
   CURRENCY_CODES,
   UserRole,
   authUserSchema,
+  chainStatusSchema,
   disclosurePreviewResponseSchema,
   persistedDisclosurePreviewRequestSchema,
   publicVerificationSchema,
@@ -11,6 +12,7 @@ import {
   type AssetResponse,
   type AuthConfig,
   type AuthUser,
+  type ChainStatusResponse,
   type DisclosurePreviewRequest,
   type DisclosurePreviewResponse,
   type EvidenceResponse,
@@ -298,6 +300,41 @@ export function computeDisclosurePreview(
   });
 }
 
+/**
+ * Estado de cadena por defecto: vivo, con el despliegue canónico de
+ * `chain/deployments/421614.json`. Los bloques son fijos a propósito — un
+ * número que cambia entre corridas rompería cualquier captura de pantalla.
+ */
+export function buildChainStatus(
+  overrides: Partial<Extract<ChainStatusResponse, { status: 'live' }>> = {},
+): ChainStatusResponse {
+  const explorerBaseUrl = 'https://sepolia.arbiscan.io';
+  const addresses = {
+    assetRegistry: '0xFda73e63797dcD7940e1Ce0B000dbE17d03c3208',
+    certificationAttestor: '0xCc4CF2d2761cFf9a2c871A2bA8e5BCbb6CEB44F6',
+    paiCertificate: '0x6b15e6715ABdD6D01661bAcf056193D6f9f33FE8',
+    borrowingBaseEngine: '0x3Ea2f1541d2F8aB3137d2A4F64067E3d69BaA10B',
+    collateralVault: '0xa281d5342327D35068FCcB9E99f6c0F57ee59611',
+    mockUsdc: '0x062293daDabE79FC0A47665126B71070cD5689C8',
+  } as const;
+
+  return chainStatusSchema.parse({
+    status: 'live',
+    network: 'arbitrum',
+    chainId: 421614,
+    safeBlock: '297262745',
+    headBlock: '297265110',
+    deploymentBlock: '296546459',
+    explorerBaseUrl,
+    contracts: Object.entries(addresses).map(([name, address]) => ({
+      name,
+      address,
+      explorerUrl: `${explorerBaseUrl}/address/${address}`,
+    })),
+    ...overrides,
+  });
+}
+
 export interface ApiMockOptions {
   /** Flags de `GET /api/auth/config`. Por defecto, login local y Google activos. */
   authConfig?: AuthConfig;
@@ -309,6 +346,8 @@ export interface ApiMockOptions {
   evidenceUploadError?: string;
   asset?: AssetResponse;
   assetErrorStatus?: 403 | 404;
+  /** Estado de `GET /api/chain/status`. Por defecto, la cadena responde viva. */
+  chainStatus?: ChainStatusResponse;
 }
 
 function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
@@ -329,6 +368,10 @@ export async function mockApi(page: Page, options: ApiMockOptions = {}): Promise
   const user = options.user ?? null;
   const evidence = [...(options.evidence ?? [])];
   const asset = options.asset ?? buildAssetResponse(buildAssetReceivables(options.portfolio));
+
+  await page.route('**/api/chain/status', (route) =>
+    fulfillJson(route, options.chainStatus ?? buildChainStatus()),
+  );
 
   await page.route('**/api/auth/config', (route) => fulfillJson(route, authConfig));
 

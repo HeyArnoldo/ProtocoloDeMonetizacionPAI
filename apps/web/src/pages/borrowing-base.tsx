@@ -204,7 +204,7 @@ export default function BorrowingBasePage() {
         <PendingData
           title="La columna on-chain y la insignia MATCH / MISMATCH"
           reason="El mismo desglose recomputado por el contrato, línea a línea, junto al cálculo local. La insignia solo significa algo cuando hay dos números de dos fuentes distintas: hoy solo hay uno, y decir MATCH sería comparar la pantalla consigo misma."
-          unblockedBy="BorrowingBaseEngine desplegado en Arbitrum Sepolia y llamado como función view sobre el root certificado"
+          unblockedBy="la llamada view al BorrowingBaseEngine ya desplegado sobre el root certificado"
         />
 
         <PanelCard>
@@ -280,7 +280,7 @@ function EmptyState() {
  * prestable sigue siendo la única cifra de 22px en color de marca.
  *
  * La columna on-chain sí desaparece por debajo de `sm`. No contiene ningún
- * dato —el motor no está desplegado— y repetir un guion por cada línea gastaría
+ * dato —el panel todavía no llama al motor— y repetir un guion por cada línea gastaría
  * la mitad del ancho útil en un marcador de posición; lo que falta ya lo
  * explica el bloque de dato pendiente que va justo debajo de la tarjeta.
  */
@@ -333,7 +333,7 @@ function BreakdownTable({
             </span>
             <span
               className="mono text-muted-foreground hidden w-[84px] text-right text-[12px] sm:inline"
-              title="Pendiente: BorrowingBaseEngine no está desplegado"
+              title="Pendiente: el panel todavía no llama al BorrowingBaseEngine desplegado"
             >
               —
             </span>

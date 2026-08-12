@@ -26,21 +26,22 @@ Documentos largos: [`docs/referencia-pai-arbitrum.md`](docs/referencia-pai-arbit
 
 Esta tabla es deliberadamente honesta. Un jurado que descubre solo que una demo estaba maquillada deja de creer todo lo demás, incluido lo que sí era cierto.
 
-| Pieza                           | Estado                  | Detalle                                                                                                          |
-| ------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Hoja canónica de Merkle**     | ✅ Funciona             | `packages/merkle` con vectores dorados. Solidity y TypeScript hashean igual, verificado por tests en ambos lados |
-| **Divulgación selectiva**       | ✅ Funciona             | Multiproof real end-to-end. Selección, root, proof, flags, verificación                                          |
-| **Motor de borrowing base**     | ✅ Funciona             | `packages/borrowing-base`, aritmética entera en unidades menores, con vectores dorados                           |
-| **Panel de operación**          | ✅ Funciona             | 10 rutas + landing pública, sistema visual completo, responsive en móvil                                         |
-| **Contratos Solidity**          | ✅ Escritos y testeados | 7 contratos, 67 tests en Foundry, con script de deploy que verifica el cableado                                  |
-| **`packages/evm`**              | ✅ Funciona             | ABIs y tipos generados desde `chain/`, 88 tests                                                                  |
-| **Adaptador de Arbitrum**       | ✅ Implementado         | `ArbitrumChainAdapter` lee la cadena con viem. Ya no es un stub                                                  |
-| **Firma desde wallet**          | ✅ Funciona             | La API prepara el _intent_ y el navegador lo firma por EIP-1193. **El backend no guarda claves**                 |
-| **Despliegue en Sepolia**       | 🟡 Pendiente            | Los contratos existen y el script también; faltan las direcciones en el `.env`                                   |
-| **Motor en Stylus (Rust)**      | 🔴 No existe            | `chain/stylus/` está vacío. `BorrowingBaseEngine` hoy es **Solidity**, no Rust                                   |
-| **Cuenta inteligente ERC-4337** | 🔴 No existe            | Login con Google sí funciona; la smart account en segundo plano, no                                              |
+| Pieza                           | Estado                  | Detalle                                                                                                            |
+| ------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Hoja canónica de Merkle**     | ✅ Funciona             | `packages/merkle` con vectores dorados. Solidity y TypeScript hashean igual, verificado por tests en ambos lados   |
+| **Divulgación selectiva**       | ✅ Funciona             | Multiproof real end-to-end. Selección, root, proof, flags, verificación                                            |
+| **Motor de borrowing base**     | ✅ Funciona             | `packages/borrowing-base`, aritmética entera en unidades menores, con vectores dorados                             |
+| **Panel de operación**          | ✅ Funciona             | 10 rutas + landing pública, sistema visual completo, responsive en móvil                                           |
+| **Contratos Solidity**          | ✅ Escritos y testeados | 7 contratos, 67 tests en Foundry, con script de deploy que verifica el cableado                                    |
+| **`packages/evm`**              | ✅ Funciona             | ABIs y tipos generados desde `chain/`, 88 tests                                                                    |
+| **Adaptador de Arbitrum**       | ✅ Implementado         | `ArbitrumChainAdapter` lee la cadena con viem. Ya no es un stub                                                    |
+| **Firma desde wallet**          | ✅ Funciona             | La API prepara el _intent_ y el navegador lo firma por EIP-1193. **El backend no guarda claves**                   |
+| **Despliegue en Sepolia**       | ✅ Desplegado           | Seis contratos en Arbitrum Sepolia desde el bloque 296546459. Direcciones en `chain/deployments/421614.json`       |
+| **Lectura en vivo de la red**   | ✅ Funciona             | `GET /api/chain/status` publica `chainId`, bloque seguro y cabeza; el panel enciende el punto solo con esa lectura |
+| **Motor en Stylus (Rust)**      | 🔴 No existe            | `chain/stylus/` está vacío. `BorrowingBaseEngine` hoy es **Solidity**, no Rust                                     |
+| **Cuenta inteligente ERC-4337** | 🔴 No existe            | Login con Google sí funciona; la smart account en segundo plano, no                                                |
 
-**Consecuencia visible:** las pantallas están cableadas a endpoints reales, pero mientras no existan las direcciones desplegadas muestran un estado vacío que dice **qué dato falta y qué lo desbloquea**, en lugar de una cifra de relleno. Esa fue una decisión, no una limitación:
+**Consecuencia visible:** las pantallas están cableadas a endpoints reales. Los contratos ya están desplegados y el panel lo demuestra con la altura de bloque que devuelve la API, pero mientras no haya un expediente registrado en ellos las tarjetas muestran un estado vacío que dice **qué dato falta y qué lo desbloquea**, en lugar de una cifra de relleno. Esa fue una decisión, no una limitación:
 
 > _Vacío con explicación es mejor que falso._
 
@@ -226,6 +227,32 @@ MOCK_USDC_ADDRESS=
 ```
 
 Con `CHAIN_ADAPTER=in-memory` (el default) todas son opcionales y la API funciona entera sin cadena: dev, tests y la mitad Web2 de la demo.
+
+Para comprobar que la API está leyendo la cadena de verdad, sin sesión:
+
+```bash
+curl -s https://tu-api/api/chain/status | jq
+# status: "live"       → hubo lectura real del RPC; trae safeBlock y headBlock
+# status: "unreachable" → configurada contra Arbitrum, pero el RPC no responde
+# status: "offline"     → CHAIN_ADAPTER=in-memory: nada llega a la cadena
+```
+
+### Los dos `.env` son distintos y no se mezclan
+
+Es el error más fácil de cometer al desplegar, porque los dos hablan de Arbitrum:
+
+|                 | `chain/.env` (despliegue)                                        | `.env` de la app (runtime)                                         |
+| --------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Quién lo usa    | Foundry, una sola vez, desde tu máquina                          | API y Web, en cada arranque                                        |
+| Qué contiene    | `DEPLOYER_PRIVATE_KEY`, `*_ADDRESS` de rol, `DEMO_ROLE_MNEMONIC` | `CHAIN_ADAPTER`, `CHAIN_RPC_URL`, las seis direcciones de contrato |
+| Claves privadas | Sí                                                               | **Nunca**                                                          |
+| Dónde vive      | Solo local, nunca versionado ni en Docker                        | Variables de entorno de Coolify                                    |
+
+**`DEPLOYER_PRIVATE_KEY` no va en el `.env` de la aplicación.** La API no firma transacciones de valor: si esa clave llega al contenedor, deja de ser cierto que solo el usuario puede mover su dinero, que es el argumento del proyecto. El deployer paga el gas del despliegue y nada más.
+
+Lo que sí cruza del despliegue al runtime son **solo las seis direcciones y el bloque**, y su fuente única es `chain/deployments/421614.json` — no se copian a mano de la salida de Foundry.
+
+> **El deployer no es el admin.** En el despliegue canónico el deployer es `0xC05b…890B` y quien tiene `DEFAULT_ADMIN_ROLE` es `0xF3D0…4443` (`roles.admin` del artefacto). El script concede los roles a las direcciones de `chain/deploy-config/421614.json` y el deployer no se queda con ninguno. Tampoco todas las direcciones de rol derivan de `DEMO_ROLE_MNEMONIC`: solo `admin` es su índice 0. Verifícalo contra el artefacto, no por derivación.
 
 ### Roles de la demo
 

@@ -1,4 +1,5 @@
 import { CardBody, CardKicker, PanelCard } from '@/components/panel/panel-card';
+import { DeploymentCard } from '@/components/panel/deployment-card';
 import { PendingData } from '@/components/panel/pending-data';
 import {
   Table,
@@ -13,9 +14,10 @@ import {
  * Actividad on-chain.
  *
  * La pantalla es un espejo del índice: no consulta la cadena, lee lo que el
- * Worker ya guardó en Postgres. Sin contratos desplegados no hay eventos que
- * indexar, así que aquí lo único afirmable es qué evento emite cada contrato y
- * qué provoca.
+ * Worker ya guardó en Postgres. Los contratos YA están desplegados —el estado
+ * real de la conexión lo publica `GET /api/chain/status` y se muestra arriba—,
+ * pero el Worker que indexa sus eventos todavía no existe. Mientras tanto, lo
+ * afirmable aquí es el despliegue canónico y qué evento emite cada contrato.
  */
 
 /** Eventos del diseño de los contratos y qué significa cada uno. */
@@ -68,8 +70,10 @@ export default function ActivityPage() {
       <PendingData
         title="Transacciones del expediente"
         reason="Hash enlazable al explorador, contrato, método, firmante, gas y bloque de cada transacción, más los contadores de gas total y wallets distintas."
-        unblockedBy="contratos desplegados en Arbitrum Sepolia y el Worker suscrito a sus eventos"
+        unblockedBy="el Worker suscrito a los eventos de los contratos ya desplegados"
       />
+
+      <DeploymentCard />
 
       <PanelCard className="gap-3">
         <CardKicker>Qué se va a indexar</CardKicker>
