@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CodeBlock } from '@/components/panel/code-block';
 import { CardBody, CardKicker, PanelCard } from '@/components/panel/panel-card';
 import { buildLoanIntentRequest, type LoanAction } from '@/domain/loan-intent';
+import { formatTokenUnits } from '@/domain/money';
 import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
 import { useTransactionIntent } from '@/hooks/use-transaction-intent';
 import { useWalletSubmitter } from '@/hooks/use-wallet-submitter';
@@ -112,15 +113,25 @@ export default function LoanPage() {
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="loan-principal">Principal (minor units)</Label>
+                <Label htmlFor="loan-principal">Principal (unidades de mUSDC · 6 decimales)</Label>
                 <Input
                   id="loan-principal"
                   inputMode="numeric"
                   value={principal}
                   onChange={(e) => setPrincipal(e.target.value)}
-                  placeholder="2500000"
+                  placeholder="5000000000"
                   disabled={busy}
                 />
+                {/* En este sistema conviven dos escalas: las cuotas y la base
+                    prestable van en centavos, y mUSDC tiene 6 decimales. Decir
+                    solo "minor units" obliga a adivinar cuál de las dos, y
+                    equivocarse revierte la transacción — momento en el que
+                    MetaMask deja de poder estimar el gas y muestra cifras
+                    absurdas. La equivalencia se escribe, no se supone. */}
+                <p className="text-muted-foreground text-[11px] leading-snug">
+                  1 mUSDC = 1 000 000 unidades.{' '}
+                  {formatTokenUnits(principal) ?? 'Escribe un entero para ver el equivalente.'}
+                </p>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="loan-due-date">Due date</Label>
