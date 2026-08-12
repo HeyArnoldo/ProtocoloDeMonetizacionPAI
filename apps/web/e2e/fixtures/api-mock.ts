@@ -60,6 +60,56 @@ export const VERIFY_ASSET_ID = `0x${'ab'.repeat(32)}` as const;
  */
 export const DEMO_ASSET_ID = `0x${'1d'.repeat(32)}` as const;
 
+export const MOCK_WALLET_ACCOUNT = `0x${'42'.repeat(20)}`;
+
+/** Proveedor EIP-1193 mínimo para ejercitar la conexión sin una extensión real. */
+export async function mockInjectedWallet(page: Page): Promise<void> {
+  await page.addInitScript(
+    ({ account }) => {
+      const listeners = new Map<string, Set<(value?: unknown) => void>>();
+      let accounts: string[] = [];
+      let chainId = '0x1';
+      const calls: string[] = [];
+
+      const emit = (event: string, value?: unknown) => {
+        listeners.get(event)?.forEach((listener) => listener(value));
+      };
+
+      Object.defineProperty(window, 'ethereum', {
+        configurable: true,
+        value: {
+          async request({ method }: { method: string }) {
+            calls.push(method);
+            if (method === 'eth_accounts') return accounts;
+            if (method === 'eth_chainId') return chainId;
+            if (method === 'eth_requestAccounts') {
+              accounts = [account];
+              emit('accountsChanged', accounts);
+              return accounts;
+            }
+            if (method === 'wallet_switchEthereumChain') {
+              chainId = '0x66eee';
+              emit('chainChanged', chainId);
+              return null;
+            }
+            throw new Error(`Unexpected wallet method: ${method}`);
+          },
+          on(event: string, listener: (value?: unknown) => void) {
+            const eventListeners = listeners.get(event) ?? new Set();
+            eventListeners.add(listener);
+            listeners.set(event, eventListeners);
+          },
+          removeListener(event: string, listener: (value?: unknown) => void) {
+            listeners.get(event)?.delete(listener);
+          },
+        },
+      });
+      Object.defineProperty(window, '__walletCalls', { value: calls });
+    },
+    { account: MOCK_WALLET_ACCOUNT },
+  );
+}
+
 export function buildPublicVerification(): PublicVerificationResponse {
   return publicVerificationSchema.parse({
     supported: true,

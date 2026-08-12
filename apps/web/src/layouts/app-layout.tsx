@@ -12,6 +12,7 @@ import {
 } from '@/config/navigation';
 import { NetworkStatus } from '@/components/panel/network-status';
 import { PageHeader } from '@/components/panel/page-header';
+import { WalletControl } from '@/components/panel/wallet-control';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -160,6 +161,8 @@ export function AppLayout() {
                 >
                   sin estado on-chain
                 </Badge>
+
+                <WalletControl />
 
                 <DropdownMenu>
                   {/* Antes no había ninguna señal de que esto abriera algo —

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { CardBody, CardKicker, PanelCard } from '@/components/panel/panel-card';
 import { buildLoanIntentRequest, type LoanAction } from '@/domain/loan-intent';
 import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
 import { useTransactionIntent } from '@/hooks/use-transaction-intent';
-import { InjectedWalletSubmitter, injectedProvider } from '@/services/transaction-intent';
+import { useWalletSubmitter } from '@/hooks/use-wallet-submitter';
 const ASSET_STORAGE_KEY = 'pai:disclosure-asset-id';
 function rememberedAssetId(): string {
   try {
@@ -20,7 +20,7 @@ function rememberedAssetId(): string {
 }
 export default function LoanPage() {
   const disclosure = useDisclosureSelection();
-  const submitter = useMemo(() => new InjectedWalletSubmitter(injectedProvider()), []);
+  const submitter = useWalletSubmitter();
   const transaction = useTransactionIntent(submitter);
   const [action, setAction] = useState<LoanAction>('originate');
   const [assetId, setAssetId] = useState(rememberedAssetId);

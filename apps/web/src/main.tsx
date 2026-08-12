@@ -5,14 +5,17 @@ import { RouterProvider } from 'react-router-dom';
 import { queryClient } from '@/lib/query-client';
 import { router } from '@/router';
 import { Toaster } from '@/components/ui/sonner';
+import { WalletProvider } from '@/context/wallet-provider';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <Suspense fallback={null}>
-        <RouterProvider router={router} />
-      </Suspense>
+      <WalletProvider>
+        <Suspense fallback={null}>
+          <RouterProvider router={router} />
+        </Suspense>
+      </WalletProvider>
       <Toaster richColors />
     </QueryClientProvider>
   </StrictMode>,

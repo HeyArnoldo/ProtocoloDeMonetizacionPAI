@@ -5,6 +5,7 @@ import { UserRole } from '@app/contracts';
 import {
   buildAuthUser,
   mockApi,
+  mockInjectedWallet,
   mockPublicVerification,
   VERIFY_ASSET_ID,
 } from './fixtures/api-mock';
@@ -90,6 +91,30 @@ test.describe('rutas del panel', () => {
     );
     // Y solo uno: `aria-current` en dos ítems dejaría al lector sin saber dónde está.
     await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+  });
+
+  test('conecta MetaMask y corrige la red desde la cabecera', async ({ page }) => {
+    await mockInjectedWallet(page);
+    await mockApi(page, { user: buildAuthUser() });
+    await page.goto('/panel');
+
+    const connect = page.getByRole('button', { name: 'Conectar MetaMask' });
+    await expect(connect).toBeVisible();
+    await expect(connect).toBeEnabled();
+    expect(
+      await page.evaluate(
+        () => (window as typeof window & { __walletCalls: string[] }).__walletCalls,
+      ),
+    ).not.toContain('eth_requestAccounts');
+
+    await connect.click();
+    const switchNetwork = page.getByRole('button', {
+      name: 'Cambiar MetaMask a Arbitrum Sepolia',
+    });
+    await expect(switchNetwork).toBeVisible();
+    await switchNetwork.click();
+
+    await expect(page.getByLabel(/MetaMask conectada:/)).toContainText('0x4242…4242');
   });
 
   test('filtra por rol y bloquea una URL protegida de otra persona', async ({ page }) => {
