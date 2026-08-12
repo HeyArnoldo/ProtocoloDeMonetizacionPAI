@@ -310,12 +310,12 @@ export function buildChainStatus(
 ): ChainStatusResponse {
   const explorerBaseUrl = 'https://sepolia.arbiscan.io';
   const addresses = {
-    assetRegistry: '0xFda73e63797dcD7940e1Ce0B000dbE17d03c3208',
-    certificationAttestor: '0xCc4CF2d2761cFf9a2c871A2bA8e5BCbb6CEB44F6',
-    paiCertificate: '0x6b15e6715ABdD6D01661bAcf056193D6f9f33FE8',
-    borrowingBaseEngine: '0x3Ea2f1541d2F8aB3137d2A4F64067E3d69BaA10B',
-    collateralVault: '0xa281d5342327D35068FCcB9E99f6c0F57ee59611',
-    mockUsdc: '0x062293daDabE79FC0A47665126B71070cD5689C8',
+    assetRegistry: '0xb2A15c6BD8c1A409F79a09e46C7Ce047eD6ad7d7',
+    certificationAttestor: '0x4008B0e6295A8Bdc9FC12e72b9436197A0FfC1CF',
+    paiCertificate: '0x94861a2352646697225F8F921B8Dd3C58A30A56b',
+    borrowingBaseEngine: '0xA5b4245bc29567a9742A2327192746166b0118F1',
+    collateralVault: '0x7E2552151a04DB4C8D97AaBdE9E2B2d82263cd67',
+    mockUsdc: '0x9F16274EDec38f3217fAbE83Dc13dE59Becfe4f1',
   } as const;
 
   return chainStatusSchema.parse({
@@ -324,7 +324,7 @@ export function buildChainStatus(
     chainId: 421614,
     safeBlock: '297262745',
     headBlock: '297265110',
-    deploymentBlock: '296546459',
+    deploymentBlock: '297286907',
     explorerBaseUrl,
     contracts: Object.entries(addresses).map(([name, address]) => ({
       name,

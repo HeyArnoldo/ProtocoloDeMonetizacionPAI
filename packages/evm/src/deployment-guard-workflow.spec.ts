@@ -310,6 +310,47 @@ describe('deployment guard CLI workflow', () => {
     expect(request.args).not.toContain(SECRET_SENTINEL);
     expect(request.args).not.toContain('--force');
   });
+
+  /**
+   * El snapshot se congela a `0500` y pertenece a quien invoca el guard. La
+   * imagen de Foundry corre como `uid=1000(foundry)`: en una máquina cuyo
+   * usuario no sea exactamente 1000, el contenedor no puede leer las fuentes y
+   * `forge` responde «Nothing to compile» — sin artefactos y sin error legible.
+   */
+  it('runs the container as the invoking user so the frozen snapshot stays readable', () => {
+    const request = dockerProcessRequest(
+      {
+        tokenId: '11'.repeat(16),
+        sourcePath: '/repo/snapshot',
+        writablePath: '/repo/candidate',
+        identity: { chainId: 421_614, sourceTreeHash: 'a'.repeat(64) },
+      },
+      'build',
+      'linux',
+      { uid: 1001, gid: 1001 },
+    );
+
+    expect(request.args).toContain('--user');
+    expect(request.args).toContain('1001:1001');
+    // Sin esto `HOME` cae a `/` y forge muere creando ~/.foundry.
+    expect(request.args).toContain('HOME=/guard');
+  });
+
+  it('omits the user flag on win32, where the mount has no POSIX owner', () => {
+    const request = dockerProcessRequest(
+      {
+        tokenId: '11'.repeat(16),
+        sourcePath: 'C:\\repo\\snapshot',
+        writablePath: 'C:\\repo\\candidate',
+        identity: { chainId: 421_614, sourceTreeHash: 'a'.repeat(64) },
+      },
+      'build',
+      'win32',
+      { uid: 1001, gid: 1001 },
+    );
+
+    expect(request.args).not.toContain('--user');
+  });
 });
 
 describe('strict persisted guard state', () => {

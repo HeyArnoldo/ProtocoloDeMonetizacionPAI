@@ -2,8 +2,8 @@
   "version": 1,
   "compilerVersion": "0.8.28+commit.7893614a",
   "compilerSettingsHash": "a11d652a055fcea70eb8ce1962ac67927fadb1811e7575cf8bd47fd1f0d2c148",
-  "sourceTreeHash": "5eda51342d6b5468a3dbc77be0f3909369f5027a0221d3e59b9df0e0af091990",
-  "deployScriptHash": "82a61423f971f5ac8726765ba6c3fcab1002916fd5c309a5163c4fc1ad65d3b3",
+  "sourceTreeHash": "cd1300e1d4b8e357414400d655733d16a09ac1a0bd7923356ba12568274ed567",
+  "deployScriptHash": "3564a86a1e1a0fc7a6c469040d48135a4b227d137ab97fad5b3eae2e462bda99",
   "artifacts": {
     "assetRegistry": {
       "artifactSha256": "b8bbb53d07eb00a1fa8ba1ad23fa9ebc04f11e2c70231b3f976141a59cb34b44",
@@ -16,7 +16,7 @@
       "runtimeBytecodeHash": "0xdef7b59ee3d6341077cd21fee7b9e73efaa03962cf89026ad5ec54831d36de3d"
     },
     "paiCertificate": {
-      "artifactSha256": "377bef60bdf7eb0b20d0213f9c10153cfd3b8d873c1a189fcf66c100db105b4d",
+      "artifactSha256": "2e900b07a9c19496fbe078e0275922bc2ce06f99846e7ac9d97e6a9a8b9d841e",
       "creationBytecodeHash": "0xa58e1b87d7525f9fbec9ce4fed0beb29dcf5a211d0dc3f85b715b0b6911fdbc1",
       "runtimeBytecodeHash": "0xb8b0e98ae41bbf36464dbcc626643dacce70d8a87a88a437f64e5d77554a4af2"
     },
@@ -26,9 +26,9 @@
       "runtimeBytecodeHash": "0xa303bb4185de37135f444c9b7661e9eb2f70be14743dbbf09e06f38ea774fb8a"
     },
     "collateralVault": {
-      "artifactSha256": "54a9ece5ffe6c3d1765d05ddb310e945f703d94aba453c23bab504ce10e608d8",
-      "creationBytecodeHash": "0xfcf38835e8bac368726693cab8451f62f215100443f49531da28a261022d3342",
-      "runtimeBytecodeHash": "0xf0d2d50a48dc54fd4395781552025a1d36239f4a866d98d21a134825ad0804f7"
+      "artifactSha256": "90b855ca61d0982eacde90f385a479a520503e27e38009cf1924ac24e8648da5",
+      "creationBytecodeHash": "0x136664554187d97032b293291652ff8b9c57cce755fd2befcdcbcd267050319d",
+      "runtimeBytecodeHash": "0xb76e6302eb608ff27e0566249d349495688845a8f44a786fa53ec53ad27eea01"
     },
     "mockUsdc": {
       "artifactSha256": "8a65f774485adcbde7d5086093f6a5445943e6465ddf5ded37ff0c6f4e85369c",

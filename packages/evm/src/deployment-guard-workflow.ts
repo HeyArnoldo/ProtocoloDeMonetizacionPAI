@@ -125,11 +125,29 @@ const image =
 export function dockerProcessRequest(
   snapshot: FrozenSnapshot,
   kind: ProcessRequest['kind'],
-  _platform: 'win32' | 'linux' = process.platform === 'win32' ? 'win32' : 'linux',
+  platform: 'win32' | 'linux' = process.platform === 'win32' ? 'win32' : 'linux',
+  posixUser: { uid: number; gid: number } | null = process.getuid && process.getgid
+    ? { uid: process.getuid(), gid: process.getgid() }
+    : null,
 ): ProcessRequest {
+  // El snapshot se congela a `0500` y pertenece a quien invoca el guard, pero
+  // la imagen de Foundry corre como `uid=1000(foundry)`. Si los uid no
+  // coinciden el contenedor no puede leer las fuentes: `forge` responde
+  // «Nothing to compile», no escribe artefactos y el fallo aparece mucho más
+  // tarde como un ENOENT sobre `out/`. Se ejecuta con el uid del invocante en
+  // vez de aflojar los permisos del snapshot.
+  //
+  // Con un uid ajeno a la imagen, `HOME` cae a `/`, que no es escribible, y
+  // `forge` muere con «Permission denied (os error 13)» al crear `~/.foundry`.
+  // Se le da un HOME dentro del único volumen escribible del contenedor.
+  const user =
+    platform === 'win32' || !posixUser
+      ? []
+      : ['--user', `${posixUser.uid}:${posixUser.gid}`, '-e', 'HOME=/guard'];
   const args = [
     'run',
     '--rm',
+    ...user,
     ...(kind !== 'build' ? requiredDeploymentEnvironmentNames.flatMap((name) => ['-e', name]) : []),
     '--entrypoint',
     'forge',
