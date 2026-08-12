@@ -66,7 +66,7 @@ Esa frase compra más credibilidad que un badge verde inventado.
 
 ## 5. Qué se puede abrir en Arbiscan ahora mismo
 
-Los seis contratos están desplegados en **Arbitrum Sepolia** (chain `421614`). Fuente única: [`chain/deployments/421614.json`](../../chain/deployments/421614.json).
+Los seis contratos están desplegados en **Arbitrum Sepolia** (chain `421614`). Fuente única: [`chain/deployments/421614.json`](../chain/deployments/421614.json).
 
 | Contrato                | Qué prueba delante del jurado                                  |
 | ----------------------- | -------------------------------------------------------------- |
