@@ -8,6 +8,7 @@ import { defineConfig, devices } from '@playwright/test';
  * levanta es solo el dev server de Vite, sin `@app/api` ni Postgres.
  */
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
+const PREVIEW_PORT = new URL(BASE_URL).port || '5173';
 
 /** El diseño Nocturne es desktop-first (~1280px+); 1440x900 es el ancho de referencia. */
 const VIEWPORT = { width: 1440, height: 900 };
@@ -84,9 +85,11 @@ export default defineConfig({
     //
     // Con `preview` son ~5 peticiones. Y se verifica el CSS que realmente se
     // despliega, no el que emite Vite en desarrollo, que es el que importa.
-    command: 'pnpm run build && pnpm run preview --port 5173 --strictPort',
+    command: `pnpm run build && pnpm run preview --port ${PREVIEW_PORT} --strictPort`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    // Reutilizar cualquier listener en el puerto puede ejecutar un bundle viejo
+    // y hacer que los mocks tipados se validen contra otro contrato.
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });
