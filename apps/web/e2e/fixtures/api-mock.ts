@@ -356,10 +356,13 @@ export function buildChainStatus(
     headBlock: '297265110',
     deploymentBlock: '297286907',
     explorerBaseUrl,
+    // Los seis con bytecode: el despliegue sano. Los casos degradados se piden
+    // por `overrides.contracts`, no cambiando este default.
     contracts: Object.entries(addresses).map(([name, address]) => ({
       name,
       address,
       explorerUrl: `${explorerBaseUrl}/address/${address}`,
+      bytecode: 'present',
     })),
     ...overrides,
   });

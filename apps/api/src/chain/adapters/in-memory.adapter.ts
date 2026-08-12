@@ -3,9 +3,11 @@ import {
   AssetNotFoundError,
   AssetStatus,
   InvalidChainTransitionError,
+  type Address,
   type Attestation,
   type AttestInput,
   type AssetId,
+  type Hex,
   type BorrowingBaseInput,
   type BorrowingBaseResult,
   type ChainNetworkStatus,
@@ -38,6 +40,17 @@ export class InMemoryChainAdapter implements ChainPort {
     // No cadena, no bloques. Devolver un número acá sería exactamente el dato
     // falso que este adapter se prohíbe inventar.
     return { network: 'in-memory', chainId: null, safeBlock: null, headBlock: null };
+  }
+
+  async getCode(_address: Address): Promise<Hex | null> {
+    // Coherente con `computeBorrowingBase`: este adapter no inventa hechos de
+    // cadena. Un bytecode falso simularía un despliegue que no existe, y `null`
+    // sería peor todavía — afirmaría "confirmado que ahí no hay nada" cuando en
+    // realidad no hay red donde confirmarlo. Fallar es la única lectura honesta.
+    throw new Error(
+      'El adapter en memoria no tiene cadena donde leer bytecode. Confirmar un despliegue ' +
+        'exige un RPC real: usa CHAIN_ADAPTER=arbitrum.',
+    );
   }
 
   async registerAsset(input: RegisterAssetInput): Promise<TxRef> {

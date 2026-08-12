@@ -190,6 +190,16 @@ export interface ChainPort {
    * unreachable or answers for a chain other than the deployment's.
    */
   getNetworkStatus(): Promise<ChainNetworkStatus>;
+  /**
+   * Bytecode desplegado en una dirección.
+   *
+   * Devuelve `null` cuando la cuenta no tiene código: eso es un hecho leído,
+   * no un fallo. Un RPC que no responde debe **rechazar**, nunca resolver a
+   * `null` — quien llama tiene que poder distinguir "confirmado que ahí no hay
+   * nada" de "no se pudo confirmar". Colapsar ambos en un booleano haría que
+   * un RPC con hipo se vea igual que un despliegue inexistente.
+   */
+  getCode(address: Address): Promise<Hex | null>;
   registerAsset(input: RegisterAssetInput): Promise<TxRef>;
   attest(input: AttestInput): Promise<TxRef>;
   revokeAttestation(input: RevokeAttestationInput): Promise<TxRef>;

@@ -28,6 +28,7 @@ import {
 interface Reader {
   getChainId(): Promise<number>;
   getBlock(parameters: object): Promise<{ number: bigint }>;
+  getCode(parameters: object): Promise<Hex | undefined>;
   readContract(parameters: object): Promise<unknown>;
   getContractEvents(parameters: object): Promise<AttestationLog[]>;
 }
@@ -144,6 +145,21 @@ export class ArbitrumChainAdapter implements ChainPort {
       this.reader.getBlock({ blockTag: 'latest' }),
     ]);
     return { network: 'arbitrum', chainId, safeBlock: safe.number, headBlock: head.number };
+  }
+
+  /**
+   * Bytecode en una dirección, anclado al bloque `safe` como el resto de las
+   * lecturas — con `blockTag` en vez de resolver el bloque aparte, porque
+   * `getNetworkStatus` ya paga esa consulta y acá se llama seis veces seguidas.
+   *
+   * La identidad de la cadena la valida el liveness probe antes de que esto
+   * corra; repetir `assertChain()` por contrato solo duplicaría el tráfico.
+   */
+  async getCode(address: Address): Promise<Hex | null> {
+    const code = await this.reader.getCode({ address, blockTag: 'safe' });
+    // Un nodo responde `0x` (o nada) para una cuenta sin código. Devolverlo tal
+    // cual haría que una dirección vacía pase por desplegada.
+    return code && code !== '0x' ? code : null;
   }
 
   async getAsset(assetId: AssetId): Promise<OnChainAsset | null> {
