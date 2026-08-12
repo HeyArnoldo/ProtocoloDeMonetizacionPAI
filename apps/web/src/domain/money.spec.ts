@@ -5,6 +5,8 @@ import {
   formatDueDate,
   formatMinorUnits,
   formatSharePercent,
+  formatTokenUnits,
+  minorUnitsToTokenUnits,
   sharePercent,
 } from './money';
 
@@ -88,5 +90,31 @@ describe('formatBps', () => {
     expect(formatBps(5280)).toBe('52.8%');
     expect(formatBps(420)).toBe('4.2%');
     expect(formatBps(1)).toBe('0.01%');
+  });
+});
+
+describe('escala del token frente a los centavos', () => {
+  it('traduce unidades de mUSDC a dólares con sus seis decimales', () => {
+    expect(formatTokenUnits('5000000000')).toBe('USD 5,000.00');
+    expect(formatTokenUnits('1')).toBe('USD 0.000001');
+    expect(formatTokenUnits('0')).toBe('USD 0.00');
+  });
+
+  it('deja ver el error clásico: centavos escritos donde van unidades del token', () => {
+    // 5218641 centavos son USD 52.186,41. Escritos en el campo del principal,
+    // que va en unidades de 6 decimales, valen USD 5,21 — el bug que hacía
+    // revertir el fondeo.
+    expect(formatTokenUnits('5218641')).toBe('USD 5.218641');
+  });
+
+  it('convierte centavos a unidades del token sin pasar por coma flotante', () => {
+    expect(minorUnitsToTokenUnits('5218641')).toBe('52186410000');
+    expect(minorUnitsToTokenUnits('0')).toBe('0');
+  });
+
+  it('no afirma nada cuando el texto no es un entero positivo', () => {
+    expect(formatTokenUnits('')).toBeNull();
+    expect(formatTokenUnits('12.5')).toBeNull();
+    expect(formatTokenUnits('-1')).toBeNull();
   });
 });

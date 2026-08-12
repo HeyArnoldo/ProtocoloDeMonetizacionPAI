@@ -81,3 +81,37 @@ export function formatBps(bps: number): string {
   const percent = (bps / 100).toFixed(2).replace(/\.?0+$/, '');
   return `${percent}%`;
 }
+
+/**
+ * Decimales de `MockUSDC`, verificados on-chain con `decimals()`.
+ *
+ * Conviven dos escalas en el protocolo y confundirlas ya costó un bug: las
+ * cuotas y la base prestable van en centavos (`MINOR_UNITS_PER_UNIT`), pero el
+ * token mueve unidades de seis decimales. El factor entre ambas es 10.000.
+ */
+const TOKEN_DECIMALS = 6n;
+const TOKEN_UNITS_PER_UNIT = 10n ** TOKEN_DECIMALS;
+const POSITIVE_INTEGER = /^\d+$/;
+
+/**
+ * Unidades del token como dólares legibles, o `null` si el texto no es un
+ * entero. Devolver `null` en vez de `USD 0.00` evita afirmar un monto sobre
+ * una entrada que el usuario todavía está escribiendo.
+ */
+export function formatTokenUnits(amount: string): string | null {
+  if (!POSITIVE_INTEGER.test(amount)) return null;
+
+  const total = BigInt(amount);
+  const units = total / TOKEN_UNITS_PER_UNIT;
+  const fraction = (total % TOKEN_UNITS_PER_UNIT).toString().padStart(Number(TOKEN_DECIMALS), '0');
+  // Se recortan los ceros de la derecha pero nunca por debajo de dos decimales:
+  // el dinero se lee con centavos aunque el token permita seis.
+  const trimmed = fraction.replace(/0+$/, '').padEnd(2, '0');
+
+  return `USD ${groupThousands(units.toString())}.${trimmed}`;
+}
+
+/** Centavos a unidades del token. Entero puro: el factor es exacto. */
+export function minorUnitsToTokenUnits(amountMinor: string | bigint): string {
+  return (BigInt(amountMinor) * (TOKEN_UNITS_PER_UNIT / MINOR_UNITS_PER_UNIT)).toString();
+}

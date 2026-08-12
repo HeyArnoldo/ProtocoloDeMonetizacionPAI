@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
@@ -31,10 +32,20 @@ contract CollateralVault {
         State state;
     }
 
+    /// @dev `amountMinor` y `borrowingBaseMinor` viajan en centavos: dos decimales.
+    uint8 private constant MINOR_UNIT_DECIMALS = 2;
+
     AssetRegistry public immutable registry;
     PAICertificate public immutable certificate;
     BorrowingBaseEngine public immutable engine;
     IERC20 public immutable token;
+    /// @notice Factor que lleva centavos a unidades del token. Con USDC de 6
+    ///         decimales vale 10.000.
+    /// @dev El motor de riesgo razona en centavos y el token mueve sus propias
+    ///      unidades. Sin este factor el mismo `uint128` significaría dos cosas
+    ///      distintas en dos líneas contiguas, y el préstamo transferiría
+    ///      10.000 veces menos de lo que el colateral respalda.
+    uint256 public immutable principalScale;
     mapping(bytes32 assetId => Loan) private _loans;
 
     event LoanOriginated(
@@ -71,10 +82,13 @@ contract CollateralVault {
                 || address(engine_) == address(0) || address(token_) == address(0)
                 || address(certificate_.registry()) != address(registry_)
         ) revert InvalidConfiguration();
+        uint8 tokenDecimals = IERC20Metadata(address(token_)).decimals();
+        if (tokenDecimals < MINOR_UNIT_DECIMALS) revert InvalidConfiguration();
         registry = registry_;
         certificate = certificate_;
         engine = engine_;
         token = token_;
+        principalScale = 10 ** (tokenDecimals - MINOR_UNIT_DECIMALS);
     }
 
     function originate(
@@ -100,7 +114,13 @@ contract CollateralVault {
         ) {
             revert InvalidTerms();
         }
-        if (principal > _borrowingBase(asset.merkleRoot, receivables, proof, proofFlags, params)) {
+        // `principal` se denomina en unidades del token; la base sale del motor
+        // en centavos. Se escala la base, no el principal: dividir el principal
+        // dejaría pasar los restos por debajo del centavo.
+        uint256 maxPrincipal = _borrowingBase(
+            asset.merkleRoot, receivables, proof, proofFlags, params
+        ) * principalScale;
+        if (principal > maxPrincipal) {
             revert PrincipalExceedsBorrowingBase();
         }
 
