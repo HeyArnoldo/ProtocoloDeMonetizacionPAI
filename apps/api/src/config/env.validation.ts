@@ -66,7 +66,12 @@ export const envSchema = z
     MOCK_USDC_ADDRESS: z.string().optional(),
 
     // Storage S3-compatible. `STORAGE_ENDPOINT` es opcional para AWS S3 y R2.
-    STORAGE_ENDPOINT: z.string().url().optional(),
+    // Docker Compose y Coolify no distinguen "sin definir" de "vacía": la envían
+    // como '' y sin normalizarla la API no arrancaría por una variable opcional.
+    STORAGE_ENDPOINT: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().url().optional(),
+    ),
     STORAGE_REGION: z.string().min(1),
     STORAGE_BUCKET: z.string().min(1),
     STORAGE_ACCESS_KEY: z.string().min(1),

@@ -17,6 +17,15 @@ describe('roleForEmail', () => {
     expect(roleForEmail(email, env)).toBe(expected);
   });
 
+  // Docker Compose y Coolify entregan '' cuando la variable se declara y nadie
+  // la rellena. Una entrada en blanco daría el rol a cualquier email vacío.
+  it('ignores empty allowlists without inventing a blank entry', () => {
+    const emptyEnv = { ADMIN_EMAIL: '', CERTIFIER_EMAILS: '', FUND_EMAILS: '' };
+
+    expect(roleForEmail('anyone@example.com', emptyEnv)).toBe(UserRole.PYME);
+    expect(configuredRoleEntries(emptyEnv)).toEqual([]);
+  });
+
   it('deduplicates entries with deterministic role precedence', () => {
     expect(configuredRoleEntries(env)).toEqual([
       { email: 'admin@example.com', role: UserRole.ADMIN },
