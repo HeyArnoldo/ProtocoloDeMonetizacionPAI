@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,30 +7,46 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CodeBlock } from '@/components/panel/code-block';
 import { CardBody, CardKicker, PanelCard } from '@/components/panel/panel-card';
+import { validateDossierAssetId } from '@/domain/dossier-view';
 import { buildLoanIntentRequest, type LoanAction } from '@/domain/loan-intent';
 import { formatTokenUnits } from '@/domain/money';
 import { useDisclosureSelection } from '@/hooks/use-disclosure-selection';
 import { useTransactionIntent } from '@/hooks/use-transaction-intent';
 import { useWalletSubmitter } from '@/hooks/use-wallet-submitter';
-const ASSET_STORAGE_KEY = 'pai:disclosure-asset-id';
-function rememberedAssetId(): string {
-  try {
-    return window.sessionStorage.getItem(ASSET_STORAGE_KEY) ?? '';
-  } catch {
-    return '';
-  }
-}
+
 export default function LoanPage() {
+  // Aquí vivía una copia literal de la clave de `sessionStorage`, sin ámbito de
+  // usuario y leída a mano: esta pantalla podía estar preparando el préstamo de
+  // un expediente distinto del que el resto del panel tenía abierto.
   const disclosure = useDisclosureSelection();
+  const [searchParams, setSearchParams] = useSearchParams();
   const submitter = useWalletSubmitter();
   const transaction = useTransactionIntent(submitter);
   const [action, setAction] = useState<LoanAction>('originate');
-  const [assetId, setAssetId] = useState(rememberedAssetId);
+  const [assetId, setAssetId] = useState(disclosure.assetId ?? '');
   const [lender, setLender] = useState('');
   const [principal, setPrincipal] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const busy = transaction.status === 'preparing' || transaction.status === 'submitting';
+
+  // Elegir el expediente en otra pantalla se refleja aquí sin recargar.
+  useEffect(() => setAssetId(disclosure.assetId ?? ''), [disclosure.assetId]);
+
+  const typeAssetId = (value: string) => {
+    const next = value.trim();
+    setAssetId(next);
+    // Un identificador a medias no es una selección: compartirlo tecla a tecla
+    // pediría el expediente `0x1`, `0x1d`… y descartaría la prueba construida
+    // en `/divulgacion` a mitad de escritura.
+    if (next !== '' && validateDossierAssetId(next) !== null) return;
+    disclosure.selectAsset(next || null);
+    // `?assetId=` gana sobre lo recordado: sin reescribirlo, el campo quedaría
+    // congelado en el expediente que traía el enlace.
+    if (searchParams.has('assetId')) {
+      setSearchParams(next ? { assetId: next } : {}, { replace: true });
+    }
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setValidationError(null);
@@ -91,10 +108,13 @@ export default function LoanPage() {
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="loan-asset-id">Asset ID</Label>
+            {/* Escribir aquí cambia la selección de todo el panel, no una copia
+                local: la timeline, la divulgación y esta pantalla tienen que
+                estar hablando del mismo expediente. */}
             <Input
               id="loan-asset-id"
               value={assetId}
-              onChange={(event) => setAssetId(event.target.value.trim())}
+              onChange={(event) => typeAssetId(event.target.value)}
               placeholder="0x… bytes32"
               autoComplete="off"
               disabled={busy}

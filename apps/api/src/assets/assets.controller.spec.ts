@@ -1,3 +1,4 @@
+import { UserRole } from '@app/contracts';
 import type { AssetsService } from './assets.service';
 import { AssetsController } from './assets.controller';
 import type { User } from '../users/user.entity';
@@ -35,9 +36,21 @@ describe('AssetsController', () => {
 
       await controller[method](user, 'asset-1');
 
-      expect(service[method]).toHaveBeenCalledWith('user-1', 'asset-1');
+      expect(service[method]).toHaveBeenCalledWith(user, 'asset-1');
     },
   );
+
+  it('delegates the listing with the full requester, not just its id', async () => {
+    const service = { list: jest.fn() } as unknown as jest.Mocked<AssetsService>;
+    const controller = new AssetsController(service);
+    // El rol viaja entero porque la visibilidad del listado depende de él: con
+    // solo el id, el servicio no podría distinguir un ADMIN de una PYME.
+    const user = { id: 'admin-1', role: UserRole.ADMIN } as User;
+
+    await controller.list(user);
+
+    expect(service.list).toHaveBeenCalledWith(user);
+  });
 
   it('delegates asset retrieval by identifier to the service', async () => {
     const service = { get: jest.fn() } as unknown as jest.Mocked<AssetsService>;
@@ -47,7 +60,7 @@ describe('AssetsController', () => {
     const user = { id: 'user-1' } as User;
     await controller.get(user, assetId);
 
-    expect(service.get).toHaveBeenCalledWith(user.id, assetId);
+    expect(service.get).toHaveBeenCalledWith(user, assetId);
   });
 
   it('delegates the chain snapshot with authenticated ownership', async () => {
@@ -57,7 +70,7 @@ describe('AssetsController', () => {
 
     await controller.chainSnapshot(user, 'asset-1');
 
-    expect(service.chainSnapshot).toHaveBeenCalledWith('user-1', 'asset-1');
+    expect(service.chainSnapshot).toHaveBeenCalledWith(user, 'asset-1');
   });
 
   it('delegates the certification-safe chain snapshot without an owner identity', async () => {
