@@ -241,6 +241,16 @@ describe('InMemoryChainAdapter', () => {
     });
   });
 
+  describe('getCode', () => {
+    it('falla explicitamente en vez de fingir un despliegue o negarlo', async () => {
+      // Sin cadena no hay bytecode que leer. Devolver algo parecido a codigo
+      // seria inventar un despliegue; devolver null afirmaria "confirmado que
+      // ahi no hay nada", y tampoco es cierto: no hay red donde confirmarlo.
+      // La unica respuesta honesta es no responder.
+      await expect(chain.getCode(CONTROLLER)).rejects.toThrow(/adapter en memoria/i);
+    });
+  });
+
   describe('hashes sinteticos', () => {
     it('son distintos entre transacciones', async () => {
       const first = await chain.registerAsset(registration());

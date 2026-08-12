@@ -356,10 +356,13 @@ export function buildChainStatus(
     headBlock: '297265110',
     deploymentBlock: '297286907',
     explorerBaseUrl,
+    // Los seis con bytecode: el despliegue sano. Los casos degradados se piden
+    // por `overrides.contracts`, no cambiando este default.
     contracts: Object.entries(addresses).map(([name, address]) => ({
       name,
       address,
       explorerUrl: `${explorerBaseUrl}/address/${address}`,
+      bytecode: 'present',
     })),
     ...overrides,
   });
@@ -379,7 +382,13 @@ export function buildUnreachableChainStatus(reason = 'RPC_UNAVAILABLE'): ChainSt
     network: 'arbitrum',
     chainId: 421614,
     deploymentBlock: '297286907',
-    contracts: live.status === 'live' ? live.contracts : [],
+    // Sin RPC no se confirma nada: heredar el `bytecode: 'present'` del estado
+    // vivo modelaría un imposible —contratos verificados contra una red que no
+    // respondió— y es justo la confusión que el enum de tres valores evita.
+    contracts:
+      live.status === 'live'
+        ? live.contracts.map((contract) => ({ ...contract, bytecode: 'unconfirmed' as const }))
+        : [],
     explorerBaseUrl: 'https://sepolia.arbiscan.io',
     reason,
   });

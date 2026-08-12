@@ -243,6 +243,42 @@ describe('chain runtime boundary', () => {
     await expect(adapter(reader()).registerAsset({} as never)).rejects.toThrow(/never signs/);
   });
 
+  it('reads contract bytecode anchored at the safe block', async () => {
+    const getCode = jest.fn().mockResolvedValue('0x60806040');
+
+    await expect(
+      adapter(reader({ getCode })).getCode(deployment.addresses.assetRegistry),
+    ).resolves.toBe('0x60806040');
+    expect(getCode).toHaveBeenCalledWith({
+      address: deployment.addresses.assetRegistry,
+      blockTag: 'safe',
+    });
+  });
+
+  it('normalizes an empty account to null instead of returning a code-shaped lie', async () => {
+    // Un nodo responde `0x` (o nada) para una cuenta sin codigo. Dejar pasar
+    // ese `0x` como si fuera bytecode haria que una direccion vacia se vea
+    // desplegada.
+    await expect(
+      adapter(reader({ getCode: jest.fn().mockResolvedValue('0x') })).getCode(
+        deployment.addresses.mockUsdc,
+      ),
+    ).resolves.toBeNull();
+    await expect(
+      adapter(reader({ getCode: jest.fn().mockResolvedValue(undefined) })).getCode(
+        deployment.addresses.mockUsdc,
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it('rejects when the RPC fails instead of degrading into "no code here"', async () => {
+    await expect(
+      adapter(reader({ getCode: jest.fn().mockRejectedValue(new Error('rate limited')) })).getCode(
+        deployment.addresses.mockUsdc,
+      ),
+    ).rejects.toThrow(/rate limited/);
+  });
+
   it('aggregates registry, certificate, loan, and attestations at one safe block', async () => {
     const readContract = jest.fn(
       ({ functionName }: { functionName: string; blockNumber?: bigint }) => {

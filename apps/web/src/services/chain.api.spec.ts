@@ -15,6 +15,7 @@ const live = {
       name: 'assetRegistry',
       address,
       explorerUrl: `https://sepolia.arbiscan.io/address/${address}`,
+      bytecode: 'present',
     },
   ],
 } as const;
@@ -25,6 +26,22 @@ describe('chain status client', () => {
 
     await expect(createChainStatusClient({ get }).fetch()).resolves.toEqual(live);
     expect(get).toHaveBeenCalledWith('/chain/status');
+  });
+
+  it('lee un contrato sin campo `bytecode` como no confirmado, nunca como desplegado', async () => {
+    // Una API vieja que todavía no verifica bytecode no puede hacer que el
+    // panel afirme un despliegue. El silencio se lee como duda, no como sí.
+    const legacy = {
+      ...live,
+      contracts: [{ name: 'assetRegistry', address, explorerUrl: null }],
+    };
+    const get = vi.fn().mockResolvedValue({ data: legacy });
+
+    const status = await createChainStatusClient({ get }).fetch();
+
+    expect(status).toMatchObject({
+      contracts: [{ name: 'assetRegistry', bytecode: 'unconfirmed' }],
+    });
   });
 
   it('accepts the unreachable state: a failing RPC is a status, not an error', async () => {

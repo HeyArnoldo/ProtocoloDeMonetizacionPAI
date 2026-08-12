@@ -3,6 +3,17 @@ import { z } from 'zod';
 const addressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const blockSchema = z.string().regex(/^\d+$/);
 
+/**
+ * Result of reading the bytecode at a contract's configured address.
+ *
+ * Tres valores, no un booleano. Una dirección configurada no prueba nada: tras
+ * un redespliegue puede apuntar a una cuenta vacía. Pero "no se pudo confirmar"
+ * (el RPC falló) y "confirmado que no hay nada" (la cuenta no tiene código) son
+ * hechos distintos, y el panel no puede pintarlos igual: el primero es una
+ * duda, el segundo es un despliegue roto.
+ */
+export const chainBytecodeSchema = z.enum(['present', 'absent', 'unconfirmed']);
+
 /** Contract of the deployment, with its explorer link when one is configured. */
 export const chainContractSchema = z.object({
   name: z.enum([
@@ -15,6 +26,12 @@ export const chainContractSchema = z.object({
   ]),
   address: addressSchema,
   explorerUrl: z.url().nullable(),
+  /**
+   * Ausente por defecto: una API vieja que todavía no verifica bytecode se lee
+   * como `unconfirmed`, jamás como `present`. Es la única lectura segura — el
+   * silencio no puede convertirse en una afirmación de que está desplegado.
+   */
+  bytecode: chainBytecodeSchema.default('unconfirmed'),
 });
 
 /**
@@ -52,5 +69,6 @@ export const chainStatusSchema = z.discriminatedUnion('status', [
   }),
 ]);
 
+export type ChainBytecodeState = z.infer<typeof chainBytecodeSchema>;
 export type ChainContractRef = z.infer<typeof chainContractSchema>;
 export type ChainStatusResponse = z.infer<typeof chainStatusSchema>;
